@@ -1,0 +1,18 @@
+{
+  "name": "clic",
+  "version": "0.0.1",
+  "description": "CLIC analizer",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "Martin Brugnara <mb@disi.unitn.eu>",
+  "license": "",
+  "dependencies": {
+    "npm": "^6.1.0"
+  },
+  "devDependencies": {
+    "electron": "^2.0.2",
+    "electron-packager": "^12.1.0"
+  }
+}

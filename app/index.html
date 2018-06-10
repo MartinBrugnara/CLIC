@@ -2,14 +2,65 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Hello World!</title>
+    <title>Struttura del bando</title>
 
+    <link rel="stylesheet" href="static/css/bootstrap.min.css">
     <link rel="stylesheet" href="static/css/shared.css">
+
 </head>
 <body>
-    <h1>Hello World!</h1>
-    We are using node <script>document.write(process.versions.node)</script>,
-    Chrome <script>document.write(process.versions.chrome)</script>,
-    and Electron <script>document.write(process.versions.electron)</script>.
+
+    <h3>Offerta Economica</h3>
+    <!-- TODO: shall we also support prezzo fizzo? -->
+    Modalit&agrave;:
+    <div class="btn-group btn-group-toggle" data-toggle="buttons">
+        <label class="btn btn-secondary active">
+            <input type="radio" name="eco_mode" id="ribasso" autocomplete="off" checked> Ribasso
+        </label>
+        <label class="btn btn-secondary">
+            <input type="radio" name="eco_mode" id="prezzo" autocomplete="off"> Prezzo
+        </label>
+    </div>
+
+    <!-- TODO: enable only if eco_mode === ribasso -->
+    <div class="form-group">
+        <label for="eco_base_asta">Base d'asta</label>
+        <input type="number" min="0" step="0.01" class="form-control" name="eco_base_asta" id="eco_base_asta" aria-describedby="eco_base_asta_help" value="0.00">
+        <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small>
+    </div>
+
+
+    <div class="form-group">
+        <label for="eco_func">Formula</label>
+        <select class="form-control" id="eco_func">
+            <!-- TODO: populate from js (we may also need to ask for more paramteres) -->
+        </select>
+    </div>
+
+    <span id="test">{{ message }}</span>
+
+    <h3>Offerta Tecnica</h3>
+    <ul id="tech_lst">
+        <criterio
+            v-for="(model, index) in criteri"
+            :key="index"
+            :model="model" />
+    </ul>
+
+    <script type="text/x-template" id="tpl_criterio">
+        <li>
+            <span>{{ model.nome }}</span>
+            <ul v-if="model.subcriteri">
+                <criterio
+                    v-for="(model, index) in model.subcriteri"
+                    :key="index"
+                    :model="model" />
+            </ul>
+            <span v-else>type and maybe func: {{ model.test }}</span>
+        </li>
+    </script>
+
+    <script src="static/js/vue.min.js"></script>
+    <script src="static/js/structure.js"></script>
 </body>
 </html>

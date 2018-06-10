@@ -28,7 +28,7 @@ function createWindow () {
     win.loadFile('index.html')
 
     // Open the DevTools.
-    // win.webContents.openDevTools()
+    win.webContents.openDevTools()
     // TODO: expose via menu alongside licenses.
 
     // Emitted when the window is closed.

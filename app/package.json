@@ -9,6 +9,7 @@
   "author": "Martin Brugnara <mb@disi.unitn.eu>",
   "license": "",
   "dependencies": {
+    "bootstrap": "^4.1.1",
     "npm": "^6.1.0"
   },
   "devDependencies": {

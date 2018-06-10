@@ -105,37 +105,63 @@ function setMenuBar() {
                 // On OSX this is (automagically) replaced with the App name.
                 label: 'FromScratch',
                 submenu: [{
+                    label: 'About',
+                    selector: 'about:'
+                }, {
+                    type: 'separator'
+                }, {
+                    /*
+                    label: 'Services',
+                    selector: 'services:',
+                    submenu: [],
+                }, {
+                    type: 'separator'
+                }, {
+                    label: 'Hide',
+                    accelerator: 'CmdOrCtrl+H',
+                    selector: 'hide:'
+                }, {
+                    label: 'Hide Others',
+                    accelerator: 'Shift+CmdOrCtrl+H',
+                    selector: 'hideothers'
+                }, {
+                    label: 'Show All',
+                    selector: 'unhide'
+                }, {
+                    type: 'separator'
+                }, {
+                */
                     label: 'Quit',
                     accelerator: 'CmdOrCtrl+Q',
                     click: () => { app.quit(); }
                 }]
             },
             2: {
-                label: 'Edit',
+                label: 'Modifica',
                 submenu: [{
-                    label: 'Undo',
+                    label: 'Annulla',
                     accelerator: 'CmdOrCtrl+Z',
                     selector: 'undo:'
                 }, {
-                    label: 'Redo',
+                    label: 'Ripeti',
                     accelerator: 'Shift+CmdOrCtrl+Z',
                     selector: 'redo:'
                 }, {
                     type: 'separator'
                 }, {
-                    label: 'Cut',
+                    label: 'Taglia',
                     accelerator: 'CmdOrCtrl+X',
                     selector: 'cut:'
                 }, {
-                    label: 'Copy',
+                    label: 'Copia',
                     accelerator: 'CmdOrCtrl+C',
                     selector: 'copy:'
                 }, {
-                    label: 'Paste',
+                    label: 'Incolla',
                     accelerator: 'CmdOrCtrl+V',
                     selector: 'paste:'
                 }, {
-                    label: 'Select All',
+                    label: 'Seleziona tutto',
                     accelerator: 'CmdOrCtrl+A',
                     selector: 'selectAll:'
                 }]

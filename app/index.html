@@ -11,7 +11,7 @@
 <body>
 
     <h3>Offerta Economica</h3>
-    <!-- TODO: shall we also support prezzo fizzo? -->
+    <!-- TODO: shall we also support prezzo fisso? -->
     Modalit&agrave;:
     <div class="btn-group btn-group-toggle" data-toggle="buttons">
         <label class="btn btn-secondary active">
@@ -47,14 +47,17 @@
             :model="model" />
     </ul>
 
+	<!-- for style see input group from bootstrap -->
     <script type="text/x-template" id="tpl_criterio">
         <li>
-            <span>{{ model.nome }}</span>
+			<input type="text" class="form-control" v-model.trim="model.nome">
+			<!-- Critero: nome, peso, tipo, funzione (se applicabile da tipo) -->
             <ul v-if="model.subcriteri">
                 <criterio
                     v-for="(model, index) in model.subcriteri"
-                    :key="index"
-                    :model="model" />
+					v-bind:index="index"
+					v-bind:key="index"
+					v-bind:model="model" />
             </ul>
             <span v-else>type and maybe func: {{ model.test }}</span>
         </li>

@@ -1,4 +1,5 @@
-const {app, BrowserWindow, Menu, globalShortcut} = require('electron')
+const {app, BrowserWindow, Menu, MenuItem, globalShortcut} = require('electron')
+const fs = require('fs')
 
 const NotImplementedError = () => {console.error('Not yet implemented')};
 
@@ -7,7 +8,7 @@ const NotImplementedError = () => {console.error('Not yet implemented')};
 let win
 
 function createWindow () {
-    setMenuBar()
+    extendMenuBar();
 
     // Create the browser window.
     win = new BrowserWindow({
@@ -27,10 +28,6 @@ function createWindow () {
     // and load the index.html of the app.
     win.loadFile('index.html')
 
-    // Open the DevTools.
-    win.webContents.openDevTools()
-    // TODO: expose via menu alongside licenses.
-
     // Emitted when the window is closed.
     win.on('closed', () => {
         // Dereference the window object, usually you would store windows
@@ -40,10 +37,23 @@ function createWindow () {
     })
 }
 
-function setMenuBar() {
-    console.log("platform:" + process.platform);
+function lsExamples() {
+    const examples_dir = __dirname + '/examples/';
+    return fs.readdirSync(examples_dir).map((fname) => {
+        return {
+            label: fname.replace(/\.json$/g, ''),
+            click: () => {
+                const fpath = examples_dir + fname;
+                win.webContents.send('load_bando', {fpath: fpath, read_only: true});
+            },
+        };
+    });
+}
 
-    let template = [{
+function extendMenuBar() {
+    let m = Menu.getApplicationMenu();
+
+    let fileMI = new MenuItem({
         label: 'File',
         submenu: [{
             label: 'Apri...',
@@ -52,8 +62,7 @@ function setMenuBar() {
         }, {
             label: 'Esempi',
             accelerator: 'Shift+CmdOrCtrl+O',
-            click: NotImplementedError,
-            // TODO: consider dinamic submenu, populated w/Cozzio samples.
+            submenu: lsExamples(),
         }, {
             label: 'Nuovo',
             accelerator: 'CmdOrCtrl+N',
@@ -70,8 +79,12 @@ function setMenuBar() {
             accelerator: 'Shift+CmdOrCtrl+S',
             click: NotImplementedError,
         }]
-    }, {
-        label: 'Vista',
+    });
+
+    console.log("MI build");
+
+    let viewMI = new MenuItem({
+        label: 'Mode',
         // TODO: Find better names to provide meningfull accelerators.
         submenu: [{
             label: 'Struttra',
@@ -80,104 +93,14 @@ function setMenuBar() {
             label: 'Simulazione',
             click: NotImplementedError,
         }]
-    }];
+    });
 
-    // Append exit option to File if not.
-    if (process.platform !== 'darwin') {
-        template[0].submenu.push({type: 'separator'});
-        template[0].submenu.push({
-            label: 'Quit',
-            accelerator: 'CmdOrCtrl+Q',
-            click: () => { app.quit(); }
-        });
-    }
-
-    if (process.platform === 'darwin') {
-         /* structure: position -> patch
-          * Position is relative to when the element is actually added.
-          * Elements are added in order from first to last.
-         */
-        let osx_patch = {
-            0: {
-                // TODO: put all osx classic-useless actions.
-                // about | preference (?) | services (?) | hide, hide other, show all | quit
-
-                // On OSX this is (automagically) replaced with the App name.
-                label: 'FromScratch',
-                submenu: [{
-                    label: 'About',
-                    selector: 'about:'
-                }, {
-                    type: 'separator'
-                }, {
-                    /*
-                    label: 'Services',
-                    selector: 'services:',
-                    submenu: [],
-                }, {
-                    type: 'separator'
-                }, {
-                    label: 'Hide',
-                    accelerator: 'CmdOrCtrl+H',
-                    selector: 'hide:'
-                }, {
-                    label: 'Hide Others',
-                    accelerator: 'Shift+CmdOrCtrl+H',
-                    selector: 'hideothers'
-                }, {
-                    label: 'Show All',
-                    selector: 'unhide'
-                }, {
-                    type: 'separator'
-                }, {
-                */
-                    label: 'Quit',
-                    accelerator: 'CmdOrCtrl+Q',
-                    click: () => { app.quit(); }
-                }]
-            },
-            2: {
-                label: 'Modifica',
-                submenu: [{
-                    label: 'Annulla',
-                    accelerator: 'CmdOrCtrl+Z',
-                    selector: 'undo:'
-                }, {
-                    label: 'Ripeti',
-                    accelerator: 'Shift+CmdOrCtrl+Z',
-                    selector: 'redo:'
-                }, {
-                    type: 'separator'
-                }, {
-                    label: 'Taglia',
-                    accelerator: 'CmdOrCtrl+X',
-                    selector: 'cut:'
-                }, {
-                    label: 'Copia',
-                    accelerator: 'CmdOrCtrl+C',
-                    selector: 'copy:'
-                }, {
-                    label: 'Incolla',
-                    accelerator: 'CmdOrCtrl+V',
-                    selector: 'paste:'
-                }, {
-                    label: 'Seleziona tutto',
-                    accelerator: 'CmdOrCtrl+A',
-                    selector: 'selectAll:'
-                }]
-            }};
-
-        for (let i in osx_patch)
-            template = template.slice(0, i)
-                .concat([osx_patch[i]])
-                .concat(template.slice(i));
-    }
-
-    // TODO: check if other platforms require special menu too.
-    var menubar = Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menubar);
+    // TODO: Check if this positions make sense on Windows & Linux
+    //       or if they need to be platform specific.
+    m.insert(1, fileMI);
+    m.insert(4, viewMI);
+    Menu.setApplicationMenu(m);
 }
-
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

@@ -12,21 +12,34 @@ const path = require('path')
  */
 
 // -- Registering custom components.
+let char_width = 8,
+    indent = 20; // must be the same as padding-left for ul.
 
 Vue.component('criterio', {
     template: '#tpl_criterio',
     props: {
         model: Object,
-        name: Object,
-    }
+        name: String,
+        depth: Number,
+    },
     computed: {
-        // just flattening the list
-        iter: function () {
-            rec = [];
-            for in this.model.
+        padding: function() {
+            // TODO: cache; do not recompute.
+            let mx = max_bando_depth()
+            let label = ((mx * 2 - 1) * char_width);
+            console.log([mx, label, (mx - this.depth - 1)]);
+            return (mx - this.depth - 1) * indent + label  + 'px';
         }
     }
 })
+
+let max_bando_depth = function() {
+    f = (b) => {
+        if (!b.subcriteri) return 1;
+        return Math.max.apply(Math, b.subcriteri.map(f)) + 1;
+    }
+    return Math.max.apply(Math, current.criteri.map(f)) + 1;
+}
 
 
 // -- Global state.

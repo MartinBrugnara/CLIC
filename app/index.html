@@ -57,73 +57,67 @@
 
 
         <h3>Offerta Tecnica</h3>
-        <table class="table">
-            <!--
-            <thead>
-                <tr>
-                    <th scope="col"></th>
-                    <th scope="col">&#931;</th>
-                    <th scope="col">Tipo</th>
-                    <th scope="col">&#120582;</th>
-                </tr>
-            </thead>
-            -->
-                <criterio
-                    v-for="(model, index) in criteri"
-                    v-bind:index="index"
-                    v-bind:model="model"
-                    v-bind:name="index+1" />
-        </table>
+        <ul class="nols">
+            <li value="-1"># - &#931; - Tipo - &#120582;</li>
+
+            <criterio
+                v-for="(model, index) in criteri"
+                v-bind:index="index"
+                v-bind:model="model"
+                v-bind:name="index+1"
+                v-bind:depth="1" />
+        </ul>
     </div>
 
     <!-- for style see input group from bootstrap -->
     <script type="text/x-template" id="tpl_criterio">
-        <!-- Can yield only one component. Following hack works, dunno why. -->
-        <!-- set colspann equal to the actual column number and then it works -->
-        <tr>
-            <td scope="row">p:{{ name }}</td>
-            <td><input width="4" type="number" min="0" max="100" class="form-control" v-model.number="model.peso"></td>
-            <td>
-                <select class="custom-select" v-model="model.tipo">
-                    <option value="Q">Q</option>
-                    <option value="D">D</option>
-                    <option value="T">T</option>
-                </select>
-            </td>
-            <td>
-                <!-- Note: hiding if got subcriteria -->
-                <!-- TODO: if Q -> Func, if T -> limits -->
-                <select
-                    v-if="!model.subcriteri && model.tipo=='Q'"
-                    class="custom-select"
-                    v-model="model.funzione">
+    <li>
+        <!-- style is hack for align -->
+    <form class="form-inline">
+            <label v-bind:style="{'min-width': padding}" class="my-1 mr-2">{{name}}</label>
 
-                    <option value="">func 1</option>
-                    <option value="">func 2</option>
-                    <option value="">func 3</option>
-                </select>
-                <span v-else> -- </span>
-                {{ model.subscriteri }}
-            </td>
-            <td>
-                <!-- TODO: func param -->
-                <span v-if="!model.subcriteri && model.tipo=='Q'">
-                    param
-                </span>
-                <span v-else> -- </span>
-            </td>
-        </tr>
+            <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                    <span class="input-group-text">&#931;</span>
+                </div>
+                <input type="number" min="0" max="100" class="form-control form-control" v-model.number="model.peso">
+                <div class="input-group-append">
+                    <span class="input-group-text">%</span>
+                </div>
+            </div>
 
-        <!-- v-if="model.subcriteri" -->
+            <select class="custom-select custom-select" v-model="model.tipo">
+                <option value="Q">Q</option>
+                <option value="D">D</option>
+                <option value="T">T</option>
+            </select>
+
+            <!-- Note: hiding if got subcriteria -->
+            <select
+                v-if="!model.subcriteri && model.tipo=='Q'"
+                class="custom-select custom-select"
+                v-model="model.funzione">
+
+                <option value="">func 1</option>
+                <option value="">func 2</option>
+                <option value="">func 3</option>
+            </select>
+
+            <!-- TODO: func param -->
+            <span v-if="!model.subcriteri && model.tipo=='Q'">param</span>
+        </form>
+
         <!-- Recursively enumerate subcriteria -->
-        <!--
-        <criterio
-            v-for="(model, index) in model.subcriteri"
-            v-bind:index="index"
-            v-bind:key="index"
-            v-bind:model="model"
-            v-bind:name="name + '.' + (index + 1)"/>
-        -->
+        <ul v-if="model.subcriteri">
+            <criterio
+                v-for="(model, index) in model.subcriteri"
+                v-bind:index="index"
+                v-bind:key="index"
+                v-bind:model="model"
+                v-bind:name="name + '.' + (index + 1)"
+                v-bind:depth="depth + 1"/>
+        </ul>
+    </li>
     </script>
 
     <script defer src="static/js/fontawesome-all.min.js"></script>

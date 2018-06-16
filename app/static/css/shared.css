@@ -1,1 +1,8 @@
 body { font: caption; }
+.nols, .nols ul, .nols ol {
+  list-style: none;
+  padding-left: 20px;
+}
+.nols {padding-left:0}
+.nols li {padding-top: .8rem}
+.nols label {justify-content: unset}

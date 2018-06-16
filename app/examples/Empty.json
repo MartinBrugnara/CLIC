@@ -8,8 +8,10 @@
     "criteri": [
         {"nome":"A","peso":15,"tipo":"D",
             "subcriteri": [
-                {"nome":"x","peso":15,"tipo":"Q"},
-                {"nome":"y","peso":14,"tipo":"Q"}
+                {"nome":"x","peso":15,"tipo":"Q",
+                    "subcriteri":[
+                        {"nome":"y","peso":14,"tipo":"Q"}
+                    ]}
             ]
         },
         {"nome":"B","peso":15,"tipo":"D"},

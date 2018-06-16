@@ -14,15 +14,32 @@ const path = require('path')
 // -- Registering custom components.
 
 Vue.component('criterio', {
-  template: '#tpl_criterio',
-  props: {
-    model: Object
-  },
+    template: '#tpl_criterio',
+    props: {
+        model: Object,
+        name: Object,
+    }
+    computed: {
+        // just flattening the list
+        iter: function () {
+            rec = [];
+            for in this.model.
+        }
+    }
 })
 
 
 // -- Global state.
-let current = null;
+let current;
+let app_status = {
+    fpath: '',
+    modified: false,
+    read_only: false,
+}
+window.vm_app_status = new Vue({
+    el: '#app_status',
+    data: app_status,
+})
 
 /* args: {fpath, read_only} */
 function loadBando(args) {
@@ -32,13 +49,18 @@ function loadBando(args) {
         let raw_content = fs.readFileSync(args.fpath, "utf8");
         let bando_data = JSON.parse(raw_content);
 
-        current = {
+        patch = {
             fpath: args.fpath,
-            bando: bando_data,
             modified: false,
             read_only: args.read_only || false,
         };
-        refreshGUI();
+
+        Object.keys(patch).forEach((key) => {
+            Vue.set(app_status, key, patch[key]);
+        });
+
+        current = bando_data,
+        refreshGUI(bando_data);
     } catch(err) {
         dialog.showErrorBox('Loading error',
             'Unable to load ' + args.fpath + '\n' + JSON.stringify(err));
@@ -49,7 +71,7 @@ function loadBando(args) {
 function refreshGUI() {
     if (!current) {
         // No bando loaded: load empty.
-        loadBando({fpath:  __dirname + '/examples/Empty.json'});
+        loadBando({fpath:  __dirname + '/examples/Empty.json', read_only:true});
         return;
     }
 
@@ -57,14 +79,18 @@ function refreshGUI() {
         // Init
         window.vm_tech_lst = new Vue({
             el: '#tech_lst',
-            data: current.bando,
+            data: current,
+            updated: () => {
+                app_status.modified = true;
+            }
         });
     }
 
     // Refresh
-    Object.keys(current.bando).forEach((key) => {
-        Vue.set(window.vm_tech_lst, key, current.bando[key]);
-    })
+    Object.keys(current).forEach((key) => {
+        Vue.set(window.vm_tech_lst, key, current[key]);
+    });
+
 }
 
 

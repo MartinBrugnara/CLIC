@@ -1,11 +1,17 @@
 {
+    "mod_economico": "prezzo",
     "base_asta": 1796673.12,
     "param": {
         "lvl1": false,
         "lvl2": false
     },
     "criteri": [
-        {"nome":"A","peso":15,"tipo":"D"},
+        {"nome":"A","peso":15,"tipo":"D",
+            "subcriteri": [
+                {"nome":"x","peso":15,"tipo":"Q"},
+                {"nome":"y","peso":14,"tipo":"Q"}
+            ]
+        },
         {"nome":"B","peso":15,"tipo":"D"},
         {"nome":"C","peso":14,"tipo":"D"},
         {"nome":"D","peso":14,"tipo":"D"},

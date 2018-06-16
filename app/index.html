@@ -11,71 +11,119 @@
 </head>
 <body>
 
-    <h3>Offerta Economica</h3>
-    <!-- TODO: shall we also support prezzo fisso? -->
-    Modalit&agrave;:
-    <div class="btn-group btn-group-toggle" data-toggle="buttons">
-        <label class="btn btn-secondary active">
-            <input type="radio" name="eco_mode" id="ribasso" autocomplete="off" checked> Ribasso
-        </label>
-        <label class="btn btn-secondary">
-            <input type="radio" name="eco_mode" id="prezzo" autocomplete="off"> Prezzo
-        </label>
+    <nav class="navbar navbar-dark bg-dark" id="app_status">
+        <!-- Navbar content -->
+        <a class="navbar-brand" href="#">CLIC</a>
+        <span class="navbar-text text-white"><strong>Bando:</strong> {{ fpath }}</span>
+        <div class="nav-item active flex-column">
+            <div><span v-bind:class="{invisible: !read_only}" style="width:100%" class="badge badge-danger">Sola lettura</span></div>
+            <div><span v-bind:class="{invisible: !modified}" style="width:100%" class="badge badge-warning">Modificato</span></div>
+        </div>
+    </nav>
+
+    <div id="tech_lst" class="container">
+        <h3>Offerta Economica</h3>
+        <!-- TODO: shall we also support prezzo fisso? -->
+
+        <div class="container">
+            <div class="form-row">
+                <div class="form-group col">
+                    <label for="eco_base_asta">Modalit&agrave;</label>
+                    <div class="form-check">
+                        <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="ribasso" value="ribasso" v-model="mod_economico">
+                        <label class="form-check-label" for="ribasso">Ribasso</label>
+                    </div>
+                    <div class="form-check">
+                        <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="prezzo" value="prezzo" v-model="mod_economico">
+                        <label class="form-check-label" for="prezzo">Prezzo</label>
+                    </div>
+                </div>
+
+                <div class="form-group col">
+                    <!-- TODO: enable only if eco_mode === ribasso -->
+                    <label for="eco_base_asta">Base d'asta</label>
+                    <input type="number" width="10" min="0" step="0.01" class="form-control" name="eco_base_asta" id="eco_base_asta" aria-describedby="eco_base_asta_help" v-model.number="base_asta">
+                    <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small>
+                </div>
+
+                <div class="form-group col">
+                    <label for="eco_func">Formula</label>
+                    <select class="form-control" id="eco_func">
+                        <!-- TODO: populate from js (we may also need to ask for more paramteres) -->
+                    </select>
+                </div>
+            </div>
+        </div>
+
+
+        <h3>Offerta Tecnica</h3>
+        <table class="table">
+            <!--
+            <thead>
+                <tr>
+                    <th scope="col"></th>
+                    <th scope="col">&#931;</th>
+                    <th scope="col">Tipo</th>
+                    <th scope="col">&#120582;</th>
+                </tr>
+            </thead>
+            -->
+                <criterio
+                    v-for="(model, index) in criteri"
+                    v-bind:index="index"
+                    v-bind:model="model"
+                    v-bind:name="index+1" />
+        </table>
     </div>
-
-    <!-- TODO: enable only if eco_mode === ribasso -->
-    <div class="form-group">
-        <label for="eco_base_asta">Base d'asta</label>
-        <input type="number" min="0" step="0.01" class="form-control" name="eco_base_asta" id="eco_base_asta" aria-describedby="eco_base_asta_help" value="0.00">
-        <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small>
-    </div>
-
-
-    <div class="form-group">
-        <label for="eco_func">Formula</label>
-        <select class="form-control" id="eco_func">
-            <!-- TODO: populate from js (we may also need to ask for more paramteres) -->
-        </select>
-    </div>
-
-    <h3>Offerta Tecnica</h3>
-    <ul id="tech_lst">
-        <criterio
-            v-for="(model, index) in criteri"
-            :key="index"
-            :model="model" />
-    </ul>
 
     <!-- for style see input group from bootstrap -->
     <script type="text/x-template" id="tpl_criterio">
-        <li>
-
-            <div class="input-group mb-3">
-                <div class="input-group-prepend">
-                    <input type="text" class="form-control" v-model.trim="model.nome">
-                    <label class="input-group-text"><i class="fas fa-balance-scale"></i></label>
-                    <input type="number" min="0" max="100" class="form-control" v-model.number="model.peso">
-                </div>
-
+        <!-- Can yield only one component. Following hack works, dunno why. -->
+        <!-- set colspann equal to the actual column number and then it works -->
+        <tr>
+            <td scope="row">p:{{ name }}</td>
+            <td><input width="4" type="number" min="0" max="100" class="form-control" v-model.number="model.peso"></td>
+            <td>
                 <select class="custom-select" v-model="model.tipo">
                     <option value="Q">Q</option>
                     <option value="D">D</option>
                     <option value="T">T</option>
                 </select>
+            </td>
+            <td>
+                <!-- Note: hiding if got subcriteria -->
                 <!-- TODO: if Q -> Func, if T -> limits -->
+                <select
+                    v-if="!model.subcriteri && model.tipo=='Q'"
+                    class="custom-select"
+                    v-model="model.funzione">
 
-            </div>
+                    <option value="">func 1</option>
+                    <option value="">func 2</option>
+                    <option value="">func 3</option>
+                </select>
+                <span v-else> -- </span>
+                {{ model.subscriteri }}
+            </td>
+            <td>
+                <!-- TODO: func param -->
+                <span v-if="!model.subcriteri && model.tipo=='Q'">
+                    param
+                </span>
+                <span v-else> -- </span>
+            </td>
+        </tr>
 
-            <!-- Critero: nome, peso, tipo, funzione (se applicabile da tipo) -->
-            <ul v-if="model.subcriteri">
-                <criterio
-                    v-for="(model, index) in model.subcriteri"
-                    v-bind:index="index"
-                    v-bind:key="index"
-                    v-bind:model="model" />
-            </ul>
-            <span v-else>type and maybe func: {{ model.test }}</span>
-        </li>
+        <!-- v-if="model.subcriteri" -->
+        <!-- Recursively enumerate subcriteria -->
+        <!--
+        <criterio
+            v-for="(model, index) in model.subcriteri"
+            v-bind:index="index"
+            v-bind:key="index"
+            v-bind:model="model"
+            v-bind:name="name + '.' + (index + 1)"/>
+        -->
     </script>
 
     <script defer src="static/js/fontawesome-all.min.js"></script>

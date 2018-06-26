@@ -23,6 +23,9 @@ let amin = (x) => {Math.min.apply(x)}
 
 // First one is default
 // TODO: add support for "tabellare" -> [Consip: Scelte, Range]
+// NOTE: for each property MUST always define:
+//      {domain:{start:0, end:'', step:1}, required: true}
+//      if a value is unknow put empty string
 let funcs = {
     // {name:{
     //      up:{f:, params:{name: {(opts:[]|domain:{start:, end:}}}}, // rialzo
@@ -37,8 +40,9 @@ let funcs = {
                 (P - x.soglia_min)*1.0/(x.soglia - x.soglia_min)
             },
             params: {
-                soglia:     {domain:{start:0}, required: true}, // TODO: is this really required
-                soglia_min: {domain:{start:0}, required: true},
+                // TODO: ain't soglia the mean?
+                soglia:     {domain:{start:0, end:'', step:1}, required: true}, // TODO: is this really required
+                soglia_min: {domain:{start:0, end:'', step:1}, required: true},
             }
         },
         down: {
@@ -47,7 +51,7 @@ let funcs = {
                 (bando.base_asta - P)*1.0/(bando.base_asta - x.soglia)
             },
             params: {
-                soglia: {domain:{start:0}, required: true}, // TODO: is this really required
+                soglia: {domain:{start:0, end:'', step:1}, required: true}, // TODO: is this really required
             }
         }
 
@@ -64,14 +68,14 @@ let funcs = {
             f: (P, x, bando, others) => {
                 Math.pow(P*1.0 / amax(others), x.alpha)
             },
-            params: {alpha: {domain:{start:0}, required: true}}
+            params: {alpha: {domain:{start:0, end:1, step:0.05}, required: true}}
 
         },
         down: {
             f: (P, x, bando, others) => {
                 Math.pow((bando.base_asta - P) * 1.0 / amin(others), x.alpha)
             },
-            params: {alpha: {domain:{start:0}, required: true}}
+            params: {alpha: {domain:{start:0, end:1, step:0.05}, required: true}}
         }
     },
 
@@ -112,13 +116,45 @@ Vue.component('criterio', {
             return this.model.subcriteri
                 .map((c) => c.peso)
                 .reduce((a,v) => a + v , 0) != 100;
-        }
+        },
+        safe_f: function() {
+            // Returns model.funzione, after assuring that
+            // each parameter defined in funcs[model.funzione].up exists.
+            // Check the function is selected and exists in our repo.
+            if (!this.model.funzione ||
+                !funcs[this.model.funzione] || // That's bad ... TODO: log something
+                !funcs[this.model.funzione].up.params)
+                return;
+
+
+            // Add parameter if not available.
+            for (let pname in funcs[this.model.funzione].up.params) {
+                let p = funcs[this.model.funzione].up.params[pname];
+                if (!this.model.parametri)
+                    Vue.set(this.model, "parametri", {});
+                if (this.model.parametri[pname] === undefined) {
+                    let v = 0;
+                    if (p.domain && p.domain.start) v = p.domain.start;
+                    Vue.set(this.model.parametri, pname, v);
+                }
+            }
+
+            // TODO: consider remove paramteres unrelated to this function!
+            return this.model.funzione
+        },
     },
     filters: {
         undash: function(str) {
             return str.replace(/_/g, ' ');
-        }
-    }
+        },
+        csub: function(str) {
+            repl = {
+                "alpha": "α",
+            }
+            if (repl[str]) return repl[str];
+            return str;
+        },
+    },
 });
 
 let max_bando_depth = function() {

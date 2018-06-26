@@ -8,4 +8,4 @@ body { font: caption; }
 .nols ul {padding-bottom: .8rem}
 .nols label {justify-content: unset}
 
-.input-group>.custom-select.no-expand {flex-grow:0; width: auto}
+.input-group>.no-expand {flex-grow:0; width: auto}

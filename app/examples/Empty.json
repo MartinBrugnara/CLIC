@@ -24,7 +24,13 @@
                     ]},
                 {"nome":"y","peso":15,"tipo":"Q",
                     "subcriteri":[
-                        {"nome":"y","peso":33,"tipo":"Q", "funzione":"concava_alla_migliore_offerta"},
+                        {"nome":"y","peso":33,
+                            "tipo":"Q",
+                            "funzione":"concava_alla_migliore_offerta",
+                            "parametri": {
+                                "alpha": 0.7
+                            }
+                        },
                         {"nome":"y","peso":33,"tipo":"Q", "funzione":"lineare_semplice"},
                         {"nome":"y","peso":34,"tipo":"Q"}
                     ]}
@@ -35,7 +41,7 @@
         {"nome":"B","peso":15,"tipo":"D"},
         {"nome":"C","peso":14,"tipo":"D"},
         {"nome":"D","peso":14,"tipo":"D"},
-        {"nome":"E","peso":12,"tipo":"D"}
+        {"nome":"E","peso":27,"tipo":"D"}
     ],
     "offerte": [
         [0.90,1.00,0.80,1.00,1.00],

@@ -65,7 +65,8 @@
                 v-bind:index="index"
                 v-bind:model="model"
                 v-bind:name="index+1"
-                v-bind:depth="1" />
+                v-bind:depth="1"
+                v-bind:werror="criteri.map((c) => c.peso) .reduce((a,v) => a + v , 0) != 100">
         </ul>
     </div>
 
@@ -89,7 +90,7 @@
             </div>
 
             <!-- Note: hiding if got subcriteria -->
-            <div class="input-group" v-if="!model.subcriteri" style="margin-left:.75rem">
+            <div class="input-group ml-2" v-if="!model.subcriteri">
                 <select class="custom-select no-expand" v-model="model.tipo">
                     <option value="Q">Q</option>
                     <option value="D">D</option>
@@ -103,9 +104,31 @@
 
                     <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname | undash}}</option>
                 </select>
+            </div>
 
-                <!-- TODO: func param -->
-                <span v-if="model.tipo=='Q'">param</span>
+            <!-- TODO: What about force new line and then align right? -->
+            <div class="input-group ml-2">
+                <template v-if="!model.subcriteri && safe_f">
+                    <template
+                        class="input-group"
+                        v-for="(p, pname) in funcs[model.funzione].up.params">
+
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">{{ pname | csub | undash }}</span>
+                        </div>
+
+                        <input
+                            type="number"
+                            v-bind:min="funcs[model.funzione].up.params[pname].domain.start"
+                            v-bind:max="funcs[model.funzione].up.params[pname].domain.end"
+                            v-bind:step="funcs[model.funzione].up.params[pname].domain.step"
+                            v-bind:required="funcs[model.funzione].up.params[pname].required"
+                            v-bind:name="pname"
+                            class="form-control no-expand"
+                            v-model:name="model.parametri[pname]"
+                        />
+                    </template>
+                </template>
             </div>
         </form>
 

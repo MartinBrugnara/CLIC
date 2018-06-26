@@ -5,4 +5,7 @@ body { font: caption; }
 }
 .nols {padding-left:0}
 .nols li {padding-top: .8rem}
+.nols ul {padding-bottom: .8rem}
 .nols label {justify-content: unset}
+
+.input-group>.custom-select.no-expand {flex-grow:0; width: auto}

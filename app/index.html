@@ -73,49 +73,54 @@
     <script type="text/x-template" id="tpl_criterio">
     <li>
         <!-- style is hack for align -->
-    <form class="form-inline">
+        <form class="form-inline">
             <label v-bind:style="{'min-width': padding}" class="my-1 mr-2">{{name}}</label>
 
-            <div class="input-group mb-3">
+            <div class="input-group">
                 <div class="input-group-prepend">
                     <span class="input-group-text">&#931;</span>
                 </div>
-                <input type="number" min="0" max="100" class="form-control form-control" v-model.number="model.peso">
+                <input type="number" min="0" max="100"
+                    v-bind:class="{'is-invalid': werror, 'form-control': true, 'form-control': true}"
+                    v-model.number="model.peso">
                 <div class="input-group-append">
                     <span class="input-group-text">%</span>
                 </div>
             </div>
 
-            <select class="custom-select custom-select" v-model="model.tipo">
-                <option value="Q">Q</option>
-                <option value="D">D</option>
-                <option value="T">T</option>
-            </select>
-
             <!-- Note: hiding if got subcriteria -->
-            <select
-                v-if="!model.subcriteri && model.tipo=='Q'"
-                class="custom-select custom-select"
-                v-model="model.funzione">
+            <div class="input-group" v-if="!model.subcriteri" style="margin-left:.75rem">
+                <select class="custom-select no-expand" v-model="model.tipo">
+                    <option value="Q">Q</option>
+                    <option value="D">D</option>
+                    <option value="T">T</option>
+                </select>
 
-                <option value="">func 1</option>
-                <option value="">func 2</option>
-                <option value="">func 3</option>
-            </select>
+                <select
+                    v-if="model.tipo=='Q'"
+                    class="custom-select"
+                    v-model="model.funzione">
 
-            <!-- TODO: func param -->
-            <span v-if="!model.subcriteri && model.tipo=='Q'">param</span>
+                    <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname | undash}}</option>
+                </select>
+
+                <!-- TODO: func param -->
+                <span v-if="model.tipo=='Q'">param</span>
+            </div>
         </form>
 
         <!-- Recursively enumerate subcriteria -->
-        <ul v-if="model.subcriteri">
+        <!-- Error style alternative: bg-danger -->
+        <ul v-if="model.subcriteri" v-bind:class="{'border-danger': weightError}">
             <criterio
                 v-for="(model, index) in model.subcriteri"
                 v-bind:index="index"
                 v-bind:key="index"
                 v-bind:model="model"
                 v-bind:name="name + '.' + (index + 1)"
-                v-bind:depth="depth + 1"/>
+                v-bind:depth="depth + 1"
+                v-bind:werror="weightError"
+                />
         </ul>
     </li>
     </script>

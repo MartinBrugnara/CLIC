@@ -11,8 +11,79 @@ const path = require('path')
  * https://stackoverflow.com/questions/518000/is-javascript-a-pass-by-reference-or-pass-by-value-language#3638034
  */
 
+
+// TODO:
+// 1) Manipulate tree add/remove (mod already done)
+// 2) Consistency check (total weight sum, eval method, funcs param)
+// 3) Riproporzionamento (riparam.) 1st and 2nd type.
+
+
+let amax = (x) => {Math.max.apply(x)}
+let amin = (x) => {Math.min.apply(x)}
+
+// First one is default
+// TODO: add support for "tabellare" -> [Consip: Scelte, Range]
+let funcs = {
+    // {name:{
+    //      up:{f:, params:{name: {(opts:[]|domain:{start:, end:}}}}, // rialzo
+    //      dow:{f:, params:{name:{(opts:[]|domain:{start:, end:}}}}, // ribasso
+    // }
+
+    // QUESTION: PEmax ?? (shouldn't be [0-1])?
+    "lineare_semplice": {
+        up: {
+            f: (P, x, bando, others) => {
+                // QUESTION: if soglia non specificato --> ??
+                (P - x.soglia_min)*1.0/(x.soglia - x.soglia_min)
+            },
+            params: {
+                soglia:     {domain:{start:0}, required: true}, // TODO: is this really required
+                soglia_min: {domain:{start:0}, required: true},
+            }
+        },
+        down: {
+            f: (P, x, bando, others) => {
+                // QUESTION: if soglia non specificato --> ??
+                (bando.base_asta - P)*1.0/(bando.base_asta - x.soglia)
+            },
+            params: {
+                soglia: {domain:{start:0}, required: true}, // TODO: is this really required
+            }
+        }
+
+    },
+    "concava_alla_migliore_offerta": {
+        // This covers:
+        // * DECRETO DEL PRESIDENTE DELLA PROVINCIA 21 ottobre 2016, n. 16- 50/Leg
+        //      https://didatticaonline.unitn.it/ricerca/course/view.php?id=65
+        //      alpha in (0.1, 0.2, 0.3)
+        // * Concava alla migliore offerta
+        //      Consip: alpha in (0.5, 0.6, 0.7)
+        // * Lineare alla migliore offerta (alpha = 1)
+        up: {
+            f: (P, x, bando, others) => {
+                Math.pow(P*1.0 / amax(others), x.alpha)
+            },
+            params: {alpha: {domain:{start:0}, required: true}}
+
+        },
+        down: {
+            f: (P, x, bando, others) => {
+                Math.pow((bando.base_asta - P) * 1.0 / amin(others), x.alpha)
+            },
+            params: {alpha: {domain:{start:0}, required: true}}
+        }
+    },
+
+}
+
+
+
+
+
 // -- Registering custom components.
-let char_width = 8,
+let pad_structure = false,
+    char_width = 8,
     indent = 20; // must be the same as padding-left for ul.
 
 Vue.component('criterio', {
@@ -21,17 +92,34 @@ Vue.component('criterio', {
         model: Object,
         name: String,
         depth: Number,
+        werror: Boolean,
     },
     computed: {
         padding: function() {
             // TODO: cache; do not recompute.
-            let mx = max_bando_depth()
+            let mx = max_bando_depth();
             let label = ((mx * 2 - 1) * char_width);
-            console.log([mx, label, (mx - this.depth - 1)]);
+            if (!pad_structure)
+                return label + 'px';
             return (mx - this.depth - 1) * indent + label  + 'px';
+        },
+        funcs: function() {
+            return funcs;
+        },
+        weightError: function() {
+            if (!this.model.subcriteri)
+                return false;
+            return this.model.subcriteri
+                .map((c) => c.peso)
+                .reduce((a,v) => a + v , 0) != 100;
+        }
+    },
+    filters: {
+        undash: function(str) {
+            return str.replace(/_/g, ' ');
         }
     }
-})
+});
 
 let max_bando_depth = function() {
     f = (b) => {

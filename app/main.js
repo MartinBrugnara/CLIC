@@ -87,7 +87,7 @@ function extendMenuBar() {
         label: 'Mode',
         // TODO: Find better names to provide meningfull accelerators.
         submenu: [{
-            label: 'Struttra',
+            label: 'Struttura',
             click: NotImplementedError,
         }, {
             label: 'Simulazione',

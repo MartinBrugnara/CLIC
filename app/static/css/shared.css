@@ -4,8 +4,10 @@ body { font: caption; }
   padding-left: 20px;
 }
 .nols {padding-left:0}
-.nols li {padding-top: .8rem}
+.nols li {padding-top: .4rem}
+.nols li>form>* {padding-top: .4rem}
 .nols ul {padding-bottom: .8rem}
 .nols label {justify-content: unset}
 
 .input-group>.no-expand {flex-grow:0; width: auto}
+

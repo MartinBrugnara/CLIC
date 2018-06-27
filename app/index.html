@@ -39,11 +39,21 @@
                     </div>
                 </div>
 
-                <div class="form-group col">
-                    <!-- TODO: enable only if eco_mode === ribasso -->
+                <div class="form-group no-expand">
+                    <label>Peso</label>
+                    <div class="input-group">
+                        <input type="number" min="0" max="100" step="5" class="form-control" v-model="eco_peso">
+                        <div class="input-group-append">
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                    <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
+                </div>
+
+                <div class="form-group col" v-if="mod_economico == 'ribasso'">
                     <label for="eco_base_asta">Base d'asta</label>
-                    <input type="number" width="10" min="0" step="0.01" class="form-control" name="eco_base_asta" id="eco_base_asta" aria-describedby="eco_base_asta_help" v-model.number="base_asta">
-                    <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small>
+                    <input type="number" min="0" step="0.01" class="form-control" name="eco_base_asta" id="eco_base_asta" aria-describedby="eco_base_asta_help" v-model.number="base_asta">
+                    <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
                 </div>
 
                 <div class="form-group col">
@@ -57,8 +67,20 @@
 
 
         <h3>Offerta Tecnica</h3>
+
+        <form class="form-inline">
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="rep1">
+                <label class="form-check-label" for="rep1" v-model="riparametrizzazione1">Riparametrizzazione livello 1</label>
+            </div>
+            <div class="form-check ml-2">
+                <input type="checkbox" class="form-check-input" id="rep2">
+                <label class="form-check-label" for="rep1" v-model="riparametrizzazione2">Riparametrizzazione livello 2</label>
+            </div>
+        </form>
+
         <ul class="nols">
-            <li value="-1"># - &#931; - Tipo - &#120582;</li>
+            <!-- <li value="-1"># - &#931; - Tipo - &#120582;</li> -->
 
             <criterio
                 v-for="(model, index) in criteri"

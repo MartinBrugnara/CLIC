@@ -1,6 +1,9 @@
 {
     "mod_economico": "prezzo",
+    "eco_peso": 30,
     "base_asta": 1796673.12,
+    "riparametrizzazione1": false,
+    "riparametrizzazione2": false,
     "param": {
         "lvl1": false,
         "lvl2": false

@@ -21,7 +21,7 @@
         </div>
     </nav>
 
-    <div id="tech_lst" class="container">
+    <div id="structure" class="container">
         <h3>Offerta Economica</h3>
         <!-- TODO: shall we also support prezzo fisso? -->
 
@@ -30,27 +30,22 @@
                 <div class="form-group col">
                     <label for="eco_base_asta">Modalit&agrave;</label>
                     <div class="form-check">
-                        <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="ribasso" value="ribasso" v-model="mod_economico">
+                        <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="ribasso" value="ribasso" v-model="mod_economica">
                         <label class="form-check-label" for="ribasso">Ribasso</label>
                     </div>
                     <div class="form-check">
-                        <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="prezzo" value="prezzo" v-model="mod_economico">
+                        <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="prezzo" value="prezzo" v-model="mod_economica">
                         <label class="form-check-label" for="prezzo">Prezzo</label>
                     </div>
                 </div>
 
                 <div class="form-group no-expand">
                     <label>Peso</label>
-                    <div class="input-group">
-                        <input type="number" min="0" max="100" step="5" class="form-control" v-model="eco_peso">
-                        <div class="input-group-append">
-                            <span class="input-group-text">%</span>
-                        </div>
-                    </div>
+                    <input type="number" min="0" max="100" step="5" v-bind:class="{'form-control':true, 'is-invalid':top_werror}" v-model="peso_economica">
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
                 </div>
 
-                <div class="form-group col" v-if="mod_economico == 'ribasso'">
+                <div class="form-group col" v-if="mod_economica == 'ribasso'">
                     <label for="eco_base_asta">Base d'asta</label>
                     <input type="number" min="0" step="0.01" class="form-control" name="eco_base_asta" id="eco_base_asta" aria-describedby="eco_base_asta_help" v-model.number="base_asta">
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
@@ -88,7 +83,7 @@
                 v-bind:model="model"
                 v-bind:name="index+1"
                 v-bind:depth="1"
-                v-bind:werror="criteri.map((c) => c.peso) .reduce((a,v) => a + v , 0) != 100">
+                v-bind:werror="top_werror">
         </ul>
     </div>
 
@@ -106,9 +101,6 @@
                 <input type="number" min="0" max="100"
                     v-bind:class="{'is-invalid': werror, 'form-control': true, 'form-control': true}"
                     v-model.number="model.peso">
-                <div class="input-group-append">
-                    <span class="input-group-text">%</span>
-                </div>
             </div>
 
             <!-- Note: hiding if got subcriteria -->

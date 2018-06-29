@@ -68,14 +68,14 @@ let funcs = {
             f: (P, x, bando, others) => {
                 Math.pow(P*1.0 / amax(others), x.alpha)
             },
-            params: {alpha: {domain:{start:0, end:1, step:0.05}, required: true}}
+            params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
 
         },
         down: {
             f: (P, x, bando, others) => {
                 Math.pow((bando.base_asta - P) * 1.0 / amin(others), x.alpha)
             },
-            params: {alpha: {domain:{start:0, end:1, step:0.05}, required: true}}
+            params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
         }
     },
 
@@ -115,7 +115,9 @@ Vue.component('criterio', {
                 return false;
             return this.model.subcriteri
                 .map((c) => c.peso)
-                .reduce((a,v) => a + v , 0) != 100;
+                .reduce((a,v) => a + v , 0) != this.model.peso;
+            // If switching back to % use the following
+            //  .reduce((a,v) => a + v , 0) != 100;
         },
         safe_f: function() {
             // Returns model.funzione, after assuring that
@@ -150,6 +152,7 @@ Vue.component('criterio', {
         csub: function(str) {
             repl = {
                 "alpha": "α",
+                "alfa": "α",
             }
             if (repl[str]) return repl[str];
             return str;
@@ -182,6 +185,20 @@ window.vm_app_status = new Vue({
 function loadBando(args) {
     // TODO: offer to save current first.
     console.log('Loading scenario:' + args.fpath);
+
+
+    // TODO: Once loaded, before rendering run "check_consistency()"
+    //       if it fails add warning and enable ONLY edit mode
+    //       for both structure and data.
+
+    // Keep this value updated, maybe use "computed"?
+    // and avoid try to run simulations when there are errors.
+
+    // Display error nicely: maybe a block at the top with the full list of
+    // errors returned by "check_consistency()
+    // E.g ["Total number of point > 100", "Missing data for offerta XX"]
+
+
     try {
         let raw_content = fs.readFileSync(args.fpath, "utf8");
         let bando_data = JSON.parse(raw_content);
@@ -212,20 +229,28 @@ function refreshGUI() {
         return;
     }
 
-    if (!window.vm_tech_lst) {
+    if (!window.vm_structure) {
         // Init
-        window.vm_tech_lst = new Vue({
-            el: '#tech_lst',
+        window.vm_structure = new Vue({
+            el: '#structure',
             data: current,
             updated: () => {
                 app_status.modified = true;
+            },
+            computed: {
+                top_werror: function() {
+                    // this.criteri.map((c) => c.peso) .reduce((a,v) => a + v , 0) != 100">
+                    return this.criteri
+                        .map((c) => c.peso)
+                        .reduce((a,v) => a + v , 0) != (100-this.peso_economica);
+                }
             }
         });
     }
 
     // Refresh
     Object.keys(current).forEach((key) => {
-        Vue.set(window.vm_tech_lst, key, current[key]);
+        Vue.set(window.vm_structure, key, current[key]);
     });
 
 }

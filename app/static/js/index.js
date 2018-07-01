@@ -25,8 +25,8 @@ const path = require('path')
 //    not all injected shit (env_*).
 
 
-let amax = (x) => {Math.max.apply(x)}
-let amin = (x) => {Math.min.apply(x)}
+let amax = (x) => Math.max.apply(Math, x);
+let amin = (x) => Math.min.apply(Math, x);
 
 // First one is default
 // TODO: add support for "tabellare" -> [Consip: Scelte, Range]
@@ -39,7 +39,9 @@ let funcs = {
     //      dow:{f:, params:{name:{(opts:[]|domain:{start:, end:}}}}, // ribasso
     // }
 
-    // QUESTION: PEmax ?? (shouldn't be [0-1])?
+    // TODO: consider track also: intrdependent or not to enforce some rules.
+    // @see consip warning
+
     "lineare_semplice": {
         up: {
             f: (P, x, bando, others) => {
@@ -73,14 +75,30 @@ let funcs = {
         // * Lineare alla migliore offerta (alpha = 1)
         up: {
             f: (P, x, bando, others) => {
-                Math.pow(P*1.0 / amax(others), x.alpha)
+                // TODO: debug!!!!
+                return Math.pow(P*1.0 / amax(others), x.alfa)
             },
             params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
 
         },
         down: {
             f: (P, x, bando, others) => {
-                Math.pow((bando.base_asta - P) * 1.0 / amin(others), x.alpha)
+                console.log('Down args:', [P, x, bando, others]);
+                let BA = bando.base_asta;
+
+                // FIXME: only 4 debug!!
+                console.warn("for debug: if not specified BA is max(offerta_economica)");
+                if (!bando.base_asta)
+                    BA = amax(others);
+
+                console.log("Others:", others);
+                console.log("BA: ", BA);
+                console.log("P: ", P);
+                console.log("Pmax: ", amin(others));
+                console.log("Pmin: ", amax(others));
+                console.log("alfa: ", x.alfa);
+
+                return Math.pow((BA - P) * 1.0 / (BA - amin(others)), x.alfa).toFixed(2)
             },
             params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
         }
@@ -238,6 +256,7 @@ function refreshGUI() {
 
     // NOTE: All extra variables must be declared before init any object.
     current.env_data_mode = 'explore';
+    current.env_data_orderby = 'agg_desc';
 
     // TODO: consider alternatively to just destroy and rebuild.
 
@@ -273,22 +292,25 @@ function refreshGUI() {
             },
             computed: {
                 cols: function () {
-                    rec_list = (prefix, clst) => {
-                        return clst.map((c, i) => {
-                            let name = prefix + (i + 1);
-                            if (!(c.subcriteri && c.subcriteri.length)) {
-                                return [{
-                                    name: name,
-                                    realname: c.nome,
-                                    weight: c.peso,
-                                    kind: c.tipo,
-                                    ts: c.tipo == 'T'? c.voci : [],
-                                }];
-                            }
-                            return [].concat(...rec_list(name + '.', c.subcriteri));
-                        });
-                    };
-                    return [].concat(...rec_list('', this.criteri));
+                    return criteriFlat(this.criteri);
+                },
+                scoreboard: function() {
+                    // TODO: we should apply functions first
+                    let offerte = applyFunctions(this);
+                    let agg = aggregativoCompensatore(this, offerte);
+
+                    // Offerta, Agg, Electre, Tops
+                    // TODO: sort by from GUI
+                    let x = this.env_data_orderby.split('_'),
+                        field = x[0], order = x[1];
+                    console.log(field, order);
+
+
+                    return agg.sort((a,b) =>
+                        (-1)**(order == 'desc') *
+                        (field == 'nome' ?
+                            2 * (b[field] < a[field]) - 1 :
+                            b[field] - a[field]));
                 }
             },
             filters: {
@@ -307,6 +329,93 @@ function refreshGUI() {
         Vue.set(window.vm_simulation, key, current[key]);
     });
 }
+
+
+function criteriFlat(criteri) {
+    rec_list = (prefix, clst) => {
+        return clst.map((c, i) => {
+            let name = prefix + (i + 1);
+            if (!(c.subcriteri && c.subcriteri.length)) {
+                c.env_name = name; // Inject computed name
+                return [c];
+            }
+            return [].concat(...rec_list(name + '.', c.subcriteri));
+        });
+    };
+    return [].concat(...rec_list('', criteri));
+}
+
+
+
+// TODO: consider to transform and apply function before actually going to algorithm;
+function applyFunctions(bando) {
+    /* Given a bando, applies functions to the bids values and, if required,
+        * scales the results. Produces a list of bids to be used with ranking
+        * algorithms.
+        */
+
+    /* {nome, economica (0-1), tecnica [(0-1),...]} */
+
+    // TODO: Implement riproporzionamento
+
+
+    let fc = criteriFlat(bando.criteri);
+
+    return bando.offerte.map((o, oi) => {
+        // Compute economic bid.
+        let res = {nome:o.nome};
+
+        let eco_mode = bando.mod_economica === 'prezzo' ? 'down' : 'up',
+            eco_f = funcs[bando.funzione_economica][eco_mode];
+        res.economica = eco_f.f(
+            o.economica[0],             // Economic bid
+            bando.parametri_economica,  // Economic function parameters
+            bando,                      // Bando for global var (i.e. base_asta)
+            // All economic bids for interdependent functions
+            bando.offerte.map((o) => o.economica[0]));
+
+        res.tecnica = o.tecnica.map((t, ti) => {
+            if (fc[ti].tipo === 'T') {          // Is tabular -> bool to int
+                return fc[ti].voci
+                    .map((v, vi) => v * t[vi])
+                    .reduce((a,b) => a + b, 0);
+            } else if (fc[ti].tipo === 'Q') {
+                return funcs[fc[ti].funzione].up.f(
+                    t,                          // Current bid
+                    fc[ti].parametri,           // Parameters
+                    bando,                      // Bando for global param
+                    bando.offerte.map((o) => o.tecnica[ti]));
+            } else {
+                return t;
+            }
+        });
+
+        return res;
+    });
+}
+
+function aggregativoCompensatore(bando, offerte) {
+    // TODO: WE SHOULD ACCOUNT ALSO FOR RIPARAMETRAZIONE
+    //  or only in "Apply func" ????
+
+    let fc = criteriFlat(bando.criteri);
+    let weights = [bando.peso_economica].concat(fc.map((c) => c.peso));
+
+    console.log("AGG params: ", offerte);
+
+    return offerte.map((o) => {
+        console.log(o);
+        return {
+            nome: o.nome,
+            agg: [o.economica].concat(o.tecnica)
+                .map((v, vi) => weights[vi] * v)
+                .reduce((a, b) => a + b)
+                .toFixed(2)
+        };
+    });
+};
+
+
 
 function switchView(view) {
     // TODO: maybe add some cool effect like tile 3d rotation.

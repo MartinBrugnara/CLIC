@@ -23,3 +23,27 @@ body { font: caption; }
 }
 
 #data tbody tr>td:not(:first-child) {font-family: monospace}
+
+
+#data input[type="radio"] {display:none}
+
+#data input[type="radio"]+label {
+  color: #ccc;
+  cursor: pointer;
+  font-size: 0.6rem;
+}
+
+#data input[type="radio"]:checked+label {
+  color: #333;
+}
+
+#data .x-middle {
+  vertical-align: middle;
+  vertical-align: -webkit-baseline-middle;
+}
+
+#data input[type="radio"]+label:hover {
+  color: #000;
+}
+
+/* vertical-align: -webkit-baseline-middle*/

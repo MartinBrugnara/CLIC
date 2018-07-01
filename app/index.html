@@ -45,7 +45,7 @@
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
                 </div>
 
-                <div class="form-group col-auto" v-if="mod_economica == 'ribasso'">
+                <div class="form-group col-auto" v-if="mod_economica == 'prezzo'">
                     <label for="eco_base_asta">Base d'asta</label>
                     <input type="number" min="0" step="0.01" class="form-control" name="eco_base_asta" id="eco_base_asta" aria-describedby="eco_base_asta_help" v-model.number="base_asta">
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
@@ -68,7 +68,7 @@
                     <div class="input-group">
                         <template
                             class="input-group"
-                            v-for="(p, pname) in funcs[funzione_economica][mod_economica == 'prezzo' ? 'up' : 'down'].params">
+                            v-for="(p, pname) in funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params">
 
                             <div class="input-group-prepend">
                                 <span class="input-group-text">{{ pname | csub | undash }}</span>
@@ -194,8 +194,11 @@
 
     <div id="simulation">
 
-        <div class="container">
-            <div class="text-right mb-2">
+        <div class="container d-flex">
+            <div class="flex-fill text-left">
+                <h3>Dati</h3>
+            </div>
+            <div class="d-flex align-items-end text-right mb-2">
                 <strong>Modalit&agrave;</strong >
                 <div class="form-check-inline ml-2">
                     <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="explore" value="explore" v-model="env_data_mode">
@@ -217,23 +220,21 @@
                     <tr>
                         <th><span>#</span><br><small>Peso</small></th>
                         <th><span>Economica</span><br><small>{{peso_economica}}</small></th>
-                        <th scope="col" v-for="(col, idx) in cols">
-                            <span v-bind:title="col.realname">
-                                {{col.name}}
-                            </span><br>
-                            <small>{{col.weight}}</small>
+                        <th scope="col" v-for="c in cols">
+                            <span v-bind:title="c.nome">{{c.env_name}}</span><br>
+                            <small>{{c.peso}}</small>
                         </th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="(o, i) in offerte">
+                    <tr v-for="(o, i) in offerte" :key="o.nome">
                         <template v-if="env_data_mode == 'explore'">
                             <!-- TODO: Add color backgroud to show distribution -->
-                            <td class="text-left">{{o.nome}}</td>
+                            <td class="text-left">{{ o.nome }}</td>
                             <td>{{o.economica[0] | prec2}}</td>
                             <td v-for="(t, ti) in o.tecnica">
-                                <template v-if="cols[ti].kind == 'T'">
-                                    <template v-for="(v, vi) in cols[ti].ts">
+                                <template v-if="cols[ti].tipo == 'T'">
+                                    <template v-for="(v, vi) in cols[ti].voci">
                                         <span class="ml-1" style="white-space: nowrap">{{v}}:
                                             <!--
                                                 Do not use awesome + js here.
@@ -254,18 +255,16 @@
                             <td class="text-left"><input type="text" v-model="o.nome"></td>
                             <td><input type="number" min="0" step="0.01" v-model="o.economica[0]"></td>
                             <td v-for="(t, ti) in o.tecnica">
-                                <template v-if="cols[ti].kind == 'T'">
-                                    <template v-for="(v, vi) in cols[ti].ts">
-                                        <span class="ml-1" style="white-space: nowrap">{{v}}:
-                                            <input type="checkbox" v-model="t[vi]">
-                                        </span>
-                                    </template>
+                                <template v-if="cols[ti].tipo == 'T'">
+                                    <span v-for="(v, vi) in cols[ti].voci" class="ml-1" style="white-space: nowrap">{{v}}:
+                                        <input type="checkbox" v-model="t[vi]">
+                                    </span>
                                 </template>
-                                <template v-else-if="cols[ti].kind == 'D'">
-                                    <input type="number" min="0" step="0.01" max="1" v-model="t">
+                                <template v-else-if="cols[ti].tipo == 'D'">
+                                    <input type="number" min="0" step="0.01" max="1" v-model="o.tecnica[ti]">
                                 </template>
                                 <template v-else>
-                                    <input type="number" min="0" step="0.01" v-model="t">
+                                    <input type="number" min="0" step="0.01" v-model="o.tecnica[ti]">
                                 </template>
                             </td>
                         </template>
@@ -274,9 +273,65 @@
             </table>
         </div>
 
-
-
-
+        <div class="text-center mt-4">
+            <div class="container text-left">
+                <h3>Ranking</h3>
+            </div>
+            <table id="data" class="table table-striped text-right">
+                <thead>
+                    <tr>
+                        <td>
+                            <span class="x-middle"></span>
+                            <div class="d-inline-flex flex-column ml-2">
+                                <input id="nome_asc" type="radio" v-model="env_data_orderby" value="nome_asc">
+                                <label for="nome_asc" class="mb-0">&#x25B2;</label>
+                                <input id="nome_desc" type="radio" v-model="env_data_orderby" value="nome_desc">
+                                <label for="nome_desc" class="mb-0">&#x25BC;</label>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="x-middle">Σ</span>
+                            <div class="d-inline-flex flex-column ml-2">
+                                <input id="agg_asc" type="radio" v-model="env_data_orderby" value="agg_asc">
+                                <label for="agg_asc" class="mb-0">&#x25B2;</label>
+                                <input id="agg_desc" type="radio" v-model="env_data_orderby" value="agg_desc">
+                                <label for="agg_desc" class="mb-0">&#x25BC;</label>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="x-middle">Electre</span>
+                            <div class="d-inline-flex flex-column ml-2">
+                                <input id="electre_asc" type="radio" v-model="env_data_orderby" value="electre_asc">
+                                <label for="electre_asc" class="mb-0">&#x25B2;</label>
+                                <input id="electre_desc" type="radio" v-model="env_data_orderby" value="electre_desc">
+                                <label for="electre_desc" class="mb-0">&#x25BC;</label>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="x-middle">Topsis</span>
+                            <div class="d-inline-flex flex-column ml-2">
+                                <input id="topsis_asc" type="radio" v-model="env_data_orderby" value="topsis_asc">
+                                <label for="topsis_asc" class="mb-0">&#x25B2;</label>
+                                <input id="topsis_desc" type="radio" v-model="env_data_orderby" value="topsis_desc">
+                                <label for="topsis_desc" class="mb-0">&#x25BC;</label>
+                            </div>
+                        </td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(o, oi) in scoreboard">
+                        <td>{{ o.nome }}</td>
+                        <td>{{ o.agg }}</td>
+                        <td></td>
+                        <td></td>
+                        <!--
+                        <td>{{ o.electre }}</td>
+                        <td>{{ o.topsis }}</td>
+                        -->
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
     </div>
 

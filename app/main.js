@@ -88,10 +88,10 @@ function extendMenuBar() {
         // TODO: Find better names to provide meningfull accelerators.
         submenu: [{
             label: 'Struttura',
-            click: NotImplementedError,
+            click: () => win.webContents.send('view', 'structure'),
         }, {
             label: 'Simulazione',
-            click: NotImplementedError,
+            click: () => win.webContents.send('view', 'simulation'),
         }]
     });
 

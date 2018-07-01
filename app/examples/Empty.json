@@ -1,51 +1,81 @@
 {
-    "mod_economica": "ribasso",
-    "peso_economica": 30,
-    "base_asta": 1796673.12,
+    "mod_economica": "prezzo",
+    "funzione_economica":"concava_alla_migliore_offerta",
+    "parametri_economica": {"alfa":1},
+    "peso_economica": 40,
+    "base_asta": 0,
     "riparametrizzazione1": false,
     "riparametrizzazione2": false,
     "criteri": [
-        {"nome":"A","peso":15,"tipo":"D",
+        {
+            "nome": "ORGANIZZAZIONE DEL SERVZIO",
+            "peso": 33,
             "subcriteri": [
-                {"nome":"x","peso":15,"tipo":"Q",
-                    "subcriteri":[
-                        {"nome":"y","peso":14,"tipo":"Q"}
-                    ]}
+                {"peso":10,"tipo":"D"},
+                {"peso":5,"tipo":"D"},
+                {"peso":4,"tipo":"D"},
+                {"peso":4,"tipo":"D"},
+                {"peso":4,"tipo":"D"},
+                {"peso":3,"tipo":"D"},
+                {"peso":3,"tipo":"D"}
             ]
-        },
-        {"nome":"A","peso":15,"tipo":"D",
+        }, {
+            "nome": "METODOLOGIE TECNICO OPERATIVE",
+            "peso": 19,
             "subcriteri": [
-                {"nome":"x","peso":15,"tipo":"Q",
-                    "subcriteri":[
-                        {"nome":"y","peso":33,"tipo":"Q"},
-                        {"nome":"y","peso":33,"tipo":"Q"},
-                        {"nome":"y","peso":34,"tipo":"Q"}
-                    ]},
-                {"nome":"y","peso":15,"tipo":"Q",
-                    "subcriteri":[
-                        {"nome":"y","peso":33,
-                            "tipo":"Q",
-                            "funzione":"concava_alla_migliore_offerta",
-                            "parametri": {
-                                "alpha": 0.7
-                            }
-                        },
-                        {"nome":"y","peso":33,"tipo":"Q", "funzione":"lineare_semplice"},
-                        {"nome":"y","peso":34,"tipo":"Q"}
-                    ]}
-
+                {"peso":6,"tipo":"D"},
+                {"peso":6,"tipo":"D"},
+                {"peso":4,"tipo":"D"},
+                {"peso":3,"tipo":"D"}
             ]
-        },
-
-        {"nome":"B","peso":15,"tipo":"D"},
-        {"nome":"C","peso":14,"tipo":"D"},
-        {"nome":"D","peso":11,"tipo":"D"}
+        }, {
+            "nome": "DOTAZIONI E ATTREZZATURE DEDICATE",
+            "peso": 5,
+            "subcriteri": [
+                {"peso":3,"tipo":"D"},
+                {"peso":2,"tipo":"D"}
+            ]
+        }, {
+            "nome": "ASPETTI AMBIENTALI E SOCIALI",
+            "peso": 3,
+            "subcriteri": [
+                {
+                    "peso":1,
+                    "tipo":"T",
+                    "voci": [1]
+                },
+                {
+                    "peso":1,
+                    "tipo":"Q",
+                    "funzione":"concava_alla_migliore_offerta",
+                    "parametri": {"alfa":1},
+                    "commento": "Con alfa = 1 e' lineare alla migliore offerta."
+                },
+                {"peso":1,"tipo":"T","voci": [0.5, 0.5]}
+            ]
+        }
     ],
     "offerte": [
-        {"nome":"","economica":[0],"tecnica":[0.90,1.00,0.80,1.00,1.00]},
-        {"nome":"","economica":[0],"tecnica":[0.70,0.40,1.00,0.40,0.70]},
-        {"nome":"","economica":[0],"tecnica":[0.80,0.50,0.40,0.50,0.50]},
-        {"nome":"","economica":[0],"tecnica":[0.40,0.70,0.50,0.50,0.40]},
-        {"nome":"","economica":[0],"tecnica":[0.60,0.60,0.70,0.50,0.60]}
+        {
+            "nome":"Copma",
+            "economica":[612707.99],
+            "tecnica":[0.11,0,0.07,0.05,0.21,0.18,0.00,0.21,0.13,0,0.35,1,0,[false],0.67,[true,false]]
+        }, {
+            "nome":"Copura",
+            "economica":[551651.96],
+            "tecnica":[0.59,0.59,1,1,1,0.21,0.63,0.21,1,1,0.74,1,0.33,[false],0.2,[true,true]]
+        }, {
+            "nome":"ATI Miorelli",
+            "economica":[596608.20],
+            "tecnica":[0.59,1,0.63,0.65,0.81,0.42,0.43,0.08,0.13,0.32,0.35,1,0.13,[true],0.33,[true, true]]
+        }, {
+            "nome":"Ideal Service",
+            "economica":[613524.82],
+            "tecnica":[1,0.39,0.88,0.88,0.58,1,1,1,0.21,0.32,1,1,0.6,[false],0,[true, true]]
+        }, {
+            "nome":"ATI DUCOPS",
+            "economica":[570900.97],
+            "tecnica":[0,0.13,0.7,0.9,0,0,0.35,0.44,0.92,0.56,0,0,1,[false],1,[true, false]]
+        }
     ]
 }

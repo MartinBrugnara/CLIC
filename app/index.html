@@ -2,16 +2,16 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Struttura del bando</title>
+    <title>CLIC: "What if?"</title>
 
     <link rel="stylesheet" href="static/css/bootstrap.min.css">
     <link rel="stylesheet" href="static/css/fa-svg-with-js.css">
-    <link rel="stylesheet" href="static/css/shared.css">
+    <link rel="stylesheet" href="static/css/index.css">
 
 </head>
 <body>
 
-    <nav class="navbar navbar-dark bg-dark" id="app_status">
+    <nav class="navbar navbar-dark bg-dark mb-4" id="app_status">
         <!-- Navbar content -->
         <a class="navbar-brand" href="#">CLIC</a>
         <span class="navbar-text text-white"><strong>Bando:</strong> {{ fpath }}</span>
@@ -25,9 +25,9 @@
         <h3>Offerta Economica</h3>
         <!-- TODO: shall we also support prezzo fisso? -->
 
-        <div class="container">
+        <div class="container mb-2">
             <div class="form-row">
-                <div class="form-group col">
+                <div class="form-group col-auto">
                     <label for="eco_base_asta">Modalit&agrave;</label>
                     <div class="form-check">
                         <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="ribasso" value="ribasso" v-model="mod_economica">
@@ -39,23 +39,53 @@
                     </div>
                 </div>
 
-                <div class="form-group no-expand">
+                <div class="form-group col-auto no-expand">
                     <label>Peso</label>
                     <input type="number" min="0" max="100" step="5" v-bind:class="{'form-control':true, 'is-invalid':top_werror}" v-model="peso_economica">
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
                 </div>
 
-                <div class="form-group col" v-if="mod_economica == 'ribasso'">
+                <div class="form-group col-auto" v-if="mod_economica == 'ribasso'">
                     <label for="eco_base_asta">Base d'asta</label>
                     <input type="number" min="0" step="0.01" class="form-control" name="eco_base_asta" id="eco_base_asta" aria-describedby="eco_base_asta_help" v-model.number="base_asta">
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
                 </div>
 
-                <div class="form-group col">
+                <div class="form-group col-auto">
                     <label for="eco_func">Formula</label>
-                    <select class="form-control" id="eco_func">
-                        <!-- TODO: populate from js (we may also need to ask for more paramteres) -->
+                    <!--class="custom-select"-->
+                    <select
+                        class="form-control"
+                        id="eco_func"
+                        v-model="funzione_economica">
+                        <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname | undash}}</option>
                     </select>
+                </div>
+
+                <div class="form-group col-auto">
+                    <label>Parametri</label>
+
+                    <div class="input-group">
+                        <template
+                            class="input-group"
+                            v-for="(p, pname) in funcs[funzione_economica][mod_economica == 'prezzo' ? 'up' : 'down'].params">
+
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">{{ pname | csub | undash }}</span>
+                            </div>
+
+                            <input
+                                type="number"
+                                v-bind:min=     "funcs[funzione_economica][mod_economica == 'prezzo' ? 'up' : 'down'].params[pname].domain.start"
+                                v-bind:max=     "funcs[funzione_economica][mod_economica == 'prezzo' ? 'up' : 'down'].params[pname].domain.end"
+                                v-bind:step=    "funcs[funzione_economica][mod_economica == 'prezzo' ? 'up' : 'down'].params[pname].domain.step"
+                                v-bind:required="funcs[funzione_economica][mod_economica == 'prezzo' ? 'up' : 'down'].params[pname].required"
+                                v-bind:name="pname"
+                                class="form-control no-expand"
+                                v-model:name="parametri_economica[pname]"
+                            />
+                        </template>
+                    </div>
                 </div>
             </div>
         </div>
@@ -115,7 +145,6 @@
                     v-if="model.tipo=='Q'"
                     class="custom-select"
                     v-model="model.funzione">
-
                     <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname | undash}}</option>
                 </select>
             </div>
@@ -162,8 +191,97 @@
     </li>
     </script>
 
+
+    <div id="simulation">
+
+        <div class="container">
+            <div class="text-right mb-2">
+                <strong>Modalit&agrave;</strong >
+                <div class="form-check-inline ml-2">
+                    <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="explore" value="explore" v-model="env_data_mode">
+                    <label class="form-check-label" for="explore">Esplora</label>
+                </div>
+                <div class="form-check-inline mr-0">
+                    <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="edit" value="edit" v-model="env_data_mode">
+                    <label class="form-check-label" for="edit">Modifica</label>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- TODO: consider add switch for "edit"/"view" mode, default view -->
+        <div class="text-center">
+            <table id="data" class="table table-striped text-right">
+                <thead>
+                    <tr>
+                        <th><span>#</span><br><small>Peso</small></th>
+                        <th><span>Economica</span><br><small>{{peso_economica}}</small></th>
+                        <th scope="col" v-for="(col, idx) in cols">
+                            <span v-bind:title="col.realname">
+                                {{col.name}}
+                            </span><br>
+                            <small>{{col.weight}}</small>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(o, i) in offerte">
+                        <template v-if="env_data_mode == 'explore'">
+                            <!-- TODO: Add color backgroud to show distribution -->
+                            <td class="text-left">{{o.nome}}</td>
+                            <td>{{o.economica[0] | prec2}}</td>
+                            <td v-for="(t, ti) in o.tecnica">
+                                <template v-if="cols[ti].kind == 'T'">
+                                    <template v-for="(v, vi) in cols[ti].ts">
+                                        <span class="ml-1" style="white-space: nowrap">{{v}}:
+                                            <!--
+                                                Do not use awesome + js here.
+                                                Only static content.
+                                            -->
+                                            <span v-if="t[vi]">&#x2714;</span>
+                                            <span v-else>&#x2718;</span>
+                                        </span>
+                                    </template>
+                                </template>
+                                <template v-else>
+                                    {{t | prec2}}
+                                </template>
+                            </td>
+                        </template>
+
+                        <template v-else>
+                            <td class="text-left"><input type="text" v-model="o.nome"></td>
+                            <td><input type="number" min="0" step="0.01" v-model="o.economica[0]"></td>
+                            <td v-for="(t, ti) in o.tecnica">
+                                <template v-if="cols[ti].kind == 'T'">
+                                    <template v-for="(v, vi) in cols[ti].ts">
+                                        <span class="ml-1" style="white-space: nowrap">{{v}}:
+                                            <input type="checkbox" v-model="t[vi]">
+                                        </span>
+                                    </template>
+                                </template>
+                                <template v-else-if="cols[ti].kind == 'D'">
+                                    <input type="number" min="0" step="0.01" max="1" v-model="t">
+                                </template>
+                                <template v-else>
+                                    <input type="number" min="0" step="0.01" v-model="t">
+                                </template>
+                            </td>
+                        </template>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+
+
+
+
+    </div>
+
     <script defer src="static/js/fontawesome-all.min.js"></script>
     <script src="static/js/vue.min.js"></script>
-    <script src="static/js/structure.js"></script>
+    <script src="static/js/index.js"></script>
 </body>
 </html>

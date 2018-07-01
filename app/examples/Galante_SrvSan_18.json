@@ -1,5 +1,7 @@
 {
     "mod_economica": "prezzo",
+    "funzione_economica":"concava_alla_migliore_offerta",
+    "parametri_economica": {"alfa":1},
     "peso_economica": 40,
     "base_asta": 0,
     "riparametrizzazione1": false,

@@ -11,3 +11,15 @@ body { font: caption; }
 
 .input-group>.no-expand {flex-grow:0; width: auto}
 
+#data th {text-align:center}
+
+#data {
+  display: inline-block;
+  width: auto;
+  margin: auto;
+
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+#data tbody tr>td:not(:first-child) {font-family: monospace}

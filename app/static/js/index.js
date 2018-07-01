@@ -15,7 +15,14 @@ const path = require('path')
 // TODO:
 // 1) Manipulate tree add/remove (mod already done)
 // 2) Consistency check (total weight sum, eval method, funcs param)
-// 3) Riproporzionamento (riparam.) 1st and 2nd type.
+// 3) cleanup code: split common/structure code
+//
+// 4) Report errors on data and provide a way to fix it.
+//    Most challanging are too many or to few entries.
+//    Myabe just report and hide.
+//
+// 5) When saving/exporting, dump only fields related to the bando
+//    not all injected shit (env_*).
 
 
 let amax = (x) => {Math.max.apply(x)}
@@ -229,6 +236,12 @@ function refreshGUI() {
         return;
     }
 
+    // NOTE: All extra variables must be declared before init any object.
+    current.env_data_mode = 'explore';
+
+    // TODO: consider alternatively to just destroy and rebuild.
+
+
     if (!window.vm_structure) {
         // Init
         window.vm_structure = new Vue({
@@ -248,18 +261,83 @@ function refreshGUI() {
         });
     }
 
+    if (!window.vm_simulation) {
+
+        // Init
+        window.vm_simulation= new Vue({
+            el: '#simulation',
+            data: current,
+            updated: () => {
+                // Shall we do this here too?
+                // app_status.modified = true;
+            },
+            computed: {
+                cols: function () {
+                    rec_list = (prefix, clst) => {
+                        return clst.map((c, i) => {
+                            let name = prefix + (i + 1);
+                            if (!(c.subcriteri && c.subcriteri.length)) {
+                                return [{
+                                    name: name,
+                                    realname: c.nome,
+                                    weight: c.peso,
+                                    kind: c.tipo,
+                                    ts: c.tipo == 'T'? c.voci : [],
+                                }];
+                            }
+                            return [].concat(...rec_list(name + '.', c.subcriteri));
+                        });
+                    };
+                    return [].concat(...rec_list('', this.criteri));
+                }
+            },
+            filters: {
+                prec2: function(s) {
+                    return parseFloat(s).toFixed(2);
+                }
+            }
+        });
+    }
+
     // Refresh
     Object.keys(current).forEach((key) => {
         Vue.set(window.vm_structure, key, current[key]);
     });
-
+    Object.keys(current).forEach((key) => {
+        Vue.set(window.vm_simulation, key, current[key]);
+    });
 }
 
+function switchView(view) {
+    // TODO: maybe add some cool effect like tile 3d rotation.
+    let structure  = document.getElementById('structure'),
+        simulation = document.getElementById('simulation');
 
-// -- Menu mappings
+    if (view === 'structure') {
+        simulation.style.display = 'none';
+        structure.style.display = 'block';
+    } else if (view === 'simulation') {
+        structure.style.display = 'none';
+        simulation.style.display = 'block';
+    }
+}
+
+/* ========================================================================== */
+/* Simulation                                                                 */
+/* ========================================================================== */
+
+
+/* ========================================================================== */
+/* Menu mappings                                                              */
+/* ========================================================================== */
 ipcRenderer.on('load_bando', (event , args) => {loadBando(args)});
+ipcRenderer.on('view', (event , args) => {switchView(args)});
 
 
 
-// -- Main.
+/* ========================================================================== */
+/* Main                                                                       */
+/* ========================================================================== */
 refreshGUI();
+// switchView('structure');
+switchView('simulation');

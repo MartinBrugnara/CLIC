@@ -23,6 +23,9 @@ const path = require('path')
 //
 // 5) When saving/exporting, dump only fields related to the bando
 //    not all injected shit (env_*).
+//
+// *) TODO: consider to not specify "economic weight" and infer it from missing
+//          point from "tecnica".
 
 
 let amax = (x) => Math.max.apply(Math, x);

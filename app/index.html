@@ -218,12 +218,37 @@
             <table id="data" class="table table-striped text-right">
                 <thead>
                     <tr>
-                        <th><span>#</span><br><small>Peso</small></th>
-                        <th><span>Economica</span><br><small>{{peso_economica}}</small></th>
-                        <th scope="col" v-for="c in cols">
-                            <span v-bind:title="c.nome">{{c.env_name}}</span><br>
-                            <small>{{c.peso}}</small>
+                        <th><span>#</span></th>
+                        <th><span>Economica</span></th>
+                        <th scope="col" v-for="c in cols" v-bind:colspan="c.tipo == 'T'? c.voci.length : 1">
+                            <span v-bind:title="c.nome">{{c.env_name}}</span>
                         </th>
+                    </tr>
+                    <tr>
+                        <th><small>Peso</small></th>
+                        <th>
+                            <small v-if="env_data_mode == 'explore'">{{peso_economica}}</small>
+                            <input v-else v-model="peso_economica" type="number" min="0" max="100" step="0.5">
+                        </th>
+
+                        <template v-for="c in cols">
+                            <template v-if="c.tipo == 'T'">
+                                <th v-for="(v, vi) in c.voci">
+                                    <small v-if="env_data_mode == 'explore'">{{c.voci[vi]}}</small>
+                                    <!-- TODO: consider set max == to parent.peso -->
+                                    <!-- NOTE: 99 instead of 100 to fit same size as bottom -->
+                                    <input v-else v-model="c.voci[vi]" type="number" min="0" max="99" step="0.5">
+                                </th>
+                            </template>
+                            <template v-else>
+                                <th>
+                                    <small v-if="env_data_mode == 'explore'">{{c.peso}}</small>
+                                    <!-- TODO: consider set max == to parent.peso -->
+                                    <!-- NOTE: 99 instead of 100 to fit same size as bottom -->
+                                    <input v-else v-model="c.peso" type="number" min="0" max="99" step="0.5">
+                                </th>
+                            </template>
+                        </template>
                     </tr>
                 </thead>
                 <tbody>
@@ -232,41 +257,41 @@
                             <!-- TODO: Add color backgroud to show distribution -->
                             <td class="text-left">{{ o.nome }}</td>
                             <td>{{o.economica[0] | prec2}}</td>
-                            <td v-for="(t, ti) in o.tecnica">
+                            <template v-for="(t, ti) in o.tecnica">
                                 <template v-if="cols[ti].tipo == 'T'">
                                     <template v-for="(v, vi) in cols[ti].voci">
-                                        <span class="ml-1" style="white-space: nowrap">{{v}}:
+                                        <td class="text-center">
                                             <!--
                                                 Do not use awesome + js here.
                                                 Only static content.
                                             -->
                                             <span v-if="t[vi]">&#x2714;</span>
                                             <span v-else>&#x2718;</span>
-                                        </span>
+                                        </td>
                                     </template>
                                 </template>
                                 <template v-else>
-                                    {{t | prec2}}
+                                    <td>{{t | prec2}}</td>
                                 </template>
-                            </td>
+                            </template>
                         </template>
 
                         <template v-else>
                             <td class="text-left"><input type="text" v-model="o.nome"></td>
                             <td><input type="number" min="0" step="0.01" v-model="o.economica[0]"></td>
-                            <td v-for="(t, ti) in o.tecnica">
+                            <template v-for="(t, ti) in o.tecnica">
                                 <template v-if="cols[ti].tipo == 'T'">
-                                    <span v-for="(v, vi) in cols[ti].voci" class="ml-1" style="white-space: nowrap">{{v}}:
+                                    <td v-for="(v, vi) in cols[ti].voci" class="text-center">
                                         <input type="checkbox" v-model="t[vi]">
-                                    </span>
+                                    </td>
                                 </template>
                                 <template v-else-if="cols[ti].tipo == 'D'">
-                                    <input type="number" min="0" step="0.01" max="1" v-model="o.tecnica[ti]">
+                                    <td><input type="number" min="0" step="0.01" max="1" v-model="o.tecnica[ti]"></td>
                                 </template>
                                 <template v-else>
-                                    <input type="number" min="0" step="0.01" v-model="o.tecnica[ti]">
+                                    <td><input type="number" min="0" step="0.01" v-model="o.tecnica[ti]"></td>
                                 </template>
-                            </td>
+                            </template>
                         </template>
                     </tr>
                 </tbody>

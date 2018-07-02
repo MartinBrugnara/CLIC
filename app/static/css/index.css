@@ -22,6 +22,9 @@ body { font: caption; }
   overflow-x: auto;
 }
 
+#data thead tr:nth-child(2)>th:not(:first-child) {font-family: monospace}
+#data thead tr:first-child>th {padding-bottom: 0;border-bottom: 0;}
+#data thead tr:last-child>th {padding-top: 0;border-top: 0;}
 #data tbody tr>td:not(:first-child) {font-family: monospace}
 
 

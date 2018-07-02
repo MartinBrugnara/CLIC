@@ -332,6 +332,16 @@
                                 <label for="electre_desc" class="mb-0">&#x25BC;</label>
                             </div>
                         </td>
+                        <!--
+                        <td>
+                            <span class="x-middle">Electre 100</span>
+                            <div class="d-inline-flex flex-column ml-2">
+                                <input id="electre100_asc" type="radio" v-model="env_data_orderby" value="electre_asc">
+                                <label for="electre100_asc" class="mb-0">&#x25B2;</label>
+                                <input id="electre100_desc" type="radio" v-model="env_data_orderby" value="electre_desc">
+                                <label for="electre100_desc" class="mb-0">&#x25BC;</label>
+                            </div>
+                        </td> -->
                         <td>
                             <span class="x-middle">Topsis</span>
                             <div class="d-inline-flex flex-column ml-2">
@@ -346,11 +356,13 @@
                 <tbody>
                     <tr v-for="(o, oi) in scoreboard">
                         <td>{{ o.nome }}</td>
-                        <td>{{ o.agg }}</td>
-                        <td></td>
+                        <td>{{ o.agg | prec2 }}</td>
+                        <td>{{ o.electre }}</td>
+                        <!--
+                        <td>{{ o.electre100 }}</td>
+                        -->
                         <td></td>
                         <!--
-                        <td>{{ o.electre }}</td>
                         <td>{{ o.topsis }}</td>
                         -->
                     </tr>

@@ -26,6 +26,10 @@ const path = require('path')
 //
 // *) TODO: consider to not specify "economic weight" and infer it from missing
 //          point from "tecnica".
+//
+// Extra) Calcolo anamolia (solo Agg. Comp)
+// Extra)  Aggiungere funzione IDENTITA' che puo' essere usata solo con electre
+//  (non richiede scalare tra 0-1)
 
 
 let amax = (x) => Math.max.apply(Math, x);
@@ -44,26 +48,50 @@ let funcs = {
 
     // TODO: consider track also: intrdependent or not to enforce some rules.
     // @see consip warning
-
+    //
+    "identita": {
+        // This shall be used only with the ELECTRE method,
+        // when the user whant to use the raw values instead of the scaled one.
+        up: {
+            f: (P, x, bando, others) => P,
+            params: {}
+        },
+        down: {
+            f: (P, x, bando, others) => P,
+            params: {}
+        }
+    },
+    "proporzionalita_inversa": {
+        up: {
+            f: (P, x, bando, others) => amax(others) * 1.0 / P,
+            params: {}
+        },
+        down: {
+            f: (P, x, bando, others) => amin(others) * 1.0 / P,
+            params: {}
+        }
+    },
     "lineare_semplice": {
         up: {
             f: (P, x, bando, others) => {
                 // QUESTION: if soglia non specificato --> ??
-                (P - x.soglia_min)*1.0/(x.soglia - x.soglia_min)
+                return (P - x.soglia_min)*1.0/(x.soglia - x.soglia_min)
             },
             params: {
-                // TODO: ain't soglia the mean?
-                soglia:     {domain:{start:0, end:'', step:1}, required: true}, // TODO: is this really required
+                // FIXME: ain't soglia the mean?
+                // TODO: is this really required?
+                soglia:     {domain:{start:0, end:'', step:1}, required: true},
                 soglia_min: {domain:{start:0, end:'', step:1}, required: true},
             }
         },
         down: {
             f: (P, x, bando, others) => {
-                // QUESTION: if soglia non specificato --> ??
-                (bando.base_asta - P)*1.0/(bando.base_asta - x.soglia)
+                // FIXME: if soglia non specificato --> ??
+                return (bando.base_asta - P)*1.0/(bando.base_asta - x.soglia)
             },
             params: {
-                soglia: {domain:{start:0, end:'', step:1}, required: true}, // TODO: is this really required
+                // TODO: is this really required
+                soglia: {domain:{start:0, end:'', step:1}, required: true},
             }
         }
 
@@ -78,7 +106,6 @@ let funcs = {
         // * Lineare alla migliore offerta (alpha = 1)
         up: {
             f: (P, x, bando, others) => {
-                // TODO: debug!!!!
                 return Math.pow(P*1.0 / amax(others), x.alfa)
             },
             params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
@@ -86,20 +113,12 @@ let funcs = {
         },
         down: {
             f: (P, x, bando, others) => {
-                console.log('Down args:', [P, x, bando, others]);
                 let BA = bando.base_asta;
 
                 // FIXME: only 4 debug!!
                 console.warn("for debug: if not specified BA is max(offerta_economica)");
                 if (!bando.base_asta)
                     BA = amax(others);
-
-                console.log("Others:", others);
-                console.log("BA: ", BA);
-                console.log("P: ", P);
-                console.log("Pmax: ", amin(others));
-                console.log("Pmin: ", amax(others));
-                console.log("alfa: ", x.alfa);
 
                 return Math.pow((BA - P) * 1.0 / (BA - amin(others)), x.alfa).toFixed(2)
             },
@@ -301,19 +320,25 @@ function refreshGUI() {
                     // TODO: we should apply functions first
                     let offerte = applyFunctions(this);
                     let agg = aggregativoCompensatore(this, offerte);
+                    let ele = electre(this, offerte);
 
-                    // Offerta, Agg, Electre, Tops
-                    // TODO: sort by from GUI
+                    let board = {};
+                    offerte.forEach((o) => board[o.nome] = {nome: o.nome});
+                    agg.forEach((e) => board[e.nome].agg = e.agg);
+                    ele.forEach((e) => {
+                        board[e.nome].electre = e.electre;
+//                        board[e.nome].electre100 = e.electre100;
+                    });
+
+                    // Offerta, Agg, Electre, Electre100 Tops
                     let x = this.env_data_orderby.split('_'),
                         field = x[0], order = x[1];
-                    console.log(field, order);
 
-
-                    return agg.sort((a,b) =>
+                    return Object.values(board).sort((a,b) =>
                         (-1)**(order == 'desc') *
                         (field == 'nome' ?
-                            2 * (b[field] < a[field]) - 1 :
-                            b[field] - a[field]));
+                            2 * (a[field] > b[field]) - 1 :
+                            a[field] - b[field]));
                 }
             },
             filters: {
@@ -387,7 +412,7 @@ function applyFunctions(bando) {
                     t,                          // Current bid
                     fc[ti].parametri,           // Parameters
                     bando,                      // Bando for global param
-                    bando.offerte.map((o) => o.tecnica[ti]));
+                    bando.offerte.map((o) => o.tecnica[ti])).toFixed(2);
             } else {
                 return t;
             }
@@ -397,6 +422,7 @@ function applyFunctions(bando) {
     });
 }
 
+
 function aggregativoCompensatore(bando, offerte) {
     // TODO: WE SHOULD ACCOUNT ALSO FOR RIPARAMETRAZIONE
     //  or only in "Apply func" ????
@@ -404,21 +430,183 @@ function aggregativoCompensatore(bando, offerte) {
     let fc = criteriFlat(bando.criteri);
     let weights = [bando.peso_economica].concat(fc.map((c) => c.peso));
 
-    console.log("AGG params: ", offerte);
-
     return offerte.map((o) => {
-        console.log(o);
         return {
             nome: o.nome,
             agg: [o.economica].concat(o.tecnica)
                 .map((v, vi) => weights[vi] * v)
                 .reduce((a, b) => a + b)
-                .toFixed(2)
         };
     });
 };
 
+function nmatrix(dim, def_value) {
+    /* Build ndimensional matrix and assign a def_value.
+     * dim: list with dimensions
+     * def_value: default value (0).
+     */
+    let copy = (o) => JSON.parse(JSON.stringify(o)),
+        value = def_value !== undefined? def_value : 0,
+        base = new Array(dim[dim.length-1]).fill(value);
+    for (let i = dim.length-2; i >= 0; i--) {
+        let next = [];
+        for (let j = 0; j < dim[i]; j++)
+            next.push(copy(base));
+        base = next;
+    }
+    return base
+}
 
+
+function electre(bando, offerte) {
+    // http://www.bosettiegatti.eu/info/norme/statali/2010_0207.htm#ALLEGATO_G
+    //
+    // Prepare set of real `offerte`
+    const bids = offerte.map(o => {
+        return {nome:o.nome, v:[o.economica].concat(o.tecnica)};
+    });
+    let fc = criteriFlat(bando.criteri);
+    const weights = [bando.peso_economica].concat(fc.map((c) => c.peso));
+
+    // TODO: This only find the "FIRST" run multiple time to define complete rank
+    // TODO: handle esclude bcause subclassed
+
+    let rank = {}, i = 1;
+    while (true) {
+        let iter_bids = bids.filter(o => rank[o.nome] === undefined);
+        // TODO: instead of -1 shall we do -2 (does not work < of 3)
+        if (iter_bids.length <= 1) {
+            rank[iter_bids[0].nome] = i;
+            break;
+        }
+        let winner = electreIteration(weights, iter_bids);
+        rank[winner] = i;
+        i++;
+    }
+
+    return Object.keys(rank).map(k => {
+        return {nome: k, electre: rank[k]};
+    });
+}
+
+function electreIteration(w, bids) {
+    /* w: weights
+     * bids: flat `offerte` to be considered in this iteration.
+     *
+     * returns: `nome` of the winner.
+     */
+
+
+    let n = w.length,    // 'criteri' to evaluate.
+        r = bids.length; // number of offers
+
+    // Step B
+    let f = nmatrix([n,r,r]);
+    let g = nmatrix([n,r,r]);
+
+    // Abstract internal structure and match paper algorithm.
+    a = (k, i) => bids[i].v[k];
+
+    for (let k=0; k < n; k++) {
+        for (let i=0; i < r; i++) {
+            for (let j=0; j < r; j++) {
+                if (i == j) // NOTE: we could remove, would still be 0.
+                    continue;
+
+                let ai = a(k,i), aj = a(k,j);
+                let delta = Math.abs(ai - aj);
+                if (ai > aj)
+                    f[k][i][j] = delta;
+                else
+                    g[k][i][j] = delta;
+            }
+        }
+    }
+
+    // Step C
+    let c = nmatrix([r,r]);
+    let d = nmatrix([r,r]);
+    let s = nmatrix([n]);
+
+    for (let si=0; si < n; si++) {
+        // NOTE: taking from fmax is the same as from gmax.
+        s[si] = Math.max.apply(null, f[si].map((js) => Math.max.apply(null, js)));
+    }
+
+    for (let i=0; i < r; i++) {
+        for (let j=0; j < r; j++) {
+            if (i == j)
+                continue;
+
+            let csum = 0,
+                dsum = 0;
+            for (let k=0; k < n; k++) {
+                if (s[k] === 0) {
+                    // TODO: I assume this is the behevior.
+                    //       Ratio: if max_delta == 0, delta is 0.
+                    // FIXME: remove this log once discussed with others.
+                    // console.log("skipping criteria", k-1, "becouse 0");
+                    continue;
+                }
+
+                csum += f[k][i][j] * 1.0 / s[k] * w[k];
+                dsum += g[k][i][j] * 1.0 / s[k] * w[k];
+            }
+            c[i][j] = csum;
+            d[i][j] = dsum;
+
+            if (dsum == 0) {
+                // TODO: implement offer elimination with d == 0!!!
+                console.warn("We should eliminate offer " + j + ", but it is not implemented");
+            }
+        }
+    }
+
+    // Step D
+    let q = nmatrix([r,r]);
+
+    for (let i=0; i < r; i++)
+        for (let j=0; j < r; j++)
+            if (i != j)
+                q[i][j] = c[i][j] / d[i][j];
+
+    let qx = nmatrix([r,r]),
+        q_max = Math.max.apply(null, q.map((js) => Math.max.apply(null, js)));
+
+    for (let i=0; i < r; i++)
+        for (let j=0; j < r; j++)
+            if (i != j)
+                qx[i][j] = 1 + (q[i][j] / q_max) * 99
+
+    // Step E
+    let Pa = nmatrix([r]); // Points on absolute values.
+//        Pn = nmatrix([r]); // Points normalized from 1 to 100.
+//        TODO: maybe expose as "different algorithm" to see if anythis change.
+//              only if make sense.
+
+    for (let i=0; i < r; i++) {
+        let asum = 0;
+//            nsum = 0; // NOT supporting 0-100 based one
+        for (let j=0; j < r; j++) {
+            if (i == j) continue;
+            asum += q[i][j];
+//            nsum += qx[i][j];
+        }
+        Pa[i] = asum.toFixed(2);
+//        Pn[i] = nsum.toFixed(2);
+    }
+
+    // Look for winner
+    let Pa_max = 0, Pa_max_id = -1;     // Electre is >= 1
+    for (let i in Pa) {
+        if (Pa[i] > Pa_max) {
+            Pa_max = Pa[i];
+            Pa_max_id = i;
+        }
+    }
+
+    return bids[Pa_max_id].nome;
+}
 
 function switchView(view) {
     // TODO: maybe add some cool effect like tile 3d rotation.

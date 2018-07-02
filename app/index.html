@@ -201,8 +201,12 @@
             <div class="d-flex align-items-end text-right mb-2">
                 <strong>Modalit&agrave;</strong >
                 <div class="form-check-inline ml-2">
-                    <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="explore" value="explore" v-model="env_data_mode">
-                    <label class="form-check-label" for="explore">Esplora</label>
+                    <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="points" value="points" v-model="env_data_mode">
+                    <label class="form-check-label" for="points">Punti</label>
+                </div>
+                <div class="form-check-inline">
+                    <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="raw" value="raw" v-model="env_data_mode">
+                    <label class="form-check-label" for="raw">Dati</label>
                 </div>
                 <div class="form-check-inline mr-0">
                     <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="edit" value="edit" v-model="env_data_mode">
@@ -227,25 +231,26 @@
                     <tr>
                         <th><small>Peso</small></th>
                         <th>
-                            <small v-if="env_data_mode == 'explore'">{{peso_economica}}</small>
-                            <input v-else v-model="peso_economica" type="number" min="0" max="100" step="0.5">
+                            <input v-if="env_data_mode == 'edit'" v-model="peso_economica" type="number" min="0" max="100" step="0.5">
+                            <small v-else>{{peso_economica}}</small>
                         </th>
 
                         <template v-for="c in cols">
                             <template v-if="c.tipo == 'T'">
-                                <th v-for="(v, vi) in c.voci">
-                                    <small v-if="env_data_mode == 'explore'">{{c.voci[vi]}}</small>
+                                <th v-if="env_data_mode == 'points'"><small>{{c.peso}}</small></th>
+                                <th v-else v-for="(v, vi) in c.voci">
                                     <!-- TODO: consider set max == to parent.peso -->
                                     <!-- NOTE: 99 instead of 100 to fit same size as bottom -->
-                                    <input v-else v-model="c.voci[vi]" type="number" min="0" max="99" step="0.5">
+                                    <input v-if="env_data_mode == 'edit'" v-model="c.voci[vi]" type="number" min="0" max="99" step="0.5">
+                                    <small v-else>{{c.voci[vi]}}</small>
                                 </th>
                             </template>
                             <template v-else>
                                 <th>
-                                    <small v-if="env_data_mode == 'explore'">{{c.peso}}</small>
                                     <!-- TODO: consider set max == to parent.peso -->
                                     <!-- NOTE: 99 instead of 100 to fit same size as bottom -->
-                                    <input v-else v-model="c.peso" type="number" min="0" max="99" step="0.5">
+                                    <input v-if="env_data_mode == 'edit'" v-model="c.peso" type="number" min="0" max="99" step="0.5">
+                                    <small v-else>{{c.peso}}</small>
                                 </th>
                             </template>
                         </template>
@@ -253,30 +258,7 @@
                 </thead>
                 <tbody>
                     <tr v-for="(o, i) in offerte" :key="o.nome">
-                        <template v-if="env_data_mode == 'explore'">
-                            <!-- TODO: Add color backgroud to show distribution -->
-                            <td class="text-left">{{ o.nome }}</td>
-                            <td>{{o.economica[0] | prec2}}</td>
-                            <template v-for="(t, ti) in o.tecnica">
-                                <template v-if="cols[ti].tipo == 'T'">
-                                    <template v-for="(v, vi) in cols[ti].voci">
-                                        <td class="text-center">
-                                            <!--
-                                                Do not use awesome + js here.
-                                                Only static content.
-                                            -->
-                                            <span v-if="t[vi]">&#x2714;</span>
-                                            <span v-else>&#x2718;</span>
-                                        </td>
-                                    </template>
-                                </template>
-                                <template v-else>
-                                    <td>{{t | prec2}}</td>
-                                </template>
-                            </template>
-                        </template>
-
-                        <template v-else>
+                        <template v-if="env_data_mode == 'edit'">
                             <td class="text-left"><input type="text" v-model="o.nome"></td>
                             <td><input type="number" min="0" step="0.01" v-model="o.economica[0]"></td>
                             <template v-for="(t, ti) in o.tecnica">
@@ -293,6 +275,36 @@
                                 </template>
                             </template>
                         </template>
+
+                        <template v-else>
+                            <!-- TODO: Add color backgroud to show distribution -->
+                            <td class="text-left">{{ o.nome }}</td>
+                            <td v-if="env_data_mode == 'points'">{{points[i].economica | prec2}}</td>
+                            <td v-else>{{o.economica[0] | prec2}}</td>
+                            <template v-for="(t, ti) in o.tecnica">
+                                <template v-if="cols[ti].tipo == 'T'">
+                                    <td v-if="env_data_mode == 'points'">
+                                        {{ points[i].tecnica[ti] | prec2 }}
+                                    </td>
+                                    <td v-else v-for="(v, vi) in cols[ti].voci" class="text-center">
+                                        <!--
+                                            Do not use awesome + js here.
+                                            Only static content.
+                                        -->
+                                        <span v-if="t[vi]">&#x2714;</span>
+                                        <span v-else>&#x2718;</span>
+                                    </td>
+                                </template>
+                                <template v-else-if="cols[ti].tipo == 'Q' && env_data_mode == 'points'">
+                                    <td>{{ points[i].tecnica[ti] | prec2 }}</td>
+                                </template>
+                                <template v-else>
+                                    <td>{{ t | prec2 }}</td>
+                                </template>
+                            </template>
+                        </template>
+
+
                     </tr>
                 </tbody>
             </table>

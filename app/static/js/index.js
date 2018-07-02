@@ -277,7 +277,7 @@ function refreshGUI() {
     }
 
     // NOTE: All extra variables must be declared before init any object.
-    current.env_data_mode = 'explore';
+    current.env_data_mode = 'raw';
     current.env_data_orderby = 'agg_desc';
 
     // TODO: consider alternatively to just destroy and rebuild.
@@ -315,6 +315,9 @@ function refreshGUI() {
             computed: {
                 cols: function () {
                     return criteriFlat(this.criteri);
+                },
+                points: function () {
+                    return applyFunctions(this);
                 },
                 scoreboard: function() {
                     // TODO: we should apply functions first
@@ -375,7 +378,6 @@ function criteriFlat(criteri) {
 
 
 
-// TODO: consider to transform and apply function before actually going to algorithm;
 function applyFunctions(bando) {
     /* Given a bando, applies functions to the bids values and, if required,
         * scales the results. Produces a list of bids to be used with ranking
@@ -468,8 +470,7 @@ function electre(bando, offerte) {
     let fc = criteriFlat(bando.criteri);
     const weights = [bando.peso_economica].concat(fc.map((c) => c.peso));
 
-    // TODO: This only find the "FIRST" run multiple time to define complete rank
-    // TODO: handle esclude bcause subclassed
+    // TODO: handle esclude because `surclassata`/`dominata`
 
     let rank = {}, i = 1;
     while (true) {

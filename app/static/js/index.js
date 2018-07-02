@@ -30,6 +30,13 @@ const path = require('path')
 // Extra) Calcolo anamolia (solo Agg. Comp)
 // Extra)  Aggiungere funzione IDENTITA' che puo' essere usata solo con electre
 //  (non richiede scalare tra 0-1)
+//
+//
+//
+//  ASSUMPTION:
+//  We assume that the economic feature is to be maximized.
+//  We expect either to run with 'sconto' or that the applied function
+//  turns the problem from minimization to maximization.
 
 
 let amax = (x) => Math.max.apply(Math, x);
@@ -62,6 +69,7 @@ let funcs = {
         }
     },
     "proporzionalita_inversa": {
+        // This covers 92.49% of Bozen runs.
         up: {
             f: (P, x, bando, others) => amax(others) * 1.0 / P,
             params: {}
@@ -324,14 +332,13 @@ function refreshGUI() {
                     let offerte = applyFunctions(this);
                     let agg = aggregativoCompensatore(this, offerte);
                     let ele = electre(this, offerte);
+                    let tops = topsis(this, offerte);
 
                     let board = {};
                     offerte.forEach((o) => board[o.nome] = {nome: o.nome});
                     agg.forEach((e) => board[e.nome].agg = e.agg);
-                    ele.forEach((e) => {
-                        board[e.nome].electre = e.electre;
-//                        board[e.nome].electre100 = e.electre100;
-                    });
+                    ele.forEach((e) => board[e.nome].electre = e.electre);
+                    tops.forEach((e) => board[e.nome].topsis = e.topsis);
 
                     // Offerta, Agg, Electre, Electre100 Tops
                     let x = this.env_data_orderby.split('_'),
@@ -462,7 +469,7 @@ function nmatrix(dim, def_value) {
 
 function electre(bando, offerte) {
     // http://www.bosettiegatti.eu/info/norme/statali/2010_0207.htm#ALLEGATO_G
-    //
+
     // Prepare set of real `offerte`
     const bids = offerte.map(o => {
         return {nome:o.nome, v:[o.economica].concat(o.tecnica)};
@@ -607,6 +614,89 @@ function electreIteration(w, bids) {
     }
 
     return bids[Pa_max_id].nome;
+}
+
+
+function topsis(bando, offerte) {
+    // ANAC Linee Guida 2.pdf
+    // https://en.wikipedia.org/wiki/TOPSIS
+
+    // Prepare set of real `offerte`
+    const bids = offerte.map(o => {
+        return {nome:o.nome, v:[o.economica].concat(o.tecnica)};
+    });
+    let fc = criteriFlat(bando.criteri);
+    const w = [bando.peso_economica].concat(fc.map((c) => c.peso));
+
+
+    let n = w.length,    // 'criteri' to evaluate.
+        r = bids.length; // number of offers
+
+    // Abstract internal structure and match paper algorithm.
+    m = (i, k) => bids[i].v[k];
+
+    // Normalization
+    let x = nmatrix([r,n]);
+    for (let k=0; k < n; k++) {
+        // Compute geometric mean for this K
+        let gm = 0;
+        for (let i=0; i < r; i++) {
+            gm += m(i, k) ** 2;
+        }
+        gm = Math.sqrt(gm);
+
+        // Nomralize values
+        for (let i=0; i < r; i++) {
+            x[i][k] = m(i,k) / gm;
+        }
+    }
+
+
+    // NOTE: wikipedia dictate to normalize the weight between [0-1]
+    //       ANAC says nothig. Looks like nothis changes... anyway we do.
+    let wtot = w.reduce((a, b) => a + b),
+        wn = w.map(x => x * 1.0 / wtot);
+
+    // Inject weights
+    let v = nmatrix([r,n]);
+    for (let i=0; i < r; i++)
+        for (let k=0; k < n; k++)
+            v[i][k] = x[i][k] * wn[k];
+
+    // Compute reference solutions
+    // NOTE: we assume higher score is better, i.e. only J+
+    let v_b = nmatrix([n]),   // Best alternative v+
+        v_w = nmatrix([n]);   // Worst alternative v-
+    for (let k=0; k < n; k++) {
+        v_b[k] = amax(v.map(i => i[k]));
+        v_w[k] = amin(v.map(i => i[k]));
+    }
+
+    // Compute bid distances
+    let d_b = nmatrix([r, n]), // Bid distance from best
+        d_w = nmatrix([r, n]); // Bid distance from worst
+    for (let i=0; i < r; i++) {
+        let b = 0, w = 0;
+        for (let k=0; k < n; k++) {
+            b += (v[i][k] - v_b[k]) ** 2;
+            w += (v[i][k] - v_w[k]) ** 2;
+        }
+        d_b[i] = Math.sqrt(b);
+        d_w[i] = Math.sqrt(w);
+    }
+
+    // Calculate the similarity to the worst condition
+    let s = nmatrix([r]);
+    for (let i=0; i < r; i++)
+        s[i] = d_w[i] / (d_b[i] + d_w[i]);
+
+    // Rank the alternatives according to s (just return)
+    return bids.map((o, i) => {
+        return {
+            nome: o.nome,
+            topsis: s[i],
+        }
+    });
 }
 
 function switchView(view) {

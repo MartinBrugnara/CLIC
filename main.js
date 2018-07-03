@@ -1,6 +1,3 @@
-const {app, BrowserWindow, Menu, MenuItem, globalShortcut} = require('electron')
-const fs = require('fs')
-
 /*
 CLIC what if?
 Esplora i metodi di aggiudicazione dell'offerta economicamente piu' vantaggiosa
@@ -20,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+const {app, BrowserWindow, Menu, MenuItem, globalShortcut} = require('electron')
+const fs = require('fs')
 
 const NotImplementedError = () => {console.error('Not yet implemented')};
 

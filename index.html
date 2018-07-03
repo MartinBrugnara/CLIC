@@ -238,7 +238,7 @@
 
         <!-- TODO: consider add switch for "edit"/"view" mode, default view -->
         <div class="text-center">
-            <table id="data" class="table table-striped text-right">
+            <table id="data" class="table table-striped text-right pb-2">
                 <thead>
                     <tr>
                         <th><span>#</span></th>
@@ -298,12 +298,12 @@
                         <template v-else>
                             <!-- TODO: Add color backgroud to show distribution -->
                             <td class="text-left">{{ o.nome }}</td>
-                            <td v-if="env_data_mode == 'points'">{{points[i].economica | prec2}}</td>
+                            <td v-if="env_data_mode == 'points'">{{ points[i].economica * peso_economica | prec2}}</td>
                             <td v-else>{{o.economica[0] | prec2}}</td>
                             <template v-for="(t, ti) in o.tecnica">
                                 <template v-if="cols[ti].tipo == 'T'">
                                     <td v-if="env_data_mode == 'points'">
-                                        {{ points[i].tecnica[ti] | prec2 }}
+                                        {{ points[i].tecnica[ti] * cols[ti].peso | prec2 }}
                                     </td>
                                     <td v-else v-for="(v, vi) in cols[ti].voci" class="text-center">
                                         <!--
@@ -314,8 +314,8 @@
                                         <span v-else>&#x2718;</span>
                                     </td>
                                 </template>
-                                <template v-else-if="cols[ti].tipo == 'Q' && env_data_mode == 'points'">
-                                    <td>{{ points[i].tecnica[ti] | prec2 }}</td>
+                                <template v-else-if="env_data_mode == 'points'">
+                                    <td>{{ points[i].tecnica[ti] * cols[ti].peso | prec2 }}</td>
                                 </template>
                                 <template v-else>
                                     <td>{{ t | prec2 }}</td>

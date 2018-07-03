@@ -47,11 +47,7 @@ const {ipcRenderer} = require('electron'),
 //          point from "tecnica".
 //
 // Extra) Calcolo anamolia (solo Agg. Comp)
-// Extra)  Aggiungere funzione IDENTITA' che puo' essere usata solo con electre
-//  (non richiede scalare tra 0-1)
 //
-//
-//  *) TEST AGAINS https://decision-radar.com/
 //
 //
 //  ASSUMPTION:
@@ -495,7 +491,12 @@ function nmatrix(dim, def_value) {
 
 
 function electre(bando, offerte) {
+    // ANAC Linee Guida 2.pdf
     // http://www.bosettiegatti.eu/info/norme/statali/2010_0207.htm#ALLEGATO_G
+    //
+    // From: FILE 1_ ESTRATTO 02_OEPV E METODI MULTICRITERI.pdf
+    // Per definire una classifica, è necessario ripetere la procedura cancellando di volta in volta l’offerta risultata vincitrice nella tornata precedente.
+    // Per le ragioni indicate il metodo Electre può risultare non adeguato quando il numero delle offerte presentate è inferiore a tre, perché causa effetti distorsivi nel processo di valutazione.
 
     // Prepare set of real `offerte`
     const bids = offerte.map(o => {
@@ -504,19 +505,18 @@ function electre(bando, offerte) {
     let fc = criteriFlat(bando.criteri);
     const weights = [bando.peso_economica].concat(fc.map((c) => c.peso));
 
-    // TODO: handle esclude because `surclassata`/`dominata`
-
     let rank = {}, i = 1;
     while (true) {
         let iter_bids = bids.filter(o => rank[o.nome] === undefined);
-        // TODO: instead of -1 shall we do -2 (does not work < of 3)
-        if (iter_bids.length <= 1) {
-            rank[iter_bids[0].nome] = i;
+        if (iter_bids.length <= 2) {
+            for (let j in iter_bids)
+                rank[iter_bids[j].nome] = i;
             break;
         }
-        let winner = electreIteration(weights, iter_bids);
-        rank[winner] = i;
-        i++;
+        let winners = electreIteration(weights, iter_bids);
+        for (let j in winners)
+            rank[winners[j]] = i;
+        i += winners.length;
     }
 
     return Object.keys(rank).map(k => {
@@ -527,10 +527,19 @@ function electre(bando, offerte) {
 function electreIteration(w, bids) {
     /* w: weights
      * bids: flat `offerte` to be considered in this iteration.
-     *
      * returns: `nome` of the winner.
      */
 
+
+    /* FIXME: due to recursion in step C, we may have less than 3 bids.
+     *        The electre method performs poorly in such such conditions.
+     *        What to do in this condition is undefined.
+     *        We assign the same rank, i.e. both bids win.
+     *        Shall better discuss this point with maths guys.
+     */
+    if (bids.length <= 2) {
+        return bids.map(b => b.nome);
+    }
 
     let n = w.length,    // 'criteri' to evaluate.
         r = bids.length; // number of offers
@@ -548,8 +557,9 @@ function electreIteration(w, bids) {
                 if (i == j) // NOTE: we could remove, would still be 0.
                     continue;
 
-                let ai = a(k,i), aj = a(k,j);
-                let delta = Math.abs(ai - aj);
+                let ai = a(k,i),
+                    aj = a(k,j),
+                    delta = Math.abs(ai - aj);
                 if (ai > aj)
                     f[k][i][j] = delta;
                 else
@@ -564,8 +574,8 @@ function electreIteration(w, bids) {
     let s = nmatrix([n]);
 
     for (let si=0; si < n; si++) {
-        // NOTE: taking from fmax is the same as from gmax.
-        s[si] = Math.max.apply(null, f[si].map((js) => Math.max.apply(null, js)));
+        // Taking from gmax would be the same.
+        s[si] = amax(f[si].map(js => amax(js)));
     }
 
     for (let i=0; i < r; i++) {
@@ -576,13 +586,8 @@ function electreIteration(w, bids) {
             let csum = 0,
                 dsum = 0;
             for (let k=0; k < n; k++) {
-                if (s[k] === 0) {
-                    // TODO: I assume this is the behevior.
-                    //       Ratio: if max_delta == 0, delta is 0.
-                    // FIXME: remove this log once discussed with others.
-                    // console.log("skipping criteria", k-1, "becouse 0");
+                if (s[k] === 0)
                     continue;
-                }
 
                 csum += f[k][i][j] * 1.0 / s[k] * w[k];
                 dsum += g[k][i][j] * 1.0 / s[k] * w[k];
@@ -590,57 +595,34 @@ function electreIteration(w, bids) {
             c[i][j] = csum;
             d[i][j] = dsum;
 
-            if (dsum == 0) {
-                // TODO: implement offer elimination with d == 0!!!
-                console.warn("We should eliminate offer " + j + ", but it is not implemented");
+            if (dsum == 0) { // Then j is dominated by i. Re-run without j.
+                return electreIteration(w, bids.filter((_, idx) => idx != j));
             }
         }
     }
 
     // Step D
     let q = nmatrix([r,r]);
-
     for (let i=0; i < r; i++)
         for (let j=0; j < r; j++)
             if (i != j)
                 q[i][j] = c[i][j] / d[i][j];
 
-    let qx = nmatrix([r,r]),
-        q_max = Math.max.apply(null, q.map((js) => Math.max.apply(null, js)));
-
-    for (let i=0; i < r; i++)
-        for (let j=0; j < r; j++)
-            if (i != j)
-                qx[i][j] = 1 + (q[i][j] / q_max) * 99
-
     // Step E
     let Pa = nmatrix([r]); // Points on absolute values.
-//        Pn = nmatrix([r]); // Points normalized from 1 to 100.
-//        TODO: maybe expose as "different algorithm" to see if anythis change.
-//              only if make sense.
-
     for (let i=0; i < r; i++) {
         let asum = 0;
-//            nsum = 0; // NOT supporting 0-100 based one
         for (let j=0; j < r; j++) {
-            if (i == j) continue;
+            if (i == j)
+                continue;
             asum += q[i][j];
-//            nsum += qx[i][j];
         }
-        Pa[i] = asum.toFixed(2);
-//        Pn[i] = nsum.toFixed(2);
+        Pa[i] = asum;
     }
 
-    // Look for winner
-    let Pa_max = 0, Pa_max_id = -1;     // Electre is >= 1
-    for (let i in Pa) {
-        if (Pa[i] > Pa_max) {
-            Pa_max = Pa[i];
-            Pa_max_id = i;
-        }
-    }
-
-    return bids[Pa_max_id].nome;
+    // Look for winner[s]
+    let Pa_max = amax(Pa);
+    return bids.filter((_, idx) => Pa[idx] == Pa_max).map(b => b.nome);
 }
 
 

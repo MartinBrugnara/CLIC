@@ -11,7 +11,7 @@
       "email": "mb@disi.unitn.eu",
       "url": "disi.unitn.eu/~brugnara/"
   },
-  "repository" : "url" : "github:MartinBrugnara/CLIC",
+  "repository": "github:MartinBrugnara/CLIC",
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "bootstrap": "^4.1.1",

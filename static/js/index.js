@@ -59,7 +59,7 @@ const {ipcRenderer} = require('electron'),
 let amax = (x) => Math.max.apply(Math, x);
 let amin = (x) => Math.min.apply(Math, x);
 let copy = (o) => JSON.parse(JSON.stringify(o));
-let rnd = (min, max) => Math.random() * (max - min) + min;
+let rnd = (min, max) => Math.floor((Math.random() * (max - min) + min) * 100)/100;
 
 // First one is default
 // TODO: add support for "tabellare" -> [Consip: Scelte, Range]
@@ -215,7 +215,7 @@ Vue.component('criterio', {
                 }
             }
 
-            // TODO: consider remove paramteres unrelated to this function!
+            // TODO: consider remove parameters unrelated to this function!
             return this.model.funzione
         },
     },
@@ -377,7 +377,7 @@ function refreshGUI() {
                     let offerta = {
                         nome: nome,
                         // NOTE: economica must be > 0;
-                        economica: [this.offerte.length == 0 ? 1 : rnd(
+                        economica: [this.offerte.length < 2 ? rnd(0,1) : rnd(
                             amin(this.offerte.map(o => o.economica[0])),
                             amax(this.offerte.map(o => o.economica[0]))
                         )],
@@ -387,7 +387,7 @@ function refreshGUI() {
                             else if (c.tipo == 'D')
                                 return rnd(0,1);
                             else
-                                return this.offerte.length == 0 ? 0 : rnd(
+                                return this.offerte.length < 2 ? rnd(0,1) : rnd(
                                     amin(this.offerte.map(o => o.tecnica[i])),
                                     amax(this.offerte.map(o => o.tecnica[i]))
                                 );

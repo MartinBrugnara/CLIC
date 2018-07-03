@@ -64,8 +64,7 @@ body { font: caption; }
   vertical-align: -webkit-baseline-middle;
 }
 
-#data input[type="radio"]+label:hover {
-  color: #000;
-}
+#data input[type="radio"]+label:hover {color: #333}
 
-/* vertical-align: -webkit-baseline-middle*/
+#data .action {color:#ccc}
+#data .action:hover {color: #333; cursor:pointer}

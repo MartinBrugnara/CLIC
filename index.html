@@ -22,11 +22,13 @@
 
 
     <meta charset="UTF-8">
-    <title>CLIC: "What if?"</title>
+    <title>CLIC: What if?</title>
 
     <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="node_modules/\@fortawesome/fontawesome-free-webfonts/css/fontawesome.css">
+    <link rel="stylesheet" href="node_modules/\@fortawesome/fontawesome-free-webfonts/css/fa-regular.css">
+    <link rel="stylesheet" href="node_modules/\@fortawesome/fontawesome-free-webfonts/css/fa-solid.css">
     <link rel="stylesheet" href="static/css/index.css">
-
 </head>
 <body>
 
@@ -42,8 +44,6 @@
 
     <div id="structure" class="container">
         <h3>Offerta Economica</h3>
-        <!-- TODO: shall we also support prezzo fisso? -->
-
         <div class="container mb-2">
             <div class="form-row">
                 <div class="form-group col-auto">
@@ -212,7 +212,6 @@
 
 
     <div id="simulation">
-
         <div class="container d-flex">
             <div class="flex-fill text-left">
                 <h3>Dati</h3>
@@ -234,9 +233,6 @@
             </div>
         </div>
 
-
-
-        <!-- TODO: consider add switch for "edit"/"view" mode, default view -->
         <div class="text-center">
             <table id="data" class="table table-striped text-right pb-2">
                 <thead>
@@ -245,6 +241,10 @@
                         <th><span>Economica</span></th>
                         <th scope="col" v-for="c in cols" v-bind:colspan="c.tipo == 'T'? c.voci.length : 1">
                             <span v-bind:title="c.nome">{{c.env_name}}</span>
+                        </th>
+                        <th scope="col" rowspan="2">
+                            <!-- TODO: find icon for here. -->
+                            actions
                         </th>
                     </tr>
                     <tr>
@@ -258,7 +258,6 @@
                             <template v-if="c.tipo == 'T'">
                                 <th v-if="env_data_mode == 'points'"><small>{{c.peso}}</small></th>
                                 <th v-else v-for="(v, vi) in c.voci">
-                                    <!-- TODO: consider set max == to parent.peso -->
                                     <!-- NOTE: 99 instead of 100 to fit same size as bottom -->
                                     <input v-if="env_data_mode == 'edit'" v-model="c.voci[vi]" type="number" min="0" max="99" step="0.5">
                                     <small v-else>{{c.voci[vi]}}</small>
@@ -266,7 +265,6 @@
                             </template>
                             <template v-else>
                                 <th>
-                                    <!-- TODO: consider set max == to parent.peso -->
                                     <!-- NOTE: 99 instead of 100 to fit same size as bottom -->
                                     <input v-if="env_data_mode == 'edit'" v-model="c.peso" type="number" min="0" max="99" step="0.5">
                                     <small v-else>{{c.peso}}</small>
@@ -279,7 +277,7 @@
                     <tr v-for="(o, i) in offerte" :key="o.nome">
                         <template v-if="env_data_mode == 'edit'">
                             <td class="text-left"><input type="text" v-model="o.nome"></td>
-                            <td><input type="number" min="0" step="0.01" v-model="o.economica[0]"></td>
+                            <td><input type="number" min="0.01" step="0.01" v-model="o.economica[0]"></td>
                             <template v-for="(t, ti) in o.tecnica">
                                 <template v-if="cols[ti].tipo == 'T'">
                                     <td v-for="(v, vi) in cols[ti].voci" class="text-center">
@@ -321,11 +319,17 @@
                                     <td>{{ t | prec2 }}</td>
                                 </template>
                             </template>
+                            <td class="text-center"><!-- actions -->
+                                <!-- TODO: double check header -->
+                                <i @click="clone(i)" class="far fa-copy action"></i>
+                                <i @click="remove(i)" class="far fa-trash-alt action"></i>
+                            </td>
                         </template>
-
-
                     </tr>
                 </tbody>
+                <caption class="text-center">
+                    <i @click="add" class="fas fa-plus action"></i>
+                </caption>
             </table>
         </div>
 

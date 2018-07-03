@@ -15,6 +15,7 @@
   "repository": "github:MartinBrugnara/CLIC",
   "license": "GPL-3.0-or-later",
   "dependencies": {
+    "@fortawesome/fontawesome-free-webfonts": "^1.0.9",
     "bootstrap": "^4.1.1",
     "npm": "^6.1.0",
     "vue": "^2.5.16"

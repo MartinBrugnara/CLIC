@@ -58,6 +58,8 @@ const {ipcRenderer} = require('electron'),
 
 let amax = (x) => Math.max.apply(Math, x);
 let amin = (x) => Math.min.apply(Math, x);
+let copy = (o) => JSON.parse(JSON.stringify(o));
+let rnd = (min, max) => Math.random() * (max - min) + min;
 
 // First one is default
 // TODO: add support for "tabellare" -> [Consip: Scelte, Range]
@@ -336,16 +338,71 @@ function refreshGUI() {
     if (!window.vm_simulation) {
 
         // Init
+        // TODO: consider having multiple Vue objects, one per data, one per rank.
         window.vm_simulation= new Vue({
             el: '#simulation',
             data: current,
             updated: () => {
-                // Shall we do this here too?
-                // app_status.modified = true;
+                // Modified data
+                app_status.modified = true;
+            },
+            methods: {
+                // For DATA:
+                remove: function(index) {
+                    Vue.delete(this.offerte, index);
+                },
+                clone: function(index) {
+                    let cp = copy(this.offerte[index]);
+                    let nome = cp.nome;
+
+                    if (!/ [i]+$/.test(nome))
+                        nome += ' i';
+                    while (this.offerte.filter(o => o.nome == nome).length)
+                        nome += 'i';
+
+                    // Maybe ask via dialog or just generate.
+                    cp.nome = nome;
+                    this.offerte.splice(index + 1, 0, cp);
+                },
+                add: function() {
+                    // Mine name
+                    let nome = "Nuova"
+                    if (!/ [i]+$/.test(nome))
+                        nome += ' i';
+                    while (this.offerte.filter(o => o.nome == nome).length)
+                        nome += 'i';
+
+                    // Build
+                    let c = criteriFlat(this.criteri);
+                    let offerta = {
+                        nome: nome,
+                        // NOTE: economica must be > 0;
+                        economica: [rnd(
+                            amin(this.offerte.map(o => o.economica[0])),
+                            amax(this.offerte.map(o => o.economica[0]))
+                        )],
+                        tecnica:  c.map((c, i) => {
+                            if (c.tipo == 'T')
+                                return c.voci.map(_ => rnd(0,1) >= 0.5)
+                            else if (c.tipo == 'D')
+                                return rnd(0,1);
+                            else
+                                return rnd(
+                                    amin(this.offerte.map(o => o.tecnica[i])),
+                                    amax(this.offerte.map(o => o.tecnica[i]))
+                                );
+                        })
+                    }
+
+                    // Add to current list
+                    this.offerte.push(offerta);
+                }
             },
             computed: {
                 cols: function () {
-                    return criteriFlat(this.criteri);
+                    let c = criteriFlat(this.criteri);
+                    console.table(c);
+                    return c
                 },
                 points: function () {
                     return applyFunctions(this);
@@ -477,8 +534,7 @@ function nmatrix(dim, def_value) {
      * dim: list with dimensions
      * def_value: default value (0).
      */
-    let copy = (o) => JSON.parse(JSON.stringify(o)),
-        value = def_value !== undefined? def_value : 0,
+    let value = def_value !== undefined? def_value : 0,
         base = new Array(dim[dim.length-1]).fill(value);
     for (let i = dim.length-2; i >= 0; i--) {
         let next = [];

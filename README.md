@@ -19,6 +19,8 @@ Mostra inoltre il risultato sia in forma tabellare che grafica.
     questo e' vero anche quando il numero di offerte e' maggiore di 3 (`2+x`)
     ma alcune vengono escluse perche' dominate (`x`).
 
+## Cose interessanti
+  - Comportamento di Electre quando esistono offerte identiche: una domina l'altra perche' `d_ij` risulta 0... peccato non si tenga conto di `c_ij`.
 
 Author: @MartinBrugnara  
 Copyright (C) 2018 Martin Brugnara - Università degli Studi di Trento  

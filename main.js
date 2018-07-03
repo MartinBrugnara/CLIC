@@ -1,3 +1,6 @@
+const {app, BrowserWindow, Menu, MenuItem, globalShortcut} = require('electron')
+const fs = require('fs')
+
 /*
 CLIC what if?
 Esplora i metodi di aggiudicazione dell'offerta economicamente piu' vantaggiosa
@@ -18,11 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 
-
-
-const {app, BrowserWindow, Menu, MenuItem, globalShortcut} = require('electron')
-const fs = require('fs')
-
 const NotImplementedError = () => {console.error('Not yet implemented')};
 
 // Keep a global reference of the window object, if you don't, the window will
@@ -30,7 +28,7 @@ const NotImplementedError = () => {console.error('Not yet implemented')};
 let win
 
 function createWindow () {
-    extendMenuBar();
+    buildMenuBar();
 
     // Create the browser window.
     win = new BrowserWindow({
@@ -72,10 +70,12 @@ function lsExamples() {
     });
 }
 
-function extendMenuBar() {
-    let m = Menu.getApplicationMenu();
-
-    let fileMI = new MenuItem({
+function buildMenuBar() {
+    // Built from default_app menu:
+    // https://github.com/electron/electron/blob/85ef1ee21fb665e669551a608d365239ef106196/default_app/main.js
+    // NOTE: Menu.getApplicationMenu() in dev mode returns the defualt_app's menu,
+    //       while when packaged returns null.
+    const template = [{
         label: 'File',
         submenu: [{
             label: 'Apri...',
@@ -101,27 +101,114 @@ function extendMenuBar() {
             accelerator: 'Shift+CmdOrCtrl+S',
             click: NotImplementedError,
         }]
-    });
-
-    console.log("MI build");
-
-    let viewMI = new MenuItem({
+    }, {
+        label: 'Edit',
+        submenu: [
+            { role: 'undo' },
+            { role: 'redo' },
+            { type: 'separator' },
+            { role: 'cut' },
+            { role: 'copy' },
+            { role: 'paste' },
+            { role: 'pasteandmatchstyle' },
+            { role: 'delete' },
+            { role: 'selectall' }
+        ]
+    }, {
+        label: 'View',
+        submenu: [
+            { role: 'reload' },
+            { role: 'forcereload' },
+            { role: 'toggledevtools' },
+            { type: 'separator' },
+            { role: 'resetzoom' },
+            { role: 'zoomin' },
+            { role: 'zoomout' },
+            { type: 'separator' },
+            { role: 'togglefullscreen' }
+        ]
+    }, {
         label: 'Mode',
         // TODO: Find better names to provide meningfull accelerators.
         submenu: [{
-            label: 'Struttura',
-            click: () => win.webContents.send('view', 'structure'),
-        }, {
-            label: 'Simulazione',
-            click: () => win.webContents.send('view', 'simulation'),
-        }]
-    });
+                label: 'Struttura',
+                click: () => win.webContents.send('view', 'structure'),
+            }, {
+                label: 'Simulazione',
+                click: () => win.webContents.send('view', 'simulation'),
+            }
+        ]
+    }, {
+        role: 'window',
+            submenu: [
+                { role: 'minimize' },
+                { role: 'close' }
+            ]
+    }, {
+        role: 'help',
+        submenu: [{
+                label: 'Learn More',
+                click () {shell.openExternal('https://electron.atom.io')},
+            }, {
+                label: 'Documentation',
+                click () {
+                    shell.openExternal(
+                        `https://github.com/electron/electron/tree/v${process.versions.electron}/docs#readme`
+                    )
+                }
+            }, {
+                label: 'Community Discussions',
+                click () {
+                    shell.openExternal('https://discuss.atom.io/c/electron')
+                }
+            }, {
+                label: 'Search Issues',
+                click () {
+                    shell.openExternal('https://github.com/electron/electron/issues')
+                }
+            }
+        ]
+    }];
 
-    // TODO: Check if this positions make sense on Windows & Linux
-    //       or if they need to be platform specific.
-    m.insert(1, fileMI);
-    m.insert(4, viewMI);
-    Menu.setApplicationMenu(m);
+    if (process.platform === 'darwin') {
+        template.unshift({
+            label: 'CLIC',
+            submenu: [
+                { role: 'about' },
+                { type: 'separator' },
+                { role: 'services', submenu: [] },
+                { type: 'separator' },
+                { role: 'hide' },
+                { role: 'hideothers' },
+                { role: 'unhide' },
+                { type: 'separator' },
+                { role: 'quit' }
+            ]
+        })
+        template[2].submenu.push({ // Edit
+            type: 'separator'
+        }, {
+            label: 'Speech',
+            submenu: [
+                { role: 'startspeaking' },
+                { role: 'stopspeaking' }
+            ]
+        })
+        template[5].submenu = [ // Window
+            { role: 'close' },
+            { role: 'minimize' },
+            { role: 'zoom' },
+            { type: 'separator' },
+            { role: 'front' }
+        ]
+    } else {
+        template.unshift({
+            label: 'File',
+            submenu: [{ role: 'quit' }]
+        })
+    }
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
 }
 
 // This method will be called when Electron has finished

@@ -17,10 +17,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-const {ipcRenderer} = require('electron')
-const {dialog} = require('electron').remote
-const fs = require('fs')
-const path = require('path')
+const {ipcRenderer} = require('electron'),
+    {dialog, app} = require('electron').remote;
+    fs = require('fs'),
+    path = require('path');
 
 /* NOTE: refer to this example (contains addition, deletion, ...).
  * https://vuejs.org/v2/examples/tree-view.html */
@@ -248,6 +248,7 @@ let max_bando_depth = function() {
 // -- Global state.
 let current;
 let app_status = {
+    rpath: '',
     fpath: '',
     modified: false,
     read_only: false,
@@ -279,7 +280,12 @@ function loadBando(args) {
         let raw_content = fs.readFileSync(args.fpath, "utf8");
         let bando_data = JSON.parse(raw_content);
 
+        let app_base_path = app.getAppPath(),
+            abp_idx = args.fpath.indexOf(app_base_path),
+            rpath = "..." + args.fpath.replace(app_base_path, '');
+
         patch = {
+            rpath: abp_idx === 0 ? rpath : args.fpath,
             fpath: args.fpath,
             modified: false,
             read_only: args.read_only || false,

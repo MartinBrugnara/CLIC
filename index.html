@@ -24,8 +24,7 @@
     <meta charset="UTF-8">
     <title>CLIC: "What if?"</title>
 
-    <link rel="stylesheet" href="static/css/bootstrap.min.css">
-    <link rel="stylesheet" href="static/css/fa-svg-with-js.css">
+    <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="static/css/index.css">
 
 </head>
@@ -34,7 +33,7 @@
     <nav class="navbar navbar-dark bg-dark mb-4" id="app_status">
         <!-- Navbar content -->
         <a class="navbar-brand" href="#">CLIC</a>
-        <span class="navbar-text text-white"><strong>Bando:</strong> {{ fpath }}</span>
+        <span class="navbar-text text-white"><strong>Bando:</strong> {{ rpath }}</span>
         <div class="nav-item active flex-column">
             <div><span v-bind:class="{invisible: !read_only}" style="width:100%" class="badge badge-danger">Sola lettura</span></div>
             <div><span v-bind:class="{invisible: !modified}" style="width:100%" class="badge badge-warning">Modificato</span></div>
@@ -401,8 +400,7 @@
 
     </div>
 
-    <script defer src="static/js/fontawesome-all.min.js"></script>
-    <script src="static/js/vue.min.js"></script>
+    <script src="node_modules/vue/dist/vue.min.js"></script>
     <script src="static/js/index.js"></script>
 </body>
 </html>

@@ -5,7 +5,7 @@ Il software permette di simulare gare di appalto, variando sia i meta-parametri 
 Mostra inoltre il risultato sia in forma tabellare che grafica.
 
 
-## Design decisions
+## Implementation notes
 - Electre
 
   > Per definire una classifica, è necessario ripetere la procedura cancellando di volta in volta l’offerta risultata vincitrice nella tornata precedente.
@@ -18,6 +18,9 @@ Mostra inoltre il risultato sia in forma tabellare che grafica.
   - Quando due o meno offerte sono disponibili l'algoritmo assegna lo stesso rank;
     questo e' vero anche quando il numero di offerte e' maggiore di 3 (`2+x`)
     ma alcune vengono escluse perche' dominate (`x`).
+
+- Topsis
+  - Durante la normalizzazione dei valori in input (`x_ij`), se la media geometrica per un criterio e' 0 i valori d'offerta per quel criterio non vanno normalizzati (visto che sono zero).
 
 ## Cose interessanti
   - Comportamento di Electre quando esistono offerte identiche: una domina l'altra perche' `d_ij` risulta 0... peccato non si tenga conto di `c_ij`.

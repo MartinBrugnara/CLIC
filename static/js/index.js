@@ -377,7 +377,7 @@ function refreshGUI() {
                     let offerta = {
                         nome: nome,
                         // NOTE: economica must be > 0;
-                        economica: [rnd(
+                        economica: [this.offerte.length == 0 ? 1 : rnd(
                             amin(this.offerte.map(o => o.economica[0])),
                             amax(this.offerte.map(o => o.economica[0]))
                         )],
@@ -387,7 +387,7 @@ function refreshGUI() {
                             else if (c.tipo == 'D')
                                 return rnd(0,1);
                             else
-                                return rnd(
+                                return this.offerte.length == 0 ? 0 : rnd(
                                     amin(this.offerte.map(o => o.tecnica[i])),
                                     amax(this.offerte.map(o => o.tecnica[i]))
                                 );
@@ -400,9 +400,7 @@ function refreshGUI() {
             },
             computed: {
                 cols: function () {
-                    let c = criteriFlat(this.criteri);
-                    console.table(c);
-                    return c
+                    return criteriFlat(this.criteri);
                 },
                 points: function () {
                     return applyFunctions(this);
@@ -711,11 +709,12 @@ function topsis(bando, offerte) {
         gm = Math.sqrt(gm);
 
         // Nomralize values
-        for (let i=0; i < r; i++) {
+        if (gm == 0) // they are all 0, nothing to do
+            continue
+        for (let i=0; i < r; i++)
             x[i][k] = m(i,k) / gm;
-        }
-    }
 
+    }
 
     // NOTE: wikipedia dictate to normalize the weight between [0-1]
     //       ANAC says nothig. Looks like nothis changes... anyway we do.
@@ -740,6 +739,7 @@ function topsis(bando, offerte) {
     // Compute bid distances
     let d_b = nmatrix([r, n]), // Bid distance from best
         d_w = nmatrix([r, n]); // Bid distance from worst
+
     for (let i=0; i < r; i++) {
         let b = 0, w = 0;
         for (let k=0; k < n; k++) {

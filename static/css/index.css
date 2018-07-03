@@ -30,9 +30,8 @@ body { font: caption; }
 
 .input-group>.no-expand {flex-grow:0; width: auto}
 
-#data th {text-align:center}
-
-#data {
+.tbl th {text-align:center}
+.tbl {
   display: inline-block;
   width: auto;
   margin: auto;
@@ -41,30 +40,27 @@ body { font: caption; }
   overflow-x: auto;
 }
 
-#data thead tr:nth-child(2)>th:not(:first-child) {font-family: monospace}
+.tbl thead tr:nth-child(2)>th:not(:first-child) {font-family: monospace}
+.tbl tbody tr>td:not(:first-child) {font-family: monospace}
+
 #data thead tr:first-child>th {padding-bottom: 0;border-bottom: 0;}
 #data thead tr:last-child>th {padding-top: 0;border-top: 0;}
-#data tbody tr>td:not(:first-child) {font-family: monospace}
 
+#data .action {color:#ccc}
+#data .action:hover {color: #333; cursor:pointer}
+#data tr>td:last-child) {border: 1px solid red}
 
-#data input[type="radio"] {display:none}
-
-#data input[type="radio"]+label {
+#rank input[type="radio"] {display:none}
+#rank input[type="radio"]+label {
   color: #ccc;
   cursor: pointer;
   font-size: 0.6rem;
 }
-
-#data input[type="radio"]:checked+label {
-  color: #333;
-}
-
-#data .x-middle {
+#rank input[type="radio"]:checked+label {color: #333}
+#rank input[type="radio"]+label:hover {color: #333}
+#rank .x-middle {
   vertical-align: middle;
   vertical-align: -webkit-baseline-middle;
 }
 
-#data input[type="radio"]+label:hover {color: #333}
 
-#data .action {color:#ccc}
-#data .action:hover {color: #333; cursor:pointer}

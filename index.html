@@ -234,17 +234,16 @@
         </div>
 
         <div class="text-center">
-            <table id="data" class="table table-striped text-right pb-2">
+            <table id="data" class="table table-striped text-right pb-2 tbl">
                 <thead>
                     <tr>
                         <th><span>#</span></th>
                         <th><span>Economica</span></th>
-                        <th scope="col" v-for="c in cols" v-bind:colspan="c.tipo == 'T'? c.voci.length : 1">
+                        <th scope="col" v-for="c in cols" v-bind:colspan="c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1">
                             <span v-bind:title="c.nome">{{c.env_name}}</span>
                         </th>
-                        <th scope="col" rowspan="2">
-                            <!-- TODO: find icon for here. -->
-                            actions
+                        <th scope="col">
+                            <i class="fas fa-exclamation"></i>
                         </th>
                     </tr>
                     <tr>
@@ -271,6 +270,7 @@
                                 </th>
                             </template>
                         </template>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -291,6 +291,10 @@
                                     <td><input type="number" min="0" step="0.01" v-model="o.tecnica[ti]"></td>
                                 </template>
                             </template>
+                            <td class="text-center"><!-- actions -->
+                                <i @click="clone(i)" class="far fa-copy action"></i>
+                                <i @click="remove(i)" class="far fa-trash-alt action"></i>
+                            </td>
                         </template>
 
                         <template v-else>
@@ -320,7 +324,6 @@
                                 </template>
                             </template>
                             <td class="text-center"><!-- actions -->
-                                <!-- TODO: double check header -->
                                 <i @click="clone(i)" class="far fa-copy action"></i>
                                 <i @click="remove(i)" class="far fa-trash-alt action"></i>
                             </td>
@@ -337,10 +340,10 @@
             <div class="container text-left">
                 <h3>Ranking</h3>
             </div>
-            <table id="data" class="table table-striped text-right">
+            <table id="rank" class="table table-striped text-right tbl">
                 <thead>
                     <tr>
-                        <td>
+                        <th>
                             <span class="x-middle"></span>
                             <div class="d-inline-flex flex-column ml-2">
                                 <input id="nome_asc" type="radio" v-model="env_data_orderby" value="nome_asc">
@@ -348,8 +351,8 @@
                                 <input id="nome_desc" type="radio" v-model="env_data_orderby" value="nome_desc">
                                 <label for="nome_desc" class="mb-0">&#x25BC;</label>
                             </div>
-                        </td>
-                        <td>
+                        </th>
+                        <th>
                             <span class="x-middle">Σ</span>
                             <div class="d-inline-flex flex-column ml-2">
                                 <input id="agg_asc" type="radio" v-model="env_data_orderby" value="agg_asc">
@@ -357,8 +360,8 @@
                                 <input id="agg_desc" type="radio" v-model="env_data_orderby" value="agg_desc">
                                 <label for="agg_desc" class="mb-0">&#x25BC;</label>
                             </div>
-                        </td>
-                        <td>
+                        </th>
+                        <th>
                             <span class="x-middle">Electre</span>
                             <div class="d-inline-flex flex-column ml-2">
                                 <input id="electre_asc" type="radio" v-model="env_data_orderby" value="electre_asc">
@@ -366,7 +369,7 @@
                                 <input id="electre_desc" type="radio" v-model="env_data_orderby" value="electre_desc">
                                 <label for="electre_desc" class="mb-0">&#x25BC;</label>
                             </div>
-                        </td>
+                        </th>
                         <!--
                         <td>
                             <span class="x-middle">Electre 100</span>
@@ -377,7 +380,7 @@
                                 <label for="electre100_desc" class="mb-0">&#x25BC;</label>
                             </div>
                         </td> -->
-                        <td>
+                        <th>
                             <span class="x-middle">Topsis</span>
                             <div class="d-inline-flex flex-column ml-2">
                                 <input id="topsis_asc" type="radio" v-model="env_data_orderby" value="topsis_asc">
@@ -385,7 +388,7 @@
                                 <input id="topsis_desc" type="radio" v-model="env_data_orderby" value="topsis_desc">
                                 <label for="topsis_desc" class="mb-0">&#x25BC;</label>
                             </div>
-                        </td>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>

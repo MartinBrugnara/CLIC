@@ -1,0 +1,24 @@
+{
+  "name": "clic",
+  "version": "0.0.1",
+  "description": "CLIC what if? esplora i metodi di aggiudicazione dell'offerta economicamente piu' vantaggiosa",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": {
+      "name": "Martin Brugnara",
+      "email": "mb@disi.unitn.eu",
+      "url": "disi.unitn.eu/~brugnara/"
+  },
+  "repository" : "url" : "github:MartinBrugnara/CLIC",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "bootstrap": "^4.1.1",
+    "npm": "^6.1.0"
+  },
+  "devDependencies": {
+    "electron": "^2.0.2",
+    "electron-packager": "^12.1.0"
+  }
+}

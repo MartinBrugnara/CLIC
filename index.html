@@ -134,7 +134,10 @@
                 v-bind:depth="1"
                 v-bind:werror="top_werror"></criterio>
 
-            <i @click="addCriterio('')" class="fas fa-plus action"></i>
+            <span>
+                <i @click="addCriterio('')" class="fas fa-plus action"></i>
+                <label class="nextCid">({{ criteri.length + 1 }})</label>
+            </span>
         </ul>
     </div>
 
@@ -211,9 +214,12 @@
                 v-bind:model="model"
                 v-bind:name="name + '.' + (index + 1)"
                 v-bind:depth="depth + 1"
-                v-bind:werror="weightError"
-                />
-            <i @click="add()" class="fas fa-plus action"></i>
+                v-bind:werror="weightError">
+            </criterio>
+            <span>
+                <i @click="add()" class="fas fa-plus action"></i>
+                <label class="nextCid">({{ name + '.' + (model.subcriteri.length + 1) }})</label>
+            </span>
         </ul>
     </li>
     </script>

@@ -31,6 +31,7 @@ body { font: caption; }
 .input-group>.no-expand {flex-grow:0; width: auto}
 
 #ctree label {font-family: monospace}
+#ctree label.nextCid {color: #ccc}
 
 .tbl th {text-align:center}
 .tbl {
@@ -63,5 +64,3 @@ body { font: caption; }
   vertical-align: middle;
   vertical-align: -webkit-baseline-middle;
 }
-
-

@@ -238,25 +238,39 @@ Vue.component('criterio', {
     },
     methods: {
         remove: function() {
-            let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
-            let pointer = current.criteri;
-            for (let i=1; i<key.length; i++) {
-                pointer = pointer[key[i-1]].subcriteri;
-            }
-
             // Prepare to adapt data
             let x = prefixToId(this.name),
                 start = x[0],
                 cnt = x[1];
-
-            // Actually delete sub-tree
-            Vue.delete(pointer, key[key.length-1]);
 
             // Adapt data
             let r = current.offerte.length;
             for (let i=0; i<r; i++)                                 // bids
                 for (let j=0; j<cnt; j++)                           // delete #cnt
                     Vue.delete(current.offerte[i].tecnica, start);  // actually delete
+
+            // Finding the greates anchestor which has got
+            // no other children other than us, and deleting it.
+            let key = this.name.toString().split('.').map(i => parseInt(''+i)-1),
+                depth = key.length,
+                ptr;
+            do {
+                // Search anchestor at generation `depth`.
+                ptr = current.criteri; // this is already depth 1
+                for (let i=0; i < depth-1; i++) {
+                    // Get the `subcriteri` list that contains the one we shall delete.
+                    ptr = ptr[key[i]].subcriteri;
+                }
+
+                if (ptr.length > 1)
+                    break;
+
+                // Not found, try w/the parent. Worst case we go to current.criteri.
+                depth -= 1;
+            } while(depth > 0); // or 1 ??
+
+            // Actually delete sub-tree
+            Vue.delete(ptr, key[depth-1]);
         },
         sub: function() {
             let x = prefixToId(this.name),

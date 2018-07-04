@@ -123,7 +123,7 @@
             </div>
         </form>
 
-        <ul class="nols">
+        <ul id="ctree" class="nols">
             <!-- <li value="-1"># - &#931; - Tipo - &#120582;</li> -->
 
             <criterio
@@ -146,7 +146,7 @@
             <span class="mr-3">
                 <label v-bind:style="{'min-width': padding, 'display': 'inline-flex'}" class="my-1 mr-1">{{name}}</label>
 
-                <i @click="sub()" v-bind:style="{'visibility': (model.subcriteri && model.subcriteri.length > 0) ? 'hidden': 'inherit'}" class="fas fa-sitemap action"></i>
+                <i @click="sub()" v-bind:style="{'visibility': isLeaf ? 'inherit' : 'hidden' }" class="fas fa-sitemap action ml-1"></i>
                 <i @click="remove()" class="far fa-trash-alt action"></i>
             </span>
 
@@ -160,7 +160,7 @@
             </div>
 
             <!-- Note: hiding if got subcriteria -->
-            <div class="input-group ml-2" v-if="!model.subcriteri">
+            <div class="input-group ml-2" v-if="isLeaf">
                 <select class="custom-select no-expand" v-model="model.tipo">
                     <option value="Q">Q</option>
                     <option value="D">D</option>
@@ -177,7 +177,7 @@
 
             <!-- TODO: What about force new line and then align right? -->
             <div class="input-group ml-2">
-                <template v-if="!model.subcriteri && safe_f">
+                <template v-if="isLeaf && safe_f">
                     <template
                         class="input-group"
                         v-for="(p, pname) in funcs[model.funzione].up.params">
@@ -203,7 +203,7 @@
 
         <!-- Recursively enumerate subcriteria -->
         <!-- Error style alternative: bg-danger -->
-        <ul v-if="model.subcriteri" v-bind:class="{'border-danger': weightError}">
+        <ul v-if="!isLeaf" v-bind:class="{'border-danger': weightError}">
             <criterio
                 v-for="(model, index) in model.subcriteri"
                 v-bind:index="index"

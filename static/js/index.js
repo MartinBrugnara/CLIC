@@ -158,7 +158,7 @@ let funcs = {
                 if (!bando.base_asta)
                     BA = amax(others);
 
-                return Math.pow((BA - P) * 1.0 / (BA - amin(others)), x.alfa).toFixed(2)
+                return Math.pow((BA - P) * 1.0 / (BA - amin(others)), x.alfa)
             },
             params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
         }
@@ -171,7 +171,8 @@ let funcs = {
 
 
 // -- Registering custom components.
-let pad_structure = false,
+let pad = false,
+    pad_structure = false,
     char_width = 8,
     indent = 20; // must be the same as padding-left for ul.
 
@@ -184,8 +185,13 @@ Vue.component('criterio', {
         werror: Boolean,
     },
     computed: {
+        isLeaf: function() {
+            return !(this.model.subcriteri && this.model.subcriteri.length);
+        },
         padding: function() {
             // TODO: cache; do not recompute.
+            if (!pad)
+                return '0';
             let mx = max_bando_depth();
             let label = ((mx * 2 - 1) * char_width);
             if (!pad_structure)
@@ -587,7 +593,7 @@ function applyFunctions(bando) {
                     t,                          // Current bid
                     fc[ti].parametri,           // Parameters
                     bando,                      // Bando for global param
-                    bando.offerte.map((o) => o.tecnica[ti])).toFixed(2);
+                    bando.offerte.map(o => o.tecnica[ti]));
             } else {
                 return t;
             }

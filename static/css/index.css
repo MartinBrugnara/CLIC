@@ -30,6 +30,8 @@ body { font: caption; }
 
 .input-group>.no-expand {flex-grow:0; width: auto}
 
+#ctree label {font-family: monospace}
+
 .tbl th {text-align:center}
 .tbl {
   display: inline-block;

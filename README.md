@@ -25,6 +25,9 @@ Mostra inoltre il risultato sia in forma tabellare che grafica.
 ## Cose interessanti
   - Comportamento di Electre quando esistono offerte identiche: una domina l'altra perche' `d_ij` risulta 0... peccato non si tenga conto di `c_ij`.
 
+## Extra
+- `git grep IMP` per filtrare una serie di possibili miglioramenti/ottimizzazioni.
+
 Author: @MartinBrugnara  
 Copyright (C) 2018 Martin Brugnara - Università degli Studi di Trento  
 License: [GNU General Public License v3.0](LICENSE)

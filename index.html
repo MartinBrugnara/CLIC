@@ -101,7 +101,7 @@
                                 v-bind:required="funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params[pname].required"
                                 v-bind:name="pname"
                                 class="form-control no-expand"
-                                v-model:name="parametri_economica[pname]"
+                                v-model.number="parametri_economica[pname]"
                             />
                         </template>
                     </div>
@@ -113,13 +113,14 @@
         <h3>Offerta Tecnica</h3>
 
         <form class="form-inline">
-            <div class="form-check">
-                <input type="checkbox" class="form-check-input" id="rep1">
-                <label class="form-check-label" for="rep1" v-model="riparametrizzazione1">Riparametrizzazione livello 1</label>
+            <label class="form-check-label">Riparametrizzazione:</label>
+            <div class="form-check ml-2">
+                <input type="checkbox" class="form-check-input" id="rep1" v-model="riparametrizzazione1">
+                <label class="form-check-label" for="rep1">1&deg; livello.</label>
             </div>
             <div class="form-check ml-2">
-                <input type="checkbox" class="form-check-input" id="rep2">
-                <label class="form-check-label" for="rep1" v-model="riparametrizzazione2">Riparametrizzazione livello 2</label>
+                <input type="checkbox" class="form-check-input" id="rep2" v-model="riparametrizzazione2">
+                <label class="form-check-label" for="rep2">2&deg; livello.</label>
             </div>
         </form>
 
@@ -201,7 +202,7 @@
                             v-bind:required="funcs[model.funzione].up.params[pname].required"
                             v-bind:name="pname"
                             class="form-control no-expand"
-                            v-model:name="model.parametri[pname]"
+                            v-model.number="model.parametri[pname]"
                         />
                 </template>
             </div>
@@ -212,7 +213,7 @@
                     v-for="(v, vi) in model.voci">
 
                         <div class="input-group-prepend">
-                            <span class="input-group-text">{{ vi }}</span>
+                            <span class="input-group-text">{{ vi + 1 }}</span>
                         </div>
                         <input type="number" min="0" max="99" step="0.5"
                             v-bind:class="{'is-invalid': terror, 'form-control': true}"
@@ -285,7 +286,7 @@
                     <tr>
                         <th><small>Peso</small></th>
                         <th>
-                            <input v-if="env_data_mode == 'edit'" v-model="peso_economica" type="number" min="0" max="100" step="0.5">
+                            <input v-if="env_data_mode == 'edit'" v-model.number="peso_economica" type="number" min="0" max="100" step="0.5">
                             <small v-else>{{peso_economica}}</small>
                         </th>
 
@@ -294,14 +295,14 @@
                                 <th v-if="env_data_mode == 'points'"><small>{{c.peso}}</small></th>
                                 <th v-else v-for="(v, vi) in c.voci">
                                     <!-- NOTE: 99 instead of 100 to fit same size as bottom -->
-                                    <input v-if="env_data_mode == 'edit'" v-model="c.voci[vi]" type="number" min="0" max="99" step="0.5">
+                                    <input v-if="env_data_mode == 'edit'" v-model.number="c.voci[vi]" type="number" min="0" max="99" step="0.5">
                                     <small v-else>{{c.voci[vi]}}</small>
                                 </th>
                             </template>
                             <template v-else>
                                 <th>
                                     <!-- NOTE: 99 instead of 100 to fit same size as bottom -->
-                                    <input v-if="env_data_mode == 'edit'" v-model="c.peso" type="number" min="0" max="99" step="0.5">
+                                    <input v-if="env_data_mode == 'edit'" v-model.number="c.peso" type="number" min="0" max="99" step="0.5">
                                     <small v-else>{{c.peso}}</small>
                                 </th>
                             </template>
@@ -312,8 +313,8 @@
                 <tbody>
                     <tr v-for="(o, i) in offerte" :key="o.nome">
                         <template v-if="env_data_mode == 'edit'">
-                            <td class="text-left"><input type="text" v-model="o.nome"></td>
-                            <td><input type="number" min="0.01" step="0.01" v-model="o.economica[0]"></td>
+                            <td class="text-left"><input type="text" v-model.trim="o.nome"></td>
+                            <td><input type="number" min="0.01" step="0.01" v-model.number="o.economica[0]"></td>
                             <template v-for="(t, ti) in o.tecnica">
                                 <template v-if="cols[ti].tipo == 'T'">
                                     <td v-for="(v, vi) in cols[ti].voci" class="text-center">
@@ -321,10 +322,10 @@
                                     </td>
                                 </template>
                                 <template v-else-if="cols[ti].tipo == 'D'">
-                                    <td><input type="number" min="0" step="0.01" max="1" v-model="o.tecnica[ti]"></td>
+                                    <td><input type="number" min="0" step="0.01" max="1" v-model.number="o.tecnica[ti]"></td>
                                 </template>
                                 <template v-else>
-                                    <td><input type="number" min="0" step="0.01" v-model="o.tecnica[ti]"></td>
+                                    <td><input type="number" min="0" step="0.01" v-model.number="o.tecnica[ti]"></td>
                                 </template>
                             </template>
                             <td class="text-center"><!-- actions -->

@@ -298,6 +298,10 @@ Vue.component('criterio', {
                 depth = key.length,
                 ptr;
             do {
+                // TODO: Optimize. This is really stupid.
+                // Do just one visit, record at each step the subcriteri.length,
+                // then over the array.
+
                 // Search anchestor at generation `depth`.
                 ptr = current.criteri; // this is already depth 1
                 for (let i=0; i < depth-1; i++) {
@@ -962,6 +966,278 @@ function switchView(view) {
         structure.style.display = 'none';
         simulation.style.display = 'block';
     }
+}
+
+function checkBando(bando) {
+    /* Given a bando object,
+     * cleans it up, and returns an instance that can be exportd. */
+
+    /*
+    const str   = typeof 'foo',
+          num   = typeof 42,    // covers also float
+          bool  = typeof true,
+          obj   = typeof {},
+          array = typeof [];
+
+    let fstOrderAttributes = [
+        'mod_economica': ('prezzo', 'ribasso'),
+        'funzione_economica': Object.keys(funcs),
+        'parametri_economica': (funcs[),
+        'peso_economica': 40,
+        'base_asta': 0,
+        'riparametrizzazione1': false,
+        'riparametrizzazione2': false,
+    ];
+    */
+}
+
+function cleanCriterio(c) {
+    let n = {
+        // NOTE: optional and not actually exploited.
+        nome: c.nome !== undefined? c.nome : '',
+        // OPT: consider remove if not leaf.
+        peso: c.peso,
+    }
+
+    if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
+        n.subcriteri = c.subcriteri.map(cleanCriterio);
+        return n;
+    }
+
+    n.tipo = c.tipo;
+    n.funzione = c.funzione;
+    if (n.tipo === 'Q') {
+        n.parametri = {};
+        Object.keys(funcs[n.funzione]['up'].params)
+            .forEach(p => n.parametri[p] = c.parametri[p]);
+    }
+
+    if (n.tipo === 'T')
+        n.voci = c.voci
+    return n;
+}
+
+function cleanBando(bando) {
+    let cleaned = {};
+
+    let fstOrderAttributes = [
+        'mod_economica',
+        'funzione_economica',
+        'peso_economica',
+        // `base_asta` is mandatory only if mod_economica is prezzo.
+        // Since many sim. consist in switching modes, we keep it always.
+        'base_asta',
+        'riparametrizzazione1',
+        'riparametrizzazione2',
+    ];
+    fstOrderAttributes.forEach(f => cleaned[f] = bando[f]);
+
+    // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
+    cleaned.parametri_economica = {};
+    let m = bando.mod_economica == 'prezzo'? 'down' : 'up';
+    Object.keys(funcs[cleaned.funzione_economica][m].params)
+        .forEach(p => cleaned.parametri_economica[p] = bando.parametri_economica[p]);
+
+    // Criteri must be recursive
+    cleaned.criteri = bando.criteri.map(cleanCriterio);
+
+    // Data, just copy
+    cleaned.offerte = copy(bando.offerte);
+
+    return cleaned;
+}
+
+
+function checkCriterio(c, prefix) {
+    let errors = [];
+
+    if (typeof c.peso !== 'number' || c.peso < 0 || c.peso > 100) {
+        errors.push('[C ' + prefix + '] ' + c.peso +
+            'non e\' un valore valido per il peso.' +
+            'Deve essere un numero tra 0 e 100');
+    }
+    if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
+        // TODO add controllo su pesi figli
+        errors = errors.concat(c.subcriteri.map((s, i) => checkCriterio(s, prefix + '.' + (i+1))));
+        let speso = c.subcriteri.map(s => s.peso).reduce((a,b), a+b, 0);
+        if (speso != c.peso) {
+            errors.push('[C ' + prefix + '] La somma dei punti dei sotto criteri' +
+                ' non corrisponde al peso del criterio: ' + speso + ', ' + c.peso + '.');
+        }
+        return errors;
+    }
+
+    if (['Q','D','T'].indexOf(n.tipo) < 0) {
+        errors.push('[C ' + prefix + '] ' + c.tipo +
+            'non e\' un valore valido per \'tipo\'.' +
+            'I vaolori possibili sono \'D\', \'T\'.');
+    }
+
+    if (n.tipo === 'Q') {
+        if (funcs[c.funzione] === undefined) {
+            errors.push('[C ' + prefix + '] ' + c.funzione +
+                ' non e\' supportata. Le funzioni disponibili sono le seguenti: ' +
+                Object.keys(funcs).join(',') + '.');
+        }
+
+        Object.keys(funcs[c.funzione][m].params).forEach(p => {
+            if (typeof c.parametri[p] !== 'number')
+                return;
+
+            let dom = funcs[c.funczione][m].params[p].domain;
+            if (dom.required || c.parametri[p] !== undefined) {
+                errors.push('[C ' + prefix + '] Parametro' + p + ': ' +
+                    c.parametri[p] + 'non e\' un valore valido.' +
+                    (dom.required ? 'Se specificato d' : 'D') +
+                    'eve essere un numero tra ' + dom.start +
+                    (dom.end !== '' ? ('e ' + dom.end)) + '.');
+            }
+        });
+    }
+
+    if (n.tipo === 'T') {
+        if (n.voci === undefined || !Array.isArray(n.voci)) {
+            errors.push('[C ' + prefix + '] Quando il tipo e Tabellare (T),'
+                ' `voci` deve essere un vettore di numeri.');
+        } else {
+            n.voci.forEach((v, vi) => {
+                if (typeof v !== 'number' || v < 0 || v > 100) {
+                    errors.push('[C ' + prefix + '] Il valore ' + v + ' per ' +
+                        'la voce ' + (vi+1) ' non e\' valido.' +
+                        'deve essere un numero tra 0 e 100';
+                }
+            })
+        }
+    }
+    return errors;
+}
+
+// TODO: PUT this as precontion for rendering "rank" and maybe also "points"
+function checkBando(bando, fix) {
+    /* Check the bando consistency and returns
+     * [fatal:boolean, [...error_messages:string]]
+     *
+     * If the `fix` is true,
+     * then all reasonable fix are applied,
+     * and a third item is returned: the fixed bando.
+     *
+     * FIXME: for nut it just returns errors.
+     */
+
+    // OPT: try also to recover if possible
+
+
+    let fatal = false;
+    let errors = [];
+
+    if (['prezzo', 'ribasso'].indexOf(bando.mod_economica) < 0) {
+        errors.push('[mod_economica] ' + bando.mod_economica +
+            'non e\' un valore valido. I vaolori possibili sono "prezzo" e "ribasso".');
+    }
+
+    if (funcs[bando.funzione_economica] === undefined) {
+        errors.push('[funzione_economica] ' + bando.funzione_economica +
+            ' non e\' supportata. Le funzioni disponibili sono le seguenti: ' +
+            Object.keys(funcs).join(',') + '.');
+    }
+
+    if (
+        typeof bando.peso_economica !== 'number' ||
+        bando.peso_economica < 0 ||
+        bando.peso_economica > 100 ||
+    ) {
+        errors.push('[peso_economica] ' + bando.peso_economica +
+            'non e\' un valore valido. Deve essere un numero tra 0 e 100.');
+    }
+
+    if ((typeof bando.base_asta === 'number' && bando.base_asta < 0) ||
+        (bando.base_asta === undefined && bando.mod_economica === 'prezzo'))
+    ) {
+        errors.push('[base_asta] ' + bando.base_asta +
+            'non e\' un valore valido. Deve essere un numero tra 0 e 100.');
+    }
+
+    if (typeof bando.riparametrizzazione1 !== 'boolean') {
+        errors.push('[riparametrizzazione1 ] ' + bando.riparametrizzazione1 +
+            'non e\' un valore valido. Deve essere un boolean (true, false).');
+    }
+
+    if (typeof bando.riparametrizzazione2 !== 'boolean') {
+        errors.push('[riparametrizzazione2 ] ' + bando.riparametrizzazione2 +
+            'non e\' un valore valido. Deve essere un boolean (true, false).');
+    }
+
+    // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
+    let m = bando.mod_economica == 'prezzo'? 'down' : 'up';
+    Object.keys(funcs[bando.funzione_economica][m].params).forEach(p => {
+        if (typeof bando.parametri_economica[p] !== 'number')
+            return;
+
+        let dom = funcs[bando.funzione_economica][m].params[p].domain;
+        if (dom.required || bando.parametri_economica[p] !== undefined) {
+            errors.push('[C' + prefix + '] ' +
+                c.parametri[p] + 'non e\' un valore valido per ' + p + '.' +
+                (dom.required ? 'Se specificato d' : 'D') +
+                'eve essere un numero tra ' + dom.start +
+                (dom.end !== '' ? 'e ' + dom.end) + '.');
+        }
+    });
+
+    // Criteri must be recursive
+    errors = errors.concat(...bando.criteri.map((s, si) => checkCriterio(s, '' + (si+1))));
+
+    // Data, just copy
+    let fc = criteriFlat(bando.criteri);
+    let name_unique = {};
+    bando.offerte.forEach((o, i) => {
+        name_unique[o.nome] = true;
+        if (o.nome === undefined) {
+            fatal = true;
+            errors.push('[O ' + (i+1) + '] il campo nome e\' mancante.')
+        }
+
+        if (o.economica === undefined || !Array.isArray(o.economica) ||
+            o.economica.length != 1) {
+            fatal = true;
+            errors.push('[O ' + (i+1) + '] il campo economica deve essere un array di dimensione 1.');
+        }
+
+        if (o.tecnica === undefined || !Array.isArray(o.tecnica) ||
+            o.tecnica.length != fc.length) {
+            fatal = true;
+            errors.push('[O ' + (i+1) + '] il campo tecnica deve essere un array di dimensione ' + fc.length + '.');
+        }
+
+        o.tecnica.forEach((t, ti) => {
+            if (fc[ti].tipo === 'T') {
+                if (!Array.isArray(t) || t.length != fc[ti].voci.length) {
+                    fatal = true;
+                    errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +
+                        ' deve essere un array di ' + fc[ti].voci.length +
+                        ' booleani.');
+                } else {
+                    t.forEach((x, xi) => {
+                        if (typeof x !== 'boolean') {
+                            errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +
+                                ', voce ' + xi + 'deve essere un booleano.');
+                        }
+                    });
+                }
+            } else {
+                if (typeof t !== 'number' || t < 0) {
+                    errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +
+                        ' deve essere un numero maggiore di 0');
+                }
+            }
+        });
+    }
+
+    if (Object.keys(name_unique).length !== bando.offerte.length) {
+        errors.push('[Offerte] I nomi delle offerte devono essere unici');
+        fatal = true;
+    }
+
+    return [fatal, errors];
 }
 
 /* ========================================================================== */

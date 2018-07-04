@@ -130,10 +130,12 @@ function buildMenuBar() {
         label: 'Mode',
         // TODO: Find better names to provide meningfull accelerators.
         submenu: [{
-                label: 'Struttura',
+                label: 'Design',
+                accelerator: 'CmdOrCtrl+D',
                 click: () => win.webContents.send('view', 'structure'),
             }, {
                 label: 'Simulazione',
+                accelerator: 'CmdOrCtrl+K',
                 click: () => win.webContents.send('view', 'simulation'),
             }
         ]

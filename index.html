@@ -132,7 +132,9 @@
                 v-bind:model="model"
                 v-bind:name="index+1"
                 v-bind:depth="1"
-                v-bind:werror="top_werror">
+                v-bind:werror="top_werror"></criterio>
+
+            <i @click="addCriterio('')" class="fas fa-plus action"></i>
         </ul>
     </div>
 
@@ -141,7 +143,12 @@
     <li>
         <!-- style is hack for align -->
         <form class="form-inline">
-            <label v-bind:style="{'min-width': padding}" class="my-1 mr-2">{{name}}</label>
+            <span class="mr-3">
+                <label v-bind:style="{'min-width': padding, 'display': 'inline-flex'}" class="my-1 mr-1">{{name}}</label>
+
+                <i @click="sub()" v-bind:style="{'visibility': (model.subcriteri && model.subcriteri.length > 0) ? 'hidden': 'inherit'}" class="fas fa-sitemap action"></i>
+                <i @click="remove()" class="far fa-trash-alt action"></i>
+            </span>
 
             <div class="input-group">
                 <div class="input-group-prepend">
@@ -206,6 +213,7 @@
                 v-bind:depth="depth + 1"
                 v-bind:werror="weightError"
                 />
+            <i @click="add()" class="fas fa-plus action"></i>
         </ul>
     </li>
     </script>

@@ -46,9 +46,8 @@ body { font: caption; }
 #data thead tr:first-child>th {padding-bottom: 0;border-bottom: 0;}
 #data thead tr:last-child>th {padding-top: 0;border-top: 0;}
 
-#data .action {color:#ccc}
-#data .action:hover {color: #333; cursor:pointer}
-#data tr>td:last-child) {border: 1px solid red}
+.action {color:#ccc}
+.action:hover {color: #333; cursor:pointer}
 
 #rank input[type="radio"] {display:none}
 #rank input[type="radio"]+label {

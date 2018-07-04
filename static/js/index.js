@@ -61,6 +61,17 @@ let amin = (x) => Math.min.apply(Math, x);
 let copy = (o) => JSON.parse(JSON.stringify(o));
 let rnd = (min, max) => Math.floor((Math.random() * (max - min) + min) * 100)/100;
 
+let prefixToId = function(prefix) {
+    let cf = criteriFlat(current.criteri);
+    // Search boundaries to delete
+    let rm = cf.map((c, i) => [c.env_name, i])
+            .filter(x => x[0].indexOf(prefix) == 0)
+            .map(x => x[1]);
+        start = amin(rm),   // should be ordered (thus to_remove[0])
+        cnt = rm.length;  // how many to remove
+    return [start, cnt];
+}
+
 // First one is default
 // TODO: add support for "tabellare" -> [Consip: Scelte, Range]
 // NOTE: for each property MUST always define:
@@ -219,6 +230,72 @@ Vue.component('criterio', {
             return this.model.funzione
         },
     },
+    methods: {
+        remove: function() {
+            let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
+            let pointer = current.criteri;
+            for (let i=1; i<key.length; i++) {
+                pointer = pointer[key[i-1]].subcriteri;
+            }
+
+            // Prepare to adapt data
+            let x = prefixToId(this.name),
+                start = x[0],
+                cnt = x[1];
+
+            // Actually delete sub-tree
+            Vue.delete(pointer, key[key.length-1]);
+
+            // Adapt data
+            let r = current.offerte.length;
+            for (let i=0; i<r; i++)                                 // bids
+                for (let j=0; j<cnt; j++)                           // delete #cnt
+                    Vue.delete(current.offerte[i].tecnica, start);  // actually delete
+        },
+        sub: function() {
+            let x = prefixToId(this.name),
+                start = x[0],
+                cnt = x[1];
+
+            let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
+            let pointer = current.criteri;
+            for (let i=1; i<key.length; i++) {
+                pointer = pointer[key[i-1]].subcriteri;
+            }
+
+            let raw = pointer;
+            pointer = copy(pointer[key[key.length-1]]);
+            pointer.subcriteri = [copy(pointer)];
+
+            Vue.set(raw, key[key.length-1], pointer)
+
+            // There is no need to modify the data.
+            // To add a sublevel we add column (1.1) but remove (1).
+            // We may then reuse info from 1 to populare 1.1.
+        },
+        add: function() {
+            let x = prefixToId(this.name), pi = x[0] + x[1];
+
+            // Get a pointer to subcriteri list
+            let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
+            let pointer = current.criteri;
+            for (let i=1; i<key.length; i++) {
+                pointer = pointer[key[i-1]].subcriteri;
+            }
+            pointer = pointer[key[key.length - 1]].subcriteri;
+
+            // Create a new one.
+            let newc = {peso:0, tipo:'D'}
+            // if doesn not work, try with set() at pointer.length
+            pointer.push(newc);
+
+            // Adapt the data.
+            let r = current.offerte.length,
+                default_value = 0;
+            for (let i=0; i<r; i++)                                       // bids
+                current.offerte[i].tecnica.splice(pi, 0, default_value);  // actually delete
+        }
+    },
     filters: {
         undash: function(str) {
             return str.replace(/_/g, ' ');
@@ -239,7 +316,7 @@ let max_bando_depth = function() {
         if (!b.subcriteri) return 1;
         return Math.max.apply(Math, b.subcriteri.map(f)) + 1;
     }
-    return Math.max.apply(Math, current.criteri.map(f)) + 1;
+    return Math.max.apply(Math, current.criteri.map(f));
 }
 
 
@@ -323,6 +400,17 @@ function refreshGUI() {
             data: current,
             updated: () => {
                 app_status.modified = true;
+            },
+            methods: {
+                addCriterio: function() {
+                    let newc = {peso:0, tipo:'D'}
+                    current.criteri.push(newc);
+
+                    // Adapt the data.
+                    let r = current.offerte.length, default_value = 0;
+                    for (let i=0; i<r; i++)                              // bids
+                        current.offerte[i].tecnica.push(default_value);  // actually delete
+                },
             },
             computed: {
                 top_werror: function() {
@@ -795,5 +883,5 @@ ipcRenderer.on('view', (event , args) => {switchView(args)});
 /* Main                                                                       */
 /* ========================================================================== */
 refreshGUI();
-// switchView('structure');
-switchView('simulation');
+switchView('structure');
+//switchView('simulation');

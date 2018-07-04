@@ -101,11 +101,17 @@ let funcs = {
     "proporzionalita_inversa": {
         // This covers 92.49% of Bozen runs.
         up: {
-            f: (P, x, bando, others) => amax(others) * 1.0 / P,
+            f: (P, x, bando, others) => {
+                if (P === 0) return 0;
+                return amax(others) * 1.0 / P;
+            },
             params: {}
         },
         down: {
-            f: (P, x, bando, others) => amin(others) * 1.0 / P,
+            f: (P, x, bando, others) => {
+                if (P === 0) return 0;
+                return amin(others) * 1.0 / P;
+            },
             params: {}
         }
     },
@@ -163,7 +169,6 @@ let funcs = {
             params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
         }
     },
-
 }
 
 
@@ -183,6 +188,11 @@ Vue.component('criterio', {
         name: String,
         depth: Number,
         werror: Boolean,
+    },
+    beforeUpdate: function() {
+        if (!this.isLeaf) return;
+        // Invokings function_change to guarantee consistency w/data.
+        this.fch();
     },
     computed: {
         isLeaf: function() {
@@ -210,33 +220,66 @@ Vue.component('criterio', {
             // If switching back to % use the following
             //  .reduce((a,v) => a + v , 0) != 100;
         },
-        safe_f: function() {
-            // Returns model.funzione, after assuring that
-            // each parameter defined in funcs[model.funzione].up exists.
-            // Check the function is selected and exists in our repo.
-            if (!this.model.funzione ||
-                !funcs[this.model.funzione] || // That's bad ... TODO: log something
-                !funcs[this.model.funzione].up.params)
-                return;
-
-
-            // Add parameter if not available.
-            for (let pname in funcs[this.model.funzione].up.params) {
-                let p = funcs[this.model.funzione].up.params[pname];
-                if (!this.model.parametri)
-                    Vue.set(this.model, "parametri", {});
-                if (this.model.parametri[pname] === undefined) {
-                    let v = 0;
-                    if (p.domain && p.domain.start) v = p.domain.start;
-                    Vue.set(this.model.parametri, pname, v);
-                }
-            }
-
-            // TODO: consider remove parameters unrelated to this function!
-            return this.model.funzione
+        terror: function() {
+            if (this.model.tipo !== 'T')
+                return false;
+            if (this.model.voci === undefined)
+                Vue.set(this.model, 'voci', [this.model.peso]);
+            return this.model.voci.reduce((a,b) => a+b, 0) != this.model.peso;
         },
     },
     methods: {
+        fch: function() {
+            // Structure
+            if (this.model.tipo === 'Q') {
+                // Be sure at least one is selected and parameters are initialized
+                if (this.model.funzione === undefined)
+                    Vue.set(this.model, 'funzione', 'identita');
+
+                // Be sure parameters are populated.
+                for (let pname in funcs[this.model.funzione].up.params) {
+                    let p = funcs[this.model.funzione].up.params[pname];
+                    if (!this.model.parametri)
+                        Vue.set(this.model, "parametri", {});
+                    if (this.model.parametri[pname] === undefined) {
+                        let v = 0;
+                        if (p.domain && p.domain.start) v = p.domain.start;
+                        Vue.set(this.model.parametri, pname, v);
+                    }
+                }
+            } else if (this.model.tipo  === 'T') {
+                if (this.model.voci === undefined)
+                    Vue.set(this.model, 'voci', [this.model.peso]);
+            }
+
+            // Avoid messing with the data if the kind of function is not changed.
+            if (this.env_last_tipo && this.env_last_tipo === this.model.tipo)
+                return
+            this.env_last_tipo = this.model.tipo;
+
+            // Data
+            let r = current.offerte.length,
+                x = prefixToId(this.name),
+                pi = x[0];
+            if (r >0) {
+                let y = current.offerte[0].tecnica[pi];
+                if (this.model.tipo === 'T') {
+                    // Ensure [].
+                    // Must also guarantee # of entry. Scenario T2 -> Q -> T.
+                    // It's enought to check the first.
+                    if (!Array.isArray(y)) {
+                        let base = this.model.voci.map(_ => false);
+                        for (let i=0; i<current.offerte.length; i++)
+                            Vue.set(current.offerte[i].tecnica, pi, copy(base));
+                    }
+                } else {
+                    if (Array.isArray(y)) {
+                        for (let i=0; i<current.offerte.length; i++)
+                            Vue.set(current.offerte[i].tecnica, pi, rnd(0,1));
+                    }
+                }
+            }
+        },
         remove: function() {
             // Prepare to adapt data
             let x = prefixToId(this.name),
@@ -314,11 +357,32 @@ Vue.component('criterio', {
                 default_value = 0;
             for (let i=0; i<r; i++)                                       // bids
                 current.offerte[i].tecnica.splice(pi, 0, default_value);  // actually delete
-        }
+        },
+        addVoce: function() {
+            // Add to the tree and add default entry in data (false)
+            this.model.voci.push(0);
+
+            // Update data
+            let x = prefixToId(this.name), pi = x[0];
+            for (let i=0; i<current.offerte.length; i++)
+                current.offerte[i].tecnica[pi].push(false);
+        },
+        removeVoce: function(vi) {
+            // Add to the tree and delete proper value
+            this.model.voci.splice(vi, 1);
+
+            // Update data
+            let x = prefixToId(this.name), pi = x[0];
+            for (let i=0; i<current.offerte.length; i++)
+                current.offerte[i].tecnica[pi].splice(vi, 1);
+        },
     },
     filters: {
         undash: function(str) {
             return str.replace(/_/g, ' ');
+        },
+        capitalize: function(str) {
+            return str.replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         },
         csub: function(str) {
             repl = {
@@ -438,7 +502,21 @@ function refreshGUI() {
                     return this.criteri
                         .map((c) => c.peso)
                         .reduce((a,v) => a + v , 0) != (100-this.peso_economica);
+                },
+                eco_got_param: function() {
+                    let m = this.mod_economica == 'prezzo' ? 'down' : 'up';
+                    for (let i in funcs[this.funzione_economica][m].params)
+                        return true;
+                    return false;
                 }
+            },
+            filters: {
+                undash: function(str) {
+                    return str.replace(/_/g, ' ');
+                },
+                capitalize: function(str) {
+                    return str.replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
+                },
             }
         });
     }
@@ -490,7 +568,7 @@ function refreshGUI() {
                             amax(this.offerte.map(o => o.economica[0]))
                         )],
                         tecnica:  c.map((c, i) => {
-                            if (c.tipo == 'T')
+                            if (c.tipo === 'T')
                                 return c.voci.map(_ => rnd(0,1) >= 0.5)
                             else if (c.tipo == 'D')
                                 return rnd(0,1);

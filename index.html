@@ -77,11 +77,11 @@
                         class="form-control"
                         id="eco_func"
                         v-model="funzione_economica">
-                        <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname | undash}}</option>
+                        <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname  | undash | capitalize }}</option>
                     </select>
                 </div>
 
-                <div class="form-group col-auto">
+                <div class="form-group col-auto" v-if="eco_got_param">
                     <label>Parametri</label>
 
                     <div class="input-group">
@@ -95,10 +95,10 @@
 
                             <input
                                 type="number"
-                                v-bind:min=     "funcs[funzione_economica][mod_economica == 'prezzo' ? 'up' : 'down'].params[pname].domain.start"
-                                v-bind:max=     "funcs[funzione_economica][mod_economica == 'prezzo' ? 'up' : 'down'].params[pname].domain.end"
-                                v-bind:step=    "funcs[funzione_economica][mod_economica == 'prezzo' ? 'up' : 'down'].params[pname].domain.step"
-                                v-bind:required="funcs[funzione_economica][mod_economica == 'prezzo' ? 'up' : 'down'].params[pname].required"
+                                v-bind:min=     "funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params[pname].domain.start"
+                                v-bind:max=     "funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params[pname].domain.end"
+                                v-bind:step=    "funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params[pname].domain.step"
+                                v-bind:required="funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params[pname].required"
                                 v-bind:name="pname"
                                 class="form-control no-expand"
                                 v-model:name="parametri_economica[pname]"
@@ -158,33 +158,37 @@
                     <span class="input-group-text">&#931;</span>
                 </div>
                 <input type="number" min="0" max="100"
-                    v-bind:class="{'is-invalid': werror, 'form-control': true, 'form-control': true}"
+                    v-bind:class="{'is-invalid': werror, 'form-control': true}"
                     v-model.number="model.peso">
             </div>
 
             <!-- Note: hiding if got subcriteria -->
             <div class="input-group ml-2" v-if="isLeaf">
-                <select class="custom-select no-expand" v-model="model.tipo">
+                <select class="custom-select no-expand" v-model="model.tipo" @change="fch">
                     <option value="Q">Q</option>
                     <option value="D">D</option>
                     <option value="T">T</option>
                 </select>
 
                 <select
-                    v-if="model.tipo=='Q'"
                     class="custom-select"
-                    v-model="model.funzione">
-                    <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname | undash}}</option>
+                    v-if="model.tipo === 'Q'"
+                    v-model="model.funzione"
+                    @change="fch">
+                    <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname | undash | capitalize }}</option>
                 </select>
+
+                <div v-if="model.tipo == 'T'" class="input-group-append">
+                    <span class="input-group-text">
+                        <i @click="addVoce" class="fas fa-plus action"></i>
+                    </span>
+                </div>
+
             </div>
 
             <!-- TODO: What about force new line and then align right? -->
-            <div class="input-group ml-2">
-                <template v-if="isLeaf && safe_f">
-                    <template
-                        class="input-group"
-                        v-for="(p, pname) in funcs[model.funzione].up.params">
-
+            <div class="input-group ml-2" v-if="isLeaf && model.tipo === 'Q'">
+                <template v-for="(p, pname) in funcs[model.funzione].up.params">
                         <div class="input-group-prepend">
                             <span class="input-group-text">{{ pname | csub | undash }}</span>
                         </div>
@@ -199,8 +203,26 @@
                             class="form-control no-expand"
                             v-model:name="model.parametri[pname]"
                         />
-                    </template>
                 </template>
+            </div>
+
+            <template v-if="isLeaf">
+                <div class="input-group ml-2"
+                    v-if="model.tipo == 'T'"
+                    v-for="(v, vi) in model.voci">
+
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">{{ vi }}</span>
+                        </div>
+                        <input type="number" min="0" max="99" step="0.5"
+                            v-bind:class="{'is-invalid': terror, 'form-control': true}"
+                            v-model.number="model.voci[vi]">
+                        <div class="input-group-append">
+                            <span class="input-group-text">
+                                <i @click="removeVoce(vi)" class="far fa-trash-alt action"></i>
+                            </span>
+                        </div>
+                </div>
             </div>
         </form>
 
@@ -384,16 +406,6 @@
                                 <label for="electre_desc" class="mb-0">&#x25BC;</label>
                             </div>
                         </th>
-                        <!--
-                        <td>
-                            <span class="x-middle">Electre 100</span>
-                            <div class="d-inline-flex flex-column ml-2">
-                                <input id="electre100_asc" type="radio" v-model="env_data_orderby" value="electre_asc">
-                                <label for="electre100_asc" class="mb-0">&#x25B2;</label>
-                                <input id="electre100_desc" type="radio" v-model="env_data_orderby" value="electre_desc">
-                                <label for="electre100_desc" class="mb-0">&#x25BC;</label>
-                            </div>
-                        </td> -->
                         <th>
                             <span class="x-middle">Topsis</span>
                             <div class="d-inline-flex flex-column ml-2">
@@ -410,9 +422,6 @@
                         <td>{{ o.nome }}</td>
                         <td>{{ o.agg | prec2 }}</td>
                         <td>{{ o.electre }}</td>
-                        <!--
-                        <td>{{ o.electre100 }}</td>
-                        -->
                         <td>{{ o.topsis | prec2 }}</td>
                     </tr>
                 </tbody>

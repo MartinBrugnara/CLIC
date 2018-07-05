@@ -196,6 +196,9 @@ Vue.component('criterio', {
         this.fch();
     },
     computed: {
+        inputNome: function() {
+            return '<input type="text" v-model.trim="model.nome">';
+        },
         isLeaf: function() {
             return !(this.model.subcriteri && this.model.subcriteri.length);
         },
@@ -1251,7 +1254,6 @@ function checkBando(bando, fix) {
 /* Simulation                                                                 */
 /* ========================================================================== */
 
-
 /* ========================================================================== */
 /* Menu mappings                                                              */
 /* ========================================================================== */
@@ -1263,6 +1265,25 @@ ipcRenderer.on('view', (event , args) => {switchView(args)});
 /* ========================================================================== */
 /* Main                                                                       */
 /* ========================================================================== */
+$(function () {
+    $('#ctree [data-toggle="popover"]').each((i, o) => {
+        let content = $(o).next('.popper-content');
+        $(o).popover({
+            html:true,
+            content: content,
+            trigger: 'click',
+            template: '' +
+                '<div class="popover" role="tooltip"><div class="arrow"></div>' +
+                '<h3 class="popover-header">Nome x</h3>' +
+                '<div class="popover-body"></div></div>',
+        }).on('show.bs.popover', function() {
+            content.removeClass('hide').addClass('show');
+        }).on('hide.bs.popover', function() {
+            content.addClass('hide');
+        });
+    });
+});
+
 refreshGUI();
 switchView('structure');
 //switchView('simulation');

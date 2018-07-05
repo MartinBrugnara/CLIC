@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="node_modules/\@fortawesome/fontawesome-free-webfonts/css/fa-solid.css">
     <link rel="stylesheet" href="static/css/index.css">
 </head>
-<body>
+<body class="pb-5">
 
     <nav class="navbar navbar-dark bg-dark mb-4" id="app_status">
         <!-- Navbar content -->
@@ -156,6 +156,14 @@
         <form class="form-inline">
             <span class="mr-3">
                 <label v-bind:style="{'min-width': padding, 'display': 'inline-flex'}" class="my-1 mr-1">{{name}}</label>
+
+                <a role="button" data-toggle="popover" data-placement="right">
+                    <i class="fas fa-info action ml-1"></i>
+                </a>
+                <div class="popper-content hide" v-model.trim="model.nome">
+                    <input type="text" class="mono" placeholder="Nome del criterio"  v-model.trim="model.nome"
+                        v-bind:size="amin([78, (model.nome||'').trim().length + 3])">
+                </div>
 
                 <i @click="sub()" v-bind:style="{'visibility': isLeaf ? 'inherit' : 'hidden' }" class="fas fa-sitemap action ml-1"></i>
                 <i @click="remove()" class="far fa-trash-alt action"></i>
@@ -284,7 +292,10 @@
                         <th><span>#</span></th>
                         <th><span>Economica</span></th>
                         <th scope="col" v-for="c in cols" v-bind:colspan="c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1">
+
+                            <a role="button" data-toggle="popover" data-placement="bottom" v-bind:data-content="c.nome">
                             <span v-bind:title="c.nome">{{c.env_name}}</span>
+                </a>
                         </th>
                         <th scope="col">
                             <i class="fas fa-exclamation"></i>
@@ -442,6 +453,8 @@
 
     </div>
 
+    <script src="node_modules/jquery/jquery.min.js"></script>
+    <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="node_modules/vue/dist/vue.min.js"></script>
     <script src="static/js/index.js"></script>
 </body>

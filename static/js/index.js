@@ -422,6 +422,7 @@ window.vm_app_status = new Vue({
     data: app_status,
 })
 
+
 /* args: {fpath, read_only} */
 function loadBando(args) {
     // TODO: offer to save current first.
@@ -590,6 +591,12 @@ function refreshGUI() {
                 }
             },
             computed: {
+                fatalErrors: function() {
+                    // FIXME: should return true, only when the errors are fatal,
+                    // i.e. when we can not compute the ranks.
+                    // Now, it returns true if there is any error.
+                    return checkBando(this)[1].length > 0;
+                },
                 cols: function () {
                     return criteriFlat(this.criteri);
                 },
@@ -597,6 +604,10 @@ function refreshGUI() {
                     return applyFunctions(this);
                 },
                 scoreboard: function() {
+                    if (this.fatalErrors)
+                        return [];
+
+
                     // TODO: we should apply functions first
                     let offerte = applyFunctions(this);
                     let agg = aggregativoCompensatore(this, offerte);
@@ -628,12 +639,23 @@ function refreshGUI() {
         });
     }
 
+    if (!window.vm_errors) {
+        window.vm_errors = new Vue({
+            el: '#errors',
+            data: current,
+            computed: {
+                errors: function() {
+                    return checkBando(this)[1];
+                }
+            },
+        });
+    }
+
     // Refresh
     Object.keys(current).forEach((key) => {
         Vue.set(window.vm_structure, key, current[key]);
-    });
-    Object.keys(current).forEach((key) => {
         Vue.set(window.vm_simulation, key, current[key]);
+        Vue.set(window.vm_errors, key, current[key]);
     });
 }
 
@@ -1031,23 +1053,24 @@ function checkCriterio(c, prefix) {
 
     if (typeof c.peso !== 'number' || c.peso < 0 || c.peso > 100) {
         errors.push('[C ' + prefix + '] ' + c.peso +
-            'non e\' un valore valido per il peso.' +
+            'non e\' un valore valido per il peso. ' +
             'Deve essere un numero tra 0 e 100');
     }
+
     if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
         // TODO add controllo su pesi figli
-        errors = errors.concat(...c.subcriteri.map((s, i) => checkCriterio(s, prefix + '.' + (i+1))));
         let speso = c.subcriteri.map(s => s.peso).reduce(sum, 0);
         if (speso != c.peso) {
             errors.push('[C ' + prefix + '] La somma dei punti dei sotto criteri' +
                 ' non corrisponde al peso del criterio: ' + speso + ' <> ' + c.peso + '.');
         }
+        errors = errors.concat(...c.subcriteri.map((s, i) => checkCriterio(s, prefix + '.' + (i+1))));
         return errors;
     }
 
     if (['Q','D','T'].indexOf(c.tipo) < 0) {
         errors.push('[C ' + prefix + '] ' + c.tipo +
-            'non e\' un valore valido per \'tipo\'.' +
+            'non e\' un valore valido per \'tipo\'. ' +
             'I vaolori possibili sono \'D\', \'T\'.');
     }
 
@@ -1072,8 +1095,8 @@ function checkCriterio(c, prefix) {
             c.voci.forEach((v, vi) => {
                 if (typeof v !== 'number' || v < 0 || v > 100) {
                     errors.push('[C ' + prefix + '] Il valore ' + v + ' per ' +
-                        'la voce ' + (vi+1) + ' non e\' valido.' +
-                        'deve essere un numero tra 0 e 100');
+                        'la voce ' + (vi+1) + ' non e\' valido. ' +
+                        'Deve essere un numero tra 0 e 100');
                 }
             })
         }
@@ -1109,11 +1132,13 @@ function checkBando(bando, fix) {
      * then all reasonable fix are applied,
      * and a third item is returned: the fixed bando.
      *
-     * FIXME: for nut it just returns errors.
+     * FIXME: for now it just returns errors.
      */
 
     // OPT: try also to recover if possible
 
+    if (bando === undefined)
+        return [false, []];
 
     let fatal = false;
     let errors = [];
@@ -1159,13 +1184,14 @@ function checkBando(bando, fix) {
             bando.funzione_economica, m, bando.parametri_economica, p));
    });
 
+
+    // Toatal points must be 100
+    let punti_tot = bando.criteri.map(c => c.peso || 0).reduce(sum, 0) + bando.peso_economica;
+    if (punti_tot !== 100)
+        errors.push('[Criteri] I punti totali del bando non sono 100: ' + punti_tot);
+
     // Criteri must be recursive
     errors = errors.concat(...bando.criteri.map((s, si) => checkCriterio(s, '' + (si+1))));
-
-    let punti_tot = bando.criteri.map(c => c.peso).reduce(sum, 0) + bando.peso_economica;
-    if (punti_tot !== 100) {
-        errors.push('[Criteri] I punti totali del bando non sono 100: ' + punti_tot);
-    }
 
     // Data, just copy
     let fc = criteriFlat(bando.criteri);

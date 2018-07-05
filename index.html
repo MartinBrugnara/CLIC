@@ -42,6 +42,13 @@
         </div>
     </nav>
 
+    <div id="errors" class="container alert alert-danger" v-if="errors.length">
+        <h4 class="alert-heading">Errori</h4>
+        <ul>
+            <li v-for="e in errors">{{ e }}</li>
+        </ul>
+    </div>
+
     <div id="structure" class="container">
         <h3>Offerta Economica</h3>
         <div class="container mb-2">
@@ -60,7 +67,7 @@
 
                 <div class="form-group col-auto no-expand">
                     <label>Peso</label>
-                    <input type="number" min="0" max="100" step="5" v-bind:class="{'form-control':true, 'is-invalid':top_werror}" v-model="peso_economica">
+                    <input type="number" min="0" max="100" step="1" v-bind:class="{'form-control':true, 'is-invalid':top_werror}" v-model.number="peso_economica">
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
                 </div>
 
@@ -377,6 +384,7 @@
             <div class="container text-left">
                 <h3>Ranking</h3>
             </div>
+
             <table id="rank" class="table table-striped text-right tbl">
                 <thead>
                     <tr>
@@ -418,7 +426,7 @@
                         </th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody v-if="!fatalErrors">
                     <tr v-for="(o, oi) in scoreboard">
                         <td>{{ o.nome }}</td>
                         <td>{{ o.agg | prec2 }}</td>
@@ -426,6 +434,9 @@
                         <td>{{ o.topsis | prec2 }}</td>
                     </tr>
                 </tbody>
+                <caption v-if="fatalErrors">
+                    <p style="color:darkred">Corregi gli errori per poter calcolare le classifiche.</p>
+                </caption>
             </table>
         </div>
 

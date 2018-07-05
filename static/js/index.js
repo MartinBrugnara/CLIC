@@ -58,6 +58,7 @@ const {ipcRenderer} = require('electron'),
 
 let amax = (x) => Math.max.apply(Math, x);
 let amin = (x) => Math.min.apply(Math, x);
+let sum = (a, b) => a + b;
 let copy = (o) => JSON.parse(JSON.stringify(o));
 let rnd = (min, max) => Math.floor((Math.random() * (max - min) + min) * 100)/100;
 
@@ -216,7 +217,7 @@ Vue.component('criterio', {
                 return false;
             return this.model.subcriteri
                 .map((c) => c.peso)
-                .reduce((a,v) => a + v , 0) != this.model.peso;
+                .reduce(sum , 0) != this.model.peso;
             // If switching back to % use the following
             //  .reduce((a,v) => a + v , 0) != 100;
         },
@@ -225,7 +226,7 @@ Vue.component('criterio', {
                 return false;
             if (this.model.voci === undefined)
                 Vue.set(this.model, 'voci', [this.model.peso]);
-            return this.model.voci.reduce((a,b) => a+b, 0) != this.model.peso;
+            return this.model.voci.reduce(sum, 0) != this.model.peso;
         },
     },
     methods: {
@@ -505,7 +506,7 @@ function refreshGUI() {
                     // this.criteri.map((c) => c.peso) .reduce((a,v) => a + v , 0) != 100">
                     return this.criteri
                         .map((c) => c.peso)
-                        .reduce((a,v) => a + v , 0) != (100-this.peso_economica);
+                        .reduce(sum, 0) != (100-this.peso_economica);
                 },
                 eco_got_param: function() {
                     let m = this.mod_economica == 'prezzo' ? 'down' : 'up';
@@ -683,7 +684,7 @@ function applyFunctions(bando) {
             if (fc[ti].tipo === 'T') {          // Is tabular -> bool to int
                 return fc[ti].voci
                     .map((v, vi) => v * t[vi])
-                    .reduce((a,b) => a + b, 0);
+                    .reduce(sum, 0);
             } else if (fc[ti].tipo === 'Q') {
                 return funcs[fc[ti].funzione].up.f(
                     t,                          // Current bid
@@ -712,7 +713,7 @@ function aggregativoCompensatore(bando, offerte) {
             nome: o.nome,
             agg: [o.economica].concat(o.tecnica)
                 .map((v, vi) => weights[vi] * v)
-                .reduce((a, b) => a + b)
+                .reduce(sum, 0)
         };
     });
 };
@@ -908,7 +909,7 @@ function topsis(bando, offerte) {
 
     // NOTE: wikipedia dictate to normalize the weight between [0-1]
     //       ANAC says nothig. Looks like nothis changes... anyway we do.
-    let wtot = w.reduce((a, b) => a + b),
+    let wtot = w.reduce(sum, 0),
         wn = w.map(x => x * 1.0 / wtot);
 
     // Inject weights
@@ -966,29 +967,6 @@ function switchView(view) {
         structure.style.display = 'none';
         simulation.style.display = 'block';
     }
-}
-
-function checkBando(bando) {
-    /* Given a bando object,
-     * cleans it up, and returns an instance that can be exportd. */
-
-    /*
-    const str   = typeof 'foo',
-          num   = typeof 42,    // covers also float
-          bool  = typeof true,
-          obj   = typeof {},
-          array = typeof [];
-
-    let fstOrderAttributes = [
-        'mod_economica': ('prezzo', 'ribasso'),
-        'funzione_economica': Object.keys(funcs),
-        'parametri_economica': (funcs[),
-        'peso_economica': 40,
-        'base_asta': 0,
-        'riparametrizzazione1': false,
-        'riparametrizzazione2': false,
-    ];
-    */
 }
 
 function cleanCriterio(c) {
@@ -1058,59 +1036,69 @@ function checkCriterio(c, prefix) {
     }
     if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
         // TODO add controllo su pesi figli
-        errors = errors.concat(c.subcriteri.map((s, i) => checkCriterio(s, prefix + '.' + (i+1))));
-        let speso = c.subcriteri.map(s => s.peso).reduce((a,b), a+b, 0);
+        errors = errors.concat(...c.subcriteri.map((s, i) => checkCriterio(s, prefix + '.' + (i+1))));
+        let speso = c.subcriteri.map(s => s.peso).reduce(sum, 0);
         if (speso != c.peso) {
             errors.push('[C ' + prefix + '] La somma dei punti dei sotto criteri' +
-                ' non corrisponde al peso del criterio: ' + speso + ', ' + c.peso + '.');
+                ' non corrisponde al peso del criterio: ' + speso + ' <> ' + c.peso + '.');
         }
         return errors;
     }
 
-    if (['Q','D','T'].indexOf(n.tipo) < 0) {
+    if (['Q','D','T'].indexOf(c.tipo) < 0) {
         errors.push('[C ' + prefix + '] ' + c.tipo +
             'non e\' un valore valido per \'tipo\'.' +
             'I vaolori possibili sono \'D\', \'T\'.');
     }
 
-    if (n.tipo === 'Q') {
+    if (c.tipo === 'Q') {
         if (funcs[c.funzione] === undefined) {
             errors.push('[C ' + prefix + '] ' + c.funzione +
                 ' non e\' supportata. Le funzioni disponibili sono le seguenti: ' +
                 Object.keys(funcs).join(',') + '.');
+        } else {
+            Object.keys(funcs[c.funzione]['up'].params).forEach(p => {
+                errors = errors.concat(checkParametro('C ' + prefix, c.funzione, 'up',
+                    c.parametri, p));
+            });
         }
-
-        Object.keys(funcs[c.funzione][m].params).forEach(p => {
-            if (typeof c.parametri[p] !== 'number')
-                return;
-
-            let dom = funcs[c.funczione][m].params[p].domain;
-            if (dom.required || c.parametri[p] !== undefined) {
-                errors.push('[C ' + prefix + '] Parametro' + p + ': ' +
-                    c.parametri[p] + 'non e\' un valore valido.' +
-                    (dom.required ? 'Se specificato d' : 'D') +
-                    'eve essere un numero tra ' + dom.start +
-                    (dom.end !== '' ? ('e ' + dom.end)) + '.');
-            }
-        });
     }
 
-    if (n.tipo === 'T') {
-        if (n.voci === undefined || !Array.isArray(n.voci)) {
-            errors.push('[C ' + prefix + '] Quando il tipo e Tabellare (T),'
+    if (c.tipo === 'T') {
+        if (c.voci === undefined || !Array.isArray(c.voci)) {
+            errors.push('[C ' + prefix + '] Quando il tipo e Tabellare (T),' +
                 ' `voci` deve essere un vettore di numeri.');
         } else {
-            n.voci.forEach((v, vi) => {
+            c.voci.forEach((v, vi) => {
                 if (typeof v !== 'number' || v < 0 || v > 100) {
                     errors.push('[C ' + prefix + '] Il valore ' + v + ' per ' +
-                        'la voce ' + (vi+1) ' non e\' valido.' +
-                        'deve essere un numero tra 0 e 100';
+                        'la voce ' + (vi+1) + ' non e\' valido.' +
+                        'deve essere un numero tra 0 e 100');
                 }
             })
         }
     }
     return errors;
 }
+
+function checkParametro(field, func, m, params, p) {
+    let dom = funcs[func][m].params[p].domain,
+        req = funcs[func][m].params[p].required;
+
+    if (((typeof params[p] === 'number') &&
+            ((dom.start !== '' && params[p] < dom.start) ||
+                (dom.end !== '' && params[p] > dom.end))) ||
+        (req && (params[p] === undefined || params[p] === ''))) {
+
+        return ['[' + field + '] Parametro ' + p + ': ' +
+            params[p] + ' non e\' un valore valido. ' +
+            (dom.required ? 'Se specificato d' : 'D') +
+            'eve essere un numero maggiore di ' + dom.start + '' +
+            (dom.end !== '' ? (' e minore di ' + dom.end) : '') + '.'];
+    }
+    return [];
+}
+
 
 // TODO: PUT this as precontion for rendering "rank" and maybe also "points"
 function checkBando(bando, fix) {
@@ -1142,17 +1130,14 @@ function checkBando(bando, fix) {
     }
 
     if (
-        typeof bando.peso_economica !== 'number' ||
-        bando.peso_economica < 0 ||
-        bando.peso_economica > 100 ||
-    ) {
+        typeof bando.peso_economica !== 'number' || bando.peso_economica < 0 ||
+        bando.peso_economica > 100) {
         errors.push('[peso_economica] ' + bando.peso_economica +
             'non e\' un valore valido. Deve essere un numero tra 0 e 100.');
     }
 
     if ((typeof bando.base_asta === 'number' && bando.base_asta < 0) ||
-        (bando.base_asta === undefined && bando.mod_economica === 'prezzo'))
-    ) {
+        (bando.base_asta === undefined && bando.mod_economica === 'prezzo')){
         errors.push('[base_asta] ' + bando.base_asta +
             'non e\' un valore valido. Deve essere un numero tra 0 e 100.');
     }
@@ -1170,21 +1155,17 @@ function checkBando(bando, fix) {
     // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
     let m = bando.mod_economica == 'prezzo'? 'down' : 'up';
     Object.keys(funcs[bando.funzione_economica][m].params).forEach(p => {
-        if (typeof bando.parametri_economica[p] !== 'number')
-            return;
-
-        let dom = funcs[bando.funzione_economica][m].params[p].domain;
-        if (dom.required || bando.parametri_economica[p] !== undefined) {
-            errors.push('[C' + prefix + '] ' +
-                c.parametri[p] + 'non e\' un valore valido per ' + p + '.' +
-                (dom.required ? 'Se specificato d' : 'D') +
-                'eve essere un numero tra ' + dom.start +
-                (dom.end !== '' ? 'e ' + dom.end) + '.');
-        }
-    });
+        errors = errors.concat(checkParametro('funzione_economica',
+            bando.funzione_economica, m, bando.parametri_economica, p));
+   });
 
     // Criteri must be recursive
     errors = errors.concat(...bando.criteri.map((s, si) => checkCriterio(s, '' + (si+1))));
+
+    let punti_tot = bando.criteri.map(c => c.peso).reduce(sum, 0) + bando.peso_economica;
+    if (punti_tot !== 100) {
+        errors.push('[Criteri] I punti totali del bando non sono 100: ' + punti_tot);
+    }
 
     // Data, just copy
     let fc = criteriFlat(bando.criteri);
@@ -1230,7 +1211,7 @@ function checkBando(bando, fix) {
                 }
             }
         });
-    }
+    });
 
     if (Object.keys(name_unique).length !== bando.offerte.length) {
         errors.push('[Offerte] I nomi delle offerte devono essere unici');

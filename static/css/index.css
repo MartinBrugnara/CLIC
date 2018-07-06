@@ -36,9 +36,8 @@ body {
 .superHide {display: none!important}
 .popover {max-width: none}
 
-input.mono {font-family: monospace}
 #ctree label {font-family: monospace}
-#ctree label.nextCid {color: #ccc}
+#ctree label.next-cid {color: #ccc}
 
 [data-toggle="popover"] {cursor: default}
 
@@ -85,3 +84,20 @@ input.mono {font-family: monospace}
   vertical-align: middle;
   vertical-align: -webkit-baseline-middle;
 }
+
+
+/* Error style from bootstrap but without other was-validate class requirement */
+/* TODO: copy also style for sibling error message display */
+.form-control:invalid, .form-control.is-invalid,
+.was-validated
+.custom-select:invalid,
+.custom-select.is-invalid {
+  border-color: #dc3545;
+}
+
+.form-control:invalid:focus, .form-control.is-invalid:focus,
+.custom-select:invalid:focus, .custom-select.is-invalid:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+

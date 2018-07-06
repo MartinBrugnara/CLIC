@@ -7,7 +7,7 @@ This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
-
+e
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,8 +22,58 @@ const {ipcRenderer} = require('electron'),
     fs = require('fs'),
     path = require('path');
 
-/* NOTE: refer to this example (contains addition, deletion, ...).
- * https://vuejs.org/v2/examples/tree-view.html */
+
+
+// ============================================================================
+// Configuration
+
+// Criterion component
+let pad = false,
+    pad_structure = false,
+    char_width = 8,
+    indent = 20; // must be the same as padding-left for ul.
+
+// ============================================================================
+// Global objects
+
+// ============================================================================
+// Common support structures
+const common_filters = {
+    undash: function(str) {
+        return str.replace(/_/g, ' ');
+    },
+    capitalize: function(str) {
+        return str.replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
+    },
+    csub: function(str) {
+        repl = {
+            "alpha": "α",
+            "alfa": "α",
+        }
+        if (repl[str])
+            return repl[str];
+        return str;
+    },
+    prec_up_1: function(num) {
+        if (num === undefined || typeof num !== 'number')
+            return '';
+        return num.toFixed(1).replace('.0','');
+    },
+    prec2: function(num) {
+        if (num === undefined)
+            return '';
+        return num.toFixed(2);
+    },
+    npadded: function(n, tot) {
+        let ns = n.toString(),
+            ts = tot.toString();
+        let prefix = new Array(ts.length - ns.length)
+            .fill(' ').reduce((a,b) => a+b, '');
+        return prefix + ns;
+    },
+}
+
+
 
 /* Remember: JavaScript is call-by-sharing.  Like by value,
  *     but for complex types you can use only pointers (thus copy its address).
@@ -56,30 +106,55 @@ const {ipcRenderer} = require('electron'),
 //  turns the problem from minimization to maximization.
 
 
+// ============================================================================
+// Support functions
+
 let amax = (x) => Math.max.apply(Math, x);
 let amin = (x) => Math.min.apply(Math, x);
-let sum = (a, b) => a + b;
+let sum = (a, b) => (a || 0) + (b || 0);
 let copy = (o) => JSON.parse(JSON.stringify(o));
 let rnd = (min, max) => Math.floor((Math.random() * (max - min) + min) * 100)/100;
 
-// FIXME: it breaks if n > 10
-let prefixToId = function(prefix) {
+// TODO: modifies all the code that uses this function to just use [ids]
+// and then come back to modify this one.
+let prefix_2_ids = function(prefix) {
     let cf = criteriFlat(current.criteri);
     // Search boundaries to delete
-    let rm = cf.map((c, i) => [c.env_name, i])
-            .filter(x => x[0].indexOf(prefix) == 0)
-            .map(x => x[1]);
-        start = amin(rm),   // should be ordered (thus to_remove[0])
-        cnt = rm.length;  // how many to remove
-    return [start, cnt];
+    let ids = cf.map((c, i) => [c.env_name, i])
+            .filter(x => x[0].indexOf(prefix) === 0 &&
+                (prefix.indexOf('.') > 0 || prefix.length === x[0].length))
+            .map(x => x[1])
+            .sort();  // Should be already sorted. But better safe than sorry.
+    return [ids[0], ids.length, ids];
 }
+
+let max_bando_depth = function(bando) {
+    f = (b) => {
+        if (!b.subcriteri) return 1;
+        return Math.max.apply(Math, b.subcriteri.map(f)) + 1;
+    }
+    return Math.max.apply(Math, bando.criteri.map(f));
+}
+
+let criterion_weight = function(c) {
+    if (c.subcriteri && c.subcriteri.length)
+        return c.subcriteri.map(criterion_weight).reduce(sum, 0);
+    if (c.tipo === 'T')
+        return c.voci.reduce(sum, 0);
+    return c.peso;
+}
+
+let economic_weight = function(bando) {
+    return 100 - bando.criteri.map(criterion_weight).reduce(sum, 0);
+}
+
 
 // First one is default
 // TODO: add support for "tabellare" -> [Consip: Scelte, Range]
 // NOTE: for each property MUST always define:
 //      {domain:{start:0, end:'', step:1}, required: true}
 //      if a value is unknow put empty string
-let funcs = {
+const functions = {
     // {name:{
     //      up:{f:, params:{name: {(opts:[]|domain:{start:, end:}}}}, // rialzo
     //      dow:{f:, params:{name:{(opts:[]|domain:{start:, end:}}}}, // ribasso
@@ -175,66 +250,56 @@ let funcs = {
 
 
 
+// ============================================================================
+// Components
 
 
-// -- Registering custom components.
-let pad = false,
-    pad_structure = false,
-    char_width = 8,
-    indent = 20; // must be the same as padding-left for ul.
-
-Vue.component('criterio', {
-    template: '#tpl_criterio',
+Vue.component('criterion', {
+    template: '#tpl_criterion',
     props: {
-        model: Object,
-        name: String,
-        depth: Number,
-        werror: Boolean,
+        model: Object,  // The actual criterion data.
+        name: String,   // The computed name, in the form '1.3.2'.
+        depth: Number,  // Depth in three of this criterion (use for padding).
     },
     beforeUpdate: function() {
-        if (!this.isLeaf) return;
-        // Invokings function_change to guarantee consistency w/data.
-        this.fch();
+        if (!this.is_leaf) return;
+        // This guarantee consistency with data.
+        // NOTE: since`current` (this) is double linked,
+        //      this method is invoked even if the data is modified
+        //      by other components
+        // NOTE: invokation from @change is required to prevent rendering errors.
+        //      See "#tpl_criterio select"
+        this.function_change();
     },
     computed: {
-        inputNome: function() {
-            return '<input type="text" v-model.trim="model.nome">';
+        funcs () {
+            console.log("invoked funcs");
+            // Just a proxy for constant global objecet
+            return functions;
         },
-        isLeaf: function() {
+        isWeightEditable () {
+            return this.is_leaf && this.model.tipo !== 'T';
+        },
+        is_leaf () {
             return !(this.model.subcriteri && this.model.subcriteri.length);
         },
-        padding: function() {
-            // TODO: cache; do not recompute.
+        padding () {
             if (!pad)
                 return '0';
-            let mx = max_bando_depth();
+            if (!current.env_depth)
+                current.env_depth = max_bando_depth(current);
             let label = ((mx * 2 - 1) * char_width);
             if (!pad_structure)
                 return label + 'px';
             return (mx - this.depth - 1) * indent + label  + 'px';
         },
-        funcs: function() {
-            return funcs;
-        },
-        weightError: function() {
-            if (!this.model.subcriteri)
-                return false;
-            return this.model.subcriteri
-                .map((c) => c.peso)
-                .reduce(sum , 0) != this.model.peso;
-            // If switching back to % use the following
-            //  .reduce((a,v) => a + v , 0) != 100;
-        },
-        terror: function() {
-            if (this.model.tipo !== 'T')
-                return false;
-            if (this.model.voci === undefined)
-                Vue.set(this.model, 'voci', [this.model.peso]);
-            return this.model.voci.reduce(sum, 0) != this.model.peso;
-        },
+        weight () {
+            // Weight computed on the children.
+            return criterion_weight(this.model);
+        }
     },
     methods: {
-        fch: function() {
+        function_change: function() {
             // Structure
             if (this.model.tipo === 'Q') {
                 // Be sure at least one is selected and parameters are initialized
@@ -242,8 +307,8 @@ Vue.component('criterio', {
                     Vue.set(this.model, 'funzione', 'identita');
 
                 // Be sure parameters are populated.
-                for (let pname in funcs[this.model.funzione].up.params) {
-                    let p = funcs[this.model.funzione].up.params[pname];
+                for (let pname in functions[this.model.funzione].up.params) {
+                    let p = functions[this.model.funzione].up.params[pname];
                     if (!this.model.parametri)
                         Vue.set(this.model, "parametri", {});
                     if (this.model.parametri[pname] === undefined) {
@@ -264,7 +329,7 @@ Vue.component('criterio', {
 
             // Data
             let r = current.offerte.length,
-                x = prefixToId(this.name),
+                x = prefix_2_ids(this.name),
                 pi = x[0];
             if (r >0) {
                 let y = current.offerte[0].tecnica[pi];
@@ -287,7 +352,7 @@ Vue.component('criterio', {
         },
         remove: function() {
             // Prepare to adapt data
-            let x = prefixToId(this.name),
+            let x = prefix_2_ids(this.name),
                 start = x[0],
                 cnt = x[1];
 
@@ -323,9 +388,12 @@ Vue.component('criterio', {
 
             // Actually delete sub-tree
             Vue.delete(ptr, key[depth-1]);
+
+            // Update stats abouth depth
+            current.env_depth = max_bando_depth(current);
         },
         sub: function() {
-            let x = prefixToId(this.name),
+            let x = prefix_2_ids(this.name),
                 start = x[0],
                 cnt = x[1];
 
@@ -341,12 +409,17 @@ Vue.component('criterio', {
 
             Vue.set(raw, key[key.length-1], pointer)
 
+            // TODO: delete from current node the `peso` attribute.
+
             // There is no need to modify the data.
             // To add a sublevel we add column (1.1) but remove (1).
             // We may then reuse info from 1 to populare 1.1.
+
+            // Update stats abouth depth
+            current.env_depth = max_bando_depth(current);
         },
         add: function() {
-            let x = prefixToId(this.name), pi = x[0] + x[1];
+            let x = prefix_2_ids(this.name), pi = x[0] + x[1];
 
             // Get a pointer to subcriteri list
             let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
@@ -366,51 +439,31 @@ Vue.component('criterio', {
                 default_value = 0;
             for (let i=0; i<r; i++)                                       // bids
                 current.offerte[i].tecnica.splice(pi, 0, default_value);  // actually delete
+
+            // Update stats abouth depth
+            current.env_depth = max_bando_depth(current);
         },
-        addVoce: function() {
+        add_voce: function() {
             // Add to the tree and add default entry in data (false)
             this.model.voci.push(0);
 
             // Update data
-            let x = prefixToId(this.name), pi = x[0];
+            let x = prefix_2_ids(this.name), pi = x[0];
             for (let i=0; i<current.offerte.length; i++)
                 current.offerte[i].tecnica[pi].push(false);
         },
-        removeVoce: function(vi) {
+        remove_voce: function(vi) {
             // Add to the tree and delete proper value
             this.model.voci.splice(vi, 1);
 
             // Update data
-            let x = prefixToId(this.name), pi = x[0];
+            let x = prefix_2_ids(this.name), pi = x[0];
             for (let i=0; i<current.offerte.length; i++)
                 current.offerte[i].tecnica[pi].splice(vi, 1);
         },
     },
-    filters: {
-        undash: function(str) {
-            return str.replace(/_/g, ' ');
-        },
-        capitalize: function(str) {
-            return str.replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
-        },
-        csub: function(str) {
-            repl = {
-                "alpha": "α",
-                "alfa": "α",
-            }
-            if (repl[str]) return repl[str];
-            return str;
-        },
-    },
+    filters: common_filters,
 });
-
-let max_bando_depth = function() {
-    f = (b) => {
-        if (!b.subcriteri) return 1;
-        return Math.max.apply(Math, b.subcriteri.map(f)) + 1;
-    }
-    return Math.max.apply(Math, current.criteri.map(f));
-}
 
 
 // -- Global state.
@@ -508,6 +561,13 @@ function refreshGUI() {
                 },
             },
             computed: {
+                economic_weight () {
+                    return economic_weight(this);
+                },
+                funcs () {
+                    // Just a proxy for constant global objecet
+                    return functions;
+                },
                 top_werror: function() {
                     // this.criteri.map((c) => c.peso) .reduce((a,v) => a + v , 0) != 100">
                     return this.criteri
@@ -516,19 +576,12 @@ function refreshGUI() {
                 },
                 eco_got_param: function() {
                     let m = this.mod_economica == 'prezzo' ? 'down' : 'up';
-                    for (let i in funcs[this.funzione_economica][m].params)
+                    for (let i in functions[this.funzione_economica][m].params)
                         return true;
                     return false;
                 }
             },
-            filters: {
-                undash: function(str) {
-                    return str.replace(/_/g, ' ');
-                },
-                capitalize: function(str) {
-                    return str.replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
-                },
-            }
+            filters: common_filters,
         });
     }
 
@@ -612,7 +665,7 @@ function refreshGUI() {
                 fstLvlNames: function() {
                     let fc = criteriFlat(this.criteri);
                     return this.criteri.map((c, i) => {
-                        let x = prefixToId((i + 1) + '');
+                        let x = prefix_2_ids((i + 1) + '');
                         let start = x[0], cnt = x[1], y=0;
                         for (let i=0; i < cnt; i++) {
                             if (fc[start + i].tipo === 'T') {
@@ -723,7 +776,7 @@ function applyFunctions(bando) {
         let res = {nome:o.nome};
 
         let eco_mode = bando.mod_economica === 'prezzo' ? 'down' : 'up',
-            eco_f = funcs[bando.funzione_economica][eco_mode];
+            eco_f = functions[bando.funzione_economica][eco_mode];
         res.economica = eco_f.f(
             o.economica[0],             // Economic bid
             bando.parametri_economica,  // Economic function parameters
@@ -737,7 +790,7 @@ function applyFunctions(bando) {
                     .map((v, vi) => v * t[vi])
                     .reduce(sum, 0);
             } else if (fc[ti].tipo === 'Q') {
-                return funcs[fc[ti].funzione].up.f(
+                return functions[fc[ti].funzione].up.f(
                     t,                          // Current bid
                     fc[ti].parametri,           // Parameters
                     bando,                      // Bando for global param
@@ -1037,7 +1090,7 @@ function cleanCriterio(c) {
     n.funzione = c.funzione;
     if (n.tipo === 'Q') {
         n.parametri = {};
-        Object.keys(funcs[n.funzione]['up'].params)
+        Object.keys(functions[n.funzione]['up'].params)
             .forEach(p => n.parametri[p] = c.parametri[p]);
     }
 
@@ -1064,7 +1117,7 @@ function cleanBando(bando) {
     // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
     cleaned.parametri_economica = {};
     let m = bando.mod_economica == 'prezzo'? 'down' : 'up';
-    Object.keys(funcs[cleaned.funzione_economica][m].params)
+    Object.keys(functions[cleaned.funzione_economica][m].params)
         .forEach(p => cleaned.parametri_economica[p] = bando.parametri_economica[p]);
 
     // Criteri must be recursive
@@ -1104,12 +1157,12 @@ function checkCriterio(c, prefix) {
     }
 
     if (c.tipo === 'Q') {
-        if (funcs[c.funzione] === undefined) {
+        if (functions[c.funzione] === undefined) {
             errors.push('[C ' + prefix + '] ' + c.funzione +
                 ' non e\' supportata. Le funzioni disponibili sono le seguenti: ' +
-                Object.keys(funcs).join(',') + '.');
+                Object.keys(functions).join(',') + '.');
         } else {
-            Object.keys(funcs[c.funzione]['up'].params).forEach(p => {
+            Object.keys(functions[c.funzione]['up'].params).forEach(p => {
                 errors = errors.concat(checkParametro('C ' + prefix, c.funzione, 'up',
                     c.parametri, p));
             });
@@ -1134,8 +1187,8 @@ function checkCriterio(c, prefix) {
 }
 
 function checkParametro(field, func, m, params, p) {
-    let dom = funcs[func][m].params[p].domain,
-        req = funcs[func][m].params[p].required;
+    let dom = functions[func][m].params[p].domain,
+        req = functions[func][m].params[p].required;
 
     if (((typeof params[p] === 'number') &&
             ((dom.start !== '' && params[p] < dom.start) ||
@@ -1177,10 +1230,10 @@ function checkBando(bando, fix) {
             'non e\' un valore valido. I vaolori possibili sono "prezzo" e "ribasso".');
     }
 
-    if (funcs[bando.funzione_economica] === undefined) {
+    if (functions[bando.funzione_economica] === undefined) {
         errors.push('[funzione_economica] ' + bando.funzione_economica +
             ' non e\' supportata. Le funzioni disponibili sono le seguenti: ' +
-            Object.keys(funcs).join(',') + '.');
+            Object.keys(functions).join(',') + '.');
     }
 
     if (
@@ -1208,7 +1261,7 @@ function checkBando(bando, fix) {
 
     // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
     let m = bando.mod_economica == 'prezzo'? 'down' : 'up';
-    Object.keys(funcs[bando.funzione_economica][m].params).forEach(p => {
+    Object.keys(functions[bando.funzione_economica][m].params).forEach(p => {
         errors = errors.concat(checkParametro('funzione_economica',
             bando.funzione_economica, m, bando.parametri_economica, p));
    });

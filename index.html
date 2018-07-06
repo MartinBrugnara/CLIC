@@ -67,13 +67,13 @@
 
                 <div class="form-group col-auto no-expand">
                     <label>Peso</label>
-                    <input type="number" min="0" max="100" step="1" v-bind:class="{'form-control':true, 'is-invalid':top_werror}" v-model.number="peso_economica">
-                    <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
+                    <h3><span v-bind:class="['badge', 'mb-0', {'badge-light': economic_weight === 30}, {'badge-danger': economic_weight < 0}, {'badge-warning': economic_weight !== 30 && economic_weight >= 0 }]">{{ economic_weight | prec_up_1 }}</span></h3>
                 </div>
 
                 <div class="form-group col-auto" v-if="mod_economica == 'prezzo'">
                     <label for="eco_base_asta">Base d'asta</label>
-                    <input type="number" min="0" step="0.01" class="form-control" name="eco_base_asta" id="eco_base_asta" aria-describedby="eco_base_asta_help" v-model.number="base_asta">
+                    <input type="number" class="form-control" name="eco_base_asta" id="eco_base_asta"
+                        min="0" step="0.01" v-model.number="base_asta" required>
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
                 </div>
 
@@ -132,15 +132,13 @@
         </form>
 
         <ul id="ctree" class="nols">
-            <!-- <li value="-1"># - &#931; - Tipo - &#120582;</li> -->
-
-            <criterio
+            <criterion
                 v-for="(model, index) in criteri"
                 v-bind:index="index"
                 v-bind:model="model"
                 v-bind:name="index+1"
                 v-bind:depth="1"
-                v-bind:werror="top_werror"></criterio>
+                v-bind:werror="top_werror"></criterion>
 
             <span>
                 <i @click="addCriterio('')" class="fas fa-plus action"></i>
@@ -149,118 +147,115 @@
         </ul>
     </div>
 
-    <!-- for style see input group from bootstrap -->
-    <script type="text/x-template" id="tpl_criterio">
-    <li>
-        <!-- style is hack for align -->
-        <form class="form-inline">
-            <span class="mr-3">
+<script type="text/x-template" id="tpl_criterion">
+<li>
+    <div class="d-flex flex-wrap">
+        <form class="form-inline flex-shrink-0 mb-2">
+            <div class="mr-3">
                 <label v-bind:style="{'min-width': padding, 'display': 'inline-flex'}" class="my-1 mr-1">{{name}}</label>
 
                 <a role="button" data-toggle="popover" data-placement="right">
                     <i class="fas fa-info action ml-1"></i>
                 </a>
-                <div class="popper-content hide" v-model.trim="model.nome" v-mo>
-                    <input type="text" class="mono" placeholder="Nome del criterio"  v-model.trim="model.nome"
-                        v-bind:size="amax([amin([78, (model.nome||'').trim().length + 3]), 18])">
+                <div class="popper-content hide" v-model.trim="model.nome">
+                    <input type="text" class="text-monospace" placeholder="Nome del criterio"
+                        v-bind:size="amax([amin([78, (model.nome||'').trim().length + 3]), 18])"
+                        v-model.trim="model.nome" />
                 </div>
 
-                <i @click="sub()" v-bind:style="{'visibility': isLeaf ? 'inherit' : 'hidden' }" class="fas fa-sitemap action ml-1"></i>
+                <i @click="sub()" v-bind:style="{'visibility': is_leaf ? 'inherit' : 'hidden' }" class="fas fa-sitemap action ml-1"></i>
                 <i @click="remove()" class="far fa-trash-alt action"></i>
-            </span>
+            </div>
 
-            <div class="input-group">
+            <div class="input-group" v-if="isWeightEditable">
                 <div class="input-group-prepend">
                     <span class="input-group-text">&#931;</span>
                 </div>
-                <input type="number" min="0" max="100"
-                    v-bind:class="{'is-invalid': werror, 'form-control': true}"
-                    v-model.number="model.peso">
+                <input type="number" class="form-control"
+                    min="0" max="100" step="0.1" required
+                    v-model.number="model.peso" />
             </div>
+            <h4 v-else><span class="badge badge-light">{{ weight | prec_up_1 }}</span></h4>
+            <!-- Alternative for weight -->
+            <!-- <input class="form-control" type="text" placeholder="Readonly input here…" readonly> -->
 
-            <!-- Note: hiding if got subcriteria -->
-            <div class="input-group ml-2" v-if="isLeaf">
-                <select class="custom-select no-expand" v-model="model.tipo" @change="fch">
+
+
+            <div class="input-group ml-2" v-if="is_leaf">
+                <select class="custom-select no-expand"
+                        v-model="model.tipo" @change="function_change">
                     <option value="Q">Quantitativo</option>
                     <option value="D">Discreto</option>
                     <option value="T">Tabellare</option>
                 </select>
 
-                <select
-                    class="custom-select"
-                    v-if="model.tipo === 'Q'"
-                    v-model="model.funzione"
-                    @change="fch">
+                <select class="custom-select" v-if="model.tipo === 'Q'"
+                        v-model="model.funzione" @change="function_change">
                     <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname | undash | capitalize }}</option>
                 </select>
 
                 <div v-if="model.tipo == 'T'" class="input-group-append">
                     <span class="input-group-text">
-                        <i @click="addVoce" class="fas fa-plus action"></i>
+                        <i @click="add_voce" class="fas fa-plus action"></i>
                     </span>
-                </div>
-
-            </div>
-
-            <!-- TODO: What about force new line and then align right? -->
-            <div class="input-group ml-2" v-if="isLeaf && model.tipo === 'Q'">
-                <template v-for="(p, pname) in funcs[model.funzione].up.params">
-                        <div class="input-group-prepend">
-                            <span class="input-group-text">{{ pname | csub | undash }}</span>
-                        </div>
-
-                        <input
-                            type="number"
-                            v-bind:min="funcs[model.funzione].up.params[pname].domain.start"
-                            v-bind:max="funcs[model.funzione].up.params[pname].domain.end"
-                            v-bind:step="funcs[model.funzione].up.params[pname].domain.step"
-                            v-bind:required="funcs[model.funzione].up.params[pname].required"
-                            v-bind:name="pname"
-                            class="form-control no-expand"
-                            v-model.number="model.parametri[pname]"
-                        />
-                </template>
-            </div>
-
-            <template v-if="isLeaf">
-                <div class="input-group ml-2"
-                    v-if="model.tipo == 'T'"
-                    v-for="(v, vi) in model.voci">
-
-                        <div class="input-group-prepend">
-                            <span class="input-group-text">{{ vi + 1 }}</span>
-                        </div>
-                        <input type="number" min="0" max="99" step="0.5"
-                            v-bind:class="{'is-invalid': terror, 'form-control': true}"
-                            v-model.number="model.voci[vi]">
-                        <div class="input-group-append">
-                            <span class="input-group-text">
-                                <i @click="removeVoce(vi)" class="far fa-trash-alt action"></i>
-                            </span>
-                        </div>
                 </div>
             </div>
         </form>
 
-        <!-- Recursively enumerate subcriteria -->
-        <!-- Error style alternative: bg-danger -->
-        <ul v-if="!isLeaf" v-bind:class="{'border-danger': weightError}">
-            <criterio
-                v-for="(model, index) in model.subcriteri"
-                v-bind:index="index"
-                v-bind:key="index"
-                v-bind:model="model"
-                v-bind:name="name + '.' + (index + 1)"
-                v-bind:depth="depth + 1"
-                v-bind:werror="weightError">
-            </criterio>
-            <span>
-                <i @click="add()" class="fas fa-plus action"></i>
-                <label class="nextCid">({{ name + '.' + (model.subcriteri.length + 1) }})</label>
-            </span>
-        </ul>
-    </li>
-    </script>
+        <div class="form-inline ml-auto align-items-end flex-shrink-0 flex-wrap mw-100 justify-content-start">
+            <div class="input-group ml-2 mb-2" v-if="is_leaf && model.tipo === 'Q'">
+                <template v-for="(p, pname) in funcs[model.funzione].up.params">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">{{ pname | csub | undash }}</span>
+                    </div>
+
+                    <input
+                        type="number"
+                        v-bind:min="funcs[model.funzione].up.params[pname].domain.start"
+                        v-bind:max="funcs[model.funzione].up.params[pname].domain.end"
+                        v-bind:step="funcs[model.funzione].up.params[pname].domain.step"
+                        v-bind:required="funcs[model.funzione].up.params[pname].required"
+                        v-bind:name="pname"
+                        class="form-control no-expand"
+                        v-model.number="model.parametri[pname]" />
+                </template>
+            </div>
+
+            <template v-if="is_leaf">
+                <div class="input-group ml-2 mb-2"
+                        v-if="model.tipo == 'T'"
+                        v-for="(v, vi) in model.voci">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text text-monospace" style="white-space:pre">{{ vi + 1 | npadded(model.voci.length)}}</span>
+                    </div>
+                    <input type="number" class="form-control form-control-sm"
+                        min="0" max="100" step="0.1" required
+                        v-model.number="model.voci[vi]">
+                    <div class="input-group-append">
+                        <span class="input-group-text">
+                            <i @click="remove_voce(vi)" class="far fa-trash-alt action"></i>
+                        </span>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Recursively enumerate subcriteria -->
+    <ul v-if="!is_leaf">
+        <criterion
+            v-for="(model, index) in model.subcriteri"
+            v-bind:model="model"
+            v-bind:name="name + '.' + (index + 1)"
+            v-bind:depth="depth + 1">
+        </criterion>
+        <span>
+            <i @click="add()" class="fas fa-plus action"></i>
+            <label class="next-cid">({{ name + '.' + (model.subcriteri.length + 1) }})</label>
+        </span>
+    </ul>
+</li>
+</script>
 
 
     <div id="simulation">

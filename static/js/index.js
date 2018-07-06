@@ -29,6 +29,11 @@ const {ipcRenderer} = require('electron'),
     fs = require('fs'),
     path = require('path');
 
+global.$ = global.jQuery = require('jquery');
+require('bootstrap');
+// Vue is imported in the old way.
+
+
 
 
 // ============================================================================
@@ -1373,6 +1378,8 @@ ipcRenderer.on('view', (event , args) => {switchView(args)});
 /* Main                                                                       */
 /* ========================================================================== */
 $(function () {
+    console.log("main");
+
     refreshGUI();
     switchView('structure');
     //switchView('simulation');

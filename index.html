@@ -160,9 +160,9 @@
                 <a role="button" data-toggle="popover" data-placement="right">
                     <i class="fas fa-info action ml-1"></i>
                 </a>
-                <div class="popper-content hide" v-model.trim="model.nome">
+                <div class="popper-content hide" v-model.trim="model.nome" v-mo>
                     <input type="text" class="mono" placeholder="Nome del criterio"  v-model.trim="model.nome"
-                        v-bind:size="amin([78, (model.nome||'').trim().length + 3])">
+                        v-bind:size="amax([amin([78, (model.nome||'').trim().length + 3]), 18])">
                 </div>
 
                 <i @click="sub()" v-bind:style="{'visibility': isLeaf ? 'inherit' : 'hidden' }" class="fas fa-sitemap action ml-1"></i>
@@ -181,9 +181,9 @@
             <!-- Note: hiding if got subcriteria -->
             <div class="input-group ml-2" v-if="isLeaf">
                 <select class="custom-select no-expand" v-model="model.tipo" @change="fch">
-                    <option value="Q">Q</option>
-                    <option value="D">D</option>
-                    <option value="T">T</option>
+                    <option value="Q">Quantitativo</option>
+                    <option value="D">Discreto</option>
+                    <option value="T">Tabellare</option>
                 </select>
 
                 <select
@@ -269,39 +269,67 @@
                 <h3>Dati</h3>
             </div>
             <div class="d-flex align-items-end text-right mb-2">
-                <strong>Modalit&agrave;</strong >
-                <div class="form-check-inline ml-2">
-                    <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="points" value="points" v-model="env_data_mode">
-                    <label class="form-check-label" for="points">Punti</label>
-                </div>
-                <div class="form-check-inline">
-                    <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="raw" value="raw" v-model="env_data_mode">
-                    <label class="form-check-label" for="raw">Dati</label>
-                </div>
-                <div class="form-check-inline mr-0">
-                    <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="edit" value="edit" v-model="env_data_mode">
-                    <label class="form-check-label" for="edit">Modifica</label>
+                <div>
+                    <div class="text-right">
+                        <strong>Nomi</strong>
+                        <div class="form-check-inline ml-2">
+                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="show" value="show" v-model="env_name_show">
+                            <label class="form-check-label" for="show">Mostra</label>
+                        </div>
+                        <div class="form-check-inline mr-0">
+                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="hide" value="hide" v-model="env_name_show">
+                            <label class="form-check-label" for="hide">Nascondi</label>
+                        </div>
+                    </div>
+
+                    <div class="text-right">
+                        <strong>Modalit&agrave;</strong >
+                        <div class="form-check-inline ml-2">
+                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="points" value="points" v-model="env_data_mode">
+                            <label class="form-check-label" for="points">Punti</label>
+                        </div>
+                        <div class="form-check-inline">
+                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="raw" value="raw" v-model="env_data_mode">
+                            <label class="form-check-label" for="raw">Dati</label>
+                        </div>
+                        <div class="form-check-inline mr-0">
+                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="edit" value="edit" v-model="env_data_mode">
+                            <label class="form-check-label" for="edit">Modifica</label>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="text-center">
-            <table id="data" class="table table-striped text-right pb-2 tbl">
+            <table id="data" class="table table-striped text-right mt-2 pb-2 tbl">
                 <thead>
-                    <tr>
+                    <tr class="names" v-if="enableNames">
+                        <th></th>
+                        <th><small>ECONOMICA</small></th>
+                        <th v-for="c in fstLvlNames" v-bind:colspan="c.size"><small>{{ c.nome.trim() }}</small></th>
+                        <th></th>
+                    </tr>
+                    <tr class="env_names">
                         <th><span>#</span></th>
-                        <th><span>Economica</span></th>
-                        <th scope="col" v-for="c in cols" v-bind:colspan="c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1">
+                        <th><span v-if="!enableNames">Economica</span><span v-else>0</span></th>
 
-                            <a role="button" data-toggle="popover" data-placement="bottom" v-bind:data-content="c.nome">
-                            <span v-bind:title="c.nome">{{c.env_name}}</span>
-                </a>
+                        <th scope="col" v-for="c in cols" v-bind:colspan="c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1">
+                            <a data-toggle="popover" data-placement="bottom"
+                                data-trigger="hover" data-env_name_show="true"><span v-bind:title="c.nome">{{c.env_name}}</span></a>
+                            <div class="popper-content hide">
+                                {{ c.nome || 'Non specificato' }}
+                                <!-- Alternative to allow edit
+                                <input type="text" class="mono" placeholder="Nome del criterio" v-model.trim="c.nome"
+                                    v-bind:size="amax([amin([78, (c.nome||'').trim().length + 3]), 18])">
+                                -->
+                            </div>
                         </th>
                         <th scope="col">
                             <i class="fas fa-exclamation"></i>
                         </th>
                     </tr>
-                    <tr>
+                    <tr class="weights">
                         <th><small>Peso</small></th>
                         <th>
                             <input v-if="env_data_mode == 'edit'" v-model.number="peso_economica" type="number" min="0" max="100" step="0.5">

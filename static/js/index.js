@@ -62,6 +62,7 @@ let sum = (a, b) => a + b;
 let copy = (o) => JSON.parse(JSON.stringify(o));
 let rnd = (min, max) => Math.floor((Math.random() * (max - min) + min) * 100)/100;
 
+// FIXME: it breaks if n > 10
 let prefixToId = function(prefix) {
     let cf = criteriFlat(current.criteri);
     // Search boundaries to delete
@@ -481,6 +482,7 @@ function refreshGUI() {
 
     // NOTE: All extra variables must be declared before init any object.
     current.env_data_mode = 'raw';
+    current.env_name_show = 'hide';
     current.env_data_orderby = 'agg_desc';
 
     // TODO: consider alternatively to just destroy and rebuild.
@@ -599,6 +601,30 @@ function refreshGUI() {
                     // i.e. when we can not compute the ranks.
                     // Now, it returns true if there is any error.
                     return checkBando(this)[1].length > 0;
+                },
+                enableNames: function () {
+                    return this.env_name_show === 'show' &&
+                        this.criteri.concat(criteriFlat(this.criteri))
+                        .map(c => c.nome || '')
+                        .filter(n => n.length)
+                        .length > 0;
+                },
+                fstLvlNames: function() {
+                    let fc = criteriFlat(this.criteri);
+                    return this.criteri.map((c, i) => {
+                        let x = prefixToId((i + 1) + '');
+                        let start = x[0], cnt = x[1], y=0;
+                        for (let i=0; i < cnt; i++) {
+                            if (fc[start + i].tipo === 'T') {
+                                y += fc[start + i].voci.length
+                            } else
+                                y += 1
+                        }
+                        return {
+                            nome: c.nome,
+                            size: y
+                        };
+                    })
                 },
                 cols: function () {
                     return criteriFlat(this.criteri);
@@ -1266,22 +1292,38 @@ ipcRenderer.on('view', (event , args) => {switchView(args)});
 /* Main                                                                       */
 /* ========================================================================== */
 $(function () {
-    $('#ctree [data-toggle="popover"]').each((i, o) => {
+    $('#ctree [data-toggle="popover"], #data [data-toggle="popover"]').each((i, o) => {
         let content = $(o).next('.popper-content');
         $(o).popover({
             html:true,
             content: content,
-            trigger: 'click',
             template: '' +
-                '<div class="popover" role="tooltip"><div class="arrow"></div>' +
+                '<div class="popover" role="tooltip">'+
+                '<div class="arrow"></div>' +
                 '<h3 class="popover-header">Nome x</h3>' +
                 '<div class="popover-body"></div></div>',
         }).on('show.bs.popover', function() {
+            $('.popover.show').removeClass('show'); // hide the others.
             content.removeClass('hide').addClass('show');
         }).on('hide.bs.popover', function() {
             content.addClass('hide');
-        });
+        }).on('inserted.bs.popover', function(o) {
+            let xo = o;
+            return () => {
+                if ($(xo).data('env_name_show') && current.env_name_show === 'hide')
+                    $('.popover').addClass('superHide');
+                else
+                    $('.popover').removeClass('superHide');
+
+            };
+        }(o));
     });
+
+    $('body').click(function(ev) {
+        // Hide popover when click on something else.
+        if (!$(ev.target).closest('.popover, [data-toggle="popover"]').length)
+            $('.popover.show').removeClass('show');
+    })
 });
 
 refreshGUI();

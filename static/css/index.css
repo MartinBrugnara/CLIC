@@ -33,11 +33,14 @@ body {
 .input-group>.no-expand {flex-grow:0; width: auto}
 
 .hide {display: none}
+.superHide {display: none!important}
 .popover {max-width: none}
 
 input.mono {font-family: monospace}
 #ctree label {font-family: monospace}
 #ctree label.nextCid {color: #ccc}
+
+[data-toggle="popover"] {cursor: default}
 
 .tbl th {text-align:center}
 .tbl {
@@ -49,11 +52,23 @@ input.mono {font-family: monospace}
   overflow-x: auto;
 }
 
-.tbl thead tr:nth-child(2)>th:not(:first-child) {font-family: monospace}
-.tbl tbody tr>td:not(:first-child) {font-family: monospace}
 
-#data thead tr:first-child>th {padding-bottom: 0;border-bottom: 0;}
-#data thead tr:last-child>th {padding-top: 0;border-top: 0;}
+.tbl tbody tr>td:not(:first-child) {font-family: monospace}
+#rank.tbl thead tr:nth-child(2)>th:not(:first-child) {font-family: monospace}
+#data thead tr.weight {font-family: monospace}
+
+#data thead tr.names {border-bottom: 1px solid #dee2e6}
+#data thead tr.names > th:not(:last-child) {border-right: 1px solid #dee2e6}
+#data thead tr.names > th {
+  vertical-align: top;
+  padding-bottom: .75rem;
+}
+#data thead tr.names > th small {
+  text-transform: uppercase;
+  font-weight:bold;
+}
+#data thead tr.env_names >th {padding-bottom: 0;border-bottom: 0;}
+#data thead tr.weights>th {padding-top: 0;border-top: 0;}
 
 .action {color:#ccc}
 .action:hover {color: #333; cursor:pointer}

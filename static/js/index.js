@@ -17,6 +17,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/* Remember: JavaScript is call-by-sharing.  Like by value,
+ *     but for complex types you can use only pointers (thus copy its address).
+ * https://stackoverflow.com/questions/518000/is-javascript-a-pass-by-reference-or-pass-by-value-language#3638034
+ */
+
+
 const {ipcRenderer} = require('electron'),
     {dialog, app} = require('electron').remote;
     fs = require('fs'),
@@ -35,6 +42,25 @@ let pad = false,
 
 // ============================================================================
 // Global objects
+
+// TODO: consider re-init all vm_* everytime a new file is loaded
+//      instead of reassigning the keys.
+
+let current,            // Reference to the `bando` currently dislpayed.
+    current_org;        // Reference to a copy of the bando as parsed from JSON.
+
+let app_status = {      // Applicatin status, used for info and save().
+    rpath: '',
+    fpath: '',
+    modified: false,
+    read_only: false,
+}
+window.vm_app_status = new Vue({
+    el: '#app_status',
+    data: app_status,
+})
+
+
 
 // ============================================================================
 // Common support structures
@@ -59,10 +85,12 @@ const common_filters = {
             return '';
         return num.toFixed(1).replace('.0','');
     },
-    prec2: function(num) {
-        if (num === undefined)
+    precn: function(num, n) {
+        if (typeof num !== 'number') {
+            console.log("wat? precn invoked with", num, n);
             return '';
-        return num.toFixed(2);
+        }
+        return num.toFixed(n || 2);
     },
     npadded: function(n, tot) {
         let ns = n.toString(),
@@ -75,14 +103,9 @@ const common_filters = {
 
 
 
-/* Remember: JavaScript is call-by-sharing.  Like by value,
- *     but for complex types you can use only pointers (thus copy its address).
- * https://stackoverflow.com/questions/518000/is-javascript-a-pass-by-reference-or-pass-by-value-language#3638034
- */
 
 
 // TODO:
-// 1) Manipulate tree add/remove (mod already done)
 // 2) Consistency check (total weight sum, eval method, funcs param)
 // 3) cleanup code: split common/structure code
 //
@@ -95,6 +118,8 @@ const common_filters = {
 //
 // *) TODO: consider to not specify "economic weight" and infer it from missing
 //          point from "tecnica".
+//
+// 6) Riparametrazione
 //
 // Extra) Calcolo anamolia (solo Agg. Comp)
 //
@@ -112,17 +137,21 @@ const common_filters = {
 let amax = (x) => Math.max.apply(Math, x);
 let amin = (x) => Math.min.apply(Math, x);
 let sum = (a, b) => (a || 0) + (b || 0);
+let concat = (a, b) => a + b;
 let copy = (o) => JSON.parse(JSON.stringify(o));
 let rnd = (min, max) => Math.floor((Math.random() * (max - min) + min) * 100)/100;
+
+let eco_mode = (bando) => bando.mod_economica === 'prezzo' ? 'down' : 'up';
 
 // TODO: modifies all the code that uses this function to just use [ids]
 // and then come back to modify this one.
 let prefix_2_ids = function(prefix) {
-    let cf = criteriFlat(current.criteri);
+    let p = '' + prefix;
+    let ll = leafs_lst(current.criteri);
     // Search boundaries to delete
-    let ids = cf.map((c, i) => [c.env_name, i])
-            .filter(x => x[0].indexOf(prefix) === 0 &&
-                (prefix.indexOf('.') > 0 || prefix.length === x[0].length))
+    let ids = ll.map((c, i) => [c.env_name, i])
+            .filter(x => (x[0].indexOf(p + '.') === 0) ||
+                         (x[0].indexOf(p) === 0 && p.length === x[0].length))
             .map(x => x[1])
             .sort();  // Should be already sorted. But better safe than sorry.
     return [ids[0], ids.length, ids];
@@ -147,6 +176,38 @@ let criterion_weight = function(c) {
 let economic_weight = function(bando) {
     return 100 - bando.criteri.map(criterion_weight).reduce(sum, 0);
 }
+
+let leafs_lst = function(criteri) {
+    rec_list = (prefix, clst) => {
+        return clst.map((c, i) => {
+            let name = prefix + (i + 1);
+            if (!(c.subcriteri && c.subcriteri.length)) {
+                c.env_name = name; // Inject computed name
+                return [c];
+            }
+            return [].concat(...rec_list(name + '.', c.subcriteri));
+        });
+    };
+    return [].concat(...rec_list('', criteri));
+}
+
+let nmatrix = function (dim, def_value) {
+    /* Build ndimensional matrix and assign a def_value.
+     * dim: list with dimensions
+     * def_value: default value (0).
+     */
+    let value = def_value !== undefined? def_value : 0,
+        base = new Array(dim[dim.length-1]).fill(value);
+    for (let i = dim.length-2; i >= 0; i--) {
+        let next = [];
+        for (let j = 0; j < dim[i]; j++)
+            next.push(copy(base));
+        base = next;
+    }
+    return base
+}
+
+
 
 
 // First one is default
@@ -273,7 +334,6 @@ Vue.component('criterion', {
     },
     computed: {
         funcs () {
-            console.log("invoked funcs");
             // Just a proxy for constant global objecet
             return functions;
         },
@@ -299,7 +359,7 @@ Vue.component('criterion', {
         }
     },
     methods: {
-        function_change: function() {
+        function_change () {
             // Structure
             if (this.model.tipo === 'Q') {
                 // Be sure at least one is selected and parameters are initialized
@@ -329,8 +389,7 @@ Vue.component('criterion', {
 
             // Data
             let r = current.offerte.length,
-                x = prefix_2_ids(this.name),
-                pi = x[0];
+                pi = prefix_2_ids(this.name)[0];
             if (r >0) {
                 let y = current.offerte[0].tecnica[pi];
                 if (this.model.tipo === 'T') {
@@ -350,11 +409,11 @@ Vue.component('criterion', {
                 }
             }
         },
-        remove: function() {
+        remove () {
             // Prepare to adapt data
             let x = prefix_2_ids(this.name),
                 start = x[0],
-                cnt = x[1];
+                cnt = x.length;
 
             // Adapt data
             let r = current.offerte.length;
@@ -392,11 +451,7 @@ Vue.component('criterion', {
             // Update stats abouth depth
             current.env_depth = max_bando_depth(current);
         },
-        sub: function() {
-            let x = prefix_2_ids(this.name),
-                start = x[0],
-                cnt = x[1];
-
+        sub () {
             let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
             let pointer = current.criteri;
             for (let i=1; i<key.length; i++) {
@@ -406,10 +461,9 @@ Vue.component('criterion', {
             let raw = pointer;
             pointer = copy(pointer[key[key.length-1]]);
             pointer.subcriteri = [copy(pointer)];
+            pointer.peso = undefined;
 
             Vue.set(raw, key[key.length-1], pointer)
-
-            // TODO: delete from current node the `peso` attribute.
 
             // There is no need to modify the data.
             // To add a sublevel we add column (1.1) but remove (1).
@@ -418,8 +472,9 @@ Vue.component('criterion', {
             // Update stats abouth depth
             current.env_depth = max_bando_depth(current);
         },
-        add: function() {
-            let x = prefix_2_ids(this.name), pi = x[0] + x[1];
+        add () {
+            let x = prefix_2_ids(this.name),
+                pi = x[0] + x.length;
 
             // Get a pointer to subcriteri list
             let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
@@ -443,21 +498,21 @@ Vue.component('criterion', {
             // Update stats abouth depth
             current.env_depth = max_bando_depth(current);
         },
-        add_voce: function() {
+        add_voce () {
             // Add to the tree and add default entry in data (false)
             this.model.voci.push(0);
 
             // Update data
-            let x = prefix_2_ids(this.name), pi = x[0];
+            let pi = prefix_2_ids(this.name)[0];
             for (let i=0; i<current.offerte.length; i++)
                 current.offerte[i].tecnica[pi].push(false);
         },
-        remove_voce: function(vi) {
+        remove_voce (vi) {
             // Add to the tree and delete proper value
             this.model.voci.splice(vi, 1);
 
             // Update data
-            let x = prefix_2_ids(this.name), pi = x[0];
+            let pi = prefix_2_ids(this.name)[0];
             for (let i=0; i<current.offerte.length; i++)
                 current.offerte[i].tecnica[pi].splice(vi, 1);
         },
@@ -466,37 +521,13 @@ Vue.component('criterion', {
 });
 
 
-// -- Global state.
-let current;
-let app_status = {
-    rpath: '',
-    fpath: '',
-    modified: false,
-    read_only: false,
-}
-window.vm_app_status = new Vue({
-    el: '#app_status',
-    data: app_status,
-})
-
+// ============================================================================
+// Generic functions
 
 /* args: {fpath, read_only} */
 function loadBando(args) {
     // TODO: offer to save current first.
     console.log('Loading scenario:' + args.fpath);
-
-
-    // TODO: Once loaded, before rendering run "check_consistency()"
-    //       if it fails add warning and enable ONLY edit mode
-    //       for both structure and data.
-
-    // Keep this value updated, maybe use "computed"?
-    // and avoid try to run simulations when there are errors.
-
-    // Display error nicely: maybe a block at the top with the full list of
-    // errors returned by "check_consistency()
-    // E.g ["Total number of point > 100", "Missing data for offerta XX"]
-
 
     try {
         let raw_content = fs.readFileSync(args.fpath, "utf8");
@@ -540,7 +571,6 @@ function refreshGUI() {
 
     // TODO: consider alternatively to just destroy and rebuild.
 
-
     if (!window.vm_structure) {
         // Init
         window.vm_structure = new Vue({
@@ -550,7 +580,7 @@ function refreshGUI() {
                 app_status.modified = true;
             },
             methods: {
-                addCriterio: function() {
+                add_root_criterion () {
                     let newc = {peso:0, tipo:'D'}
                     current.criteri.push(newc);
 
@@ -568,14 +598,8 @@ function refreshGUI() {
                     // Just a proxy for constant global objecet
                     return functions;
                 },
-                top_werror: function() {
-                    // this.criteri.map((c) => c.peso) .reduce((a,v) => a + v , 0) != 100">
-                    return this.criteri
-                        .map((c) => c.peso)
-                        .reduce(sum, 0) != (100-this.peso_economica);
-                },
                 eco_got_param: function() {
-                    let m = this.mod_economica == 'prezzo' ? 'down' : 'up';
+                    let m = eco_mode(this);
                     for (let i in functions[this.funzione_economica][m].params)
                         return true;
                     return false;
@@ -585,12 +609,9 @@ function refreshGUI() {
         });
     }
 
-    if (!window.vm_simulation) {
-
-        // Init
-        // TODO: consider having multiple Vue objects, one per data, one per rank.
-        window.vm_simulation= new Vue({
-            el: '#simulation',
+    if (!window.vm_data) {
+        window.vm_data = new Vue({
+            el: '#data-container',
             data: current,
             updated: () => {
                 // Modified data
@@ -598,10 +619,10 @@ function refreshGUI() {
             },
             methods: {
                 // For DATA:
-                remove: function(index) {
+                remove (index) {
                     Vue.delete(this.offerte, index);
                 },
-                clone: function(index) {
+                clone (index) {
                     let cp = copy(this.offerte[index]);
                     let nome = cp.nome;
 
@@ -614,7 +635,7 @@ function refreshGUI() {
                     cp.nome = nome;
                     this.offerte.splice(index + 1, 0, cp);
                 },
-                add: function() {
+                add () {
                     // Mine name
                     let nome = "Nuova"
                     if (!/ [i]+$/.test(nome))
@@ -623,14 +644,14 @@ function refreshGUI() {
                         nome += 'i';
 
                     // Build
-                    let c = criteriFlat(this.criteri);
+                    let c = leafs_lst(this.criteri);
                     let offerta = {
                         nome: nome,
                         // NOTE: economica must be > 0;
-                        economica: [this.offerte.length < 2 ? rnd(0,1) : rnd(
-                            amin(this.offerte.map(o => o.economica[0])),
-                            amax(this.offerte.map(o => o.economica[0]))
-                        )],
+                        economica: this.offerte.length < 2 ? rnd(0,1) : rnd(
+                            amin(this.offerte.map(o => o.economica)),
+                            amax(this.offerte.map(o => o.economica))
+                        ),
                         tecnica:  c.map((c, i) => {
                             if (c.tipo === 'T')
                                 return c.voci.map(_ => rnd(0,1) >= 0.5)
@@ -649,30 +670,28 @@ function refreshGUI() {
                 }
             },
             computed: {
-                fatalErrors: function() {
+                economic_weight () {
+                    return economic_weight(this);
+                },
+                fatal_errors () {
                     // FIXME: should return true, only when the errors are fatal,
                     // i.e. when we can not compute the ranks.
                     // Now, it returns true if there is any error.
-                    return checkBando(this)[1].length > 0;
+                    return check_bando(this)[1].length > 0;
                 },
-                enableNames: function () {
+                enable_names () {
                     return this.env_name_show === 'show' &&
-                        this.criteri.concat(criteriFlat(this.criteri))
+                        this.criteri.concat(leafs_lst(this.criteri))
                         .map(c => c.nome || '')
                         .filter(n => n.length)
                         .length > 0;
                 },
-                fstLvlNames: function() {
-                    let fc = criteriFlat(this.criteri);
+                fst_lvl_names () {
+                    let ll = leafs_lst(this.criteri);
                     return this.criteri.map((c, i) => {
-                        let x = prefix_2_ids((i + 1) + '');
-                        let start = x[0], cnt = x[1], y=0;
-                        for (let i=0; i < cnt; i++) {
-                            if (fc[start + i].tipo === 'T') {
-                                y += fc[start + i].voci.length
-                            } else
-                                y += 1
-                        }
+                        let y = prefix_2_ids((i + 1) + '')
+                            .map(i => ll[i].tipo === 'T' ? ll[i].voci.length : 1)
+                            .reduce(sum, 0);
                         return {
                             nome: c.nome,
                             size: y
@@ -680,19 +699,36 @@ function refreshGUI() {
                     })
                 },
                 cols: function () {
-                    return criteriFlat(this.criteri);
+                    return leafs_lst(this.criteri);
                 },
                 points: function () {
-                    return applyFunctions(this);
+                    return apply_functions(this);
                 },
-                scoreboard: function() {
+            },
+            filters: common_filters,
+        });
+    }
+
+    if (!window.vm_rank) {
+
+        // Init
+        // TODO: consider having multiple Vue objects, one per data, one per rank.
+        window.vm_rank = new Vue({
+            el: '#rank',
+            data: current,
+            computed: {
+                fatal_errors () {
+                    // FIXME: should return true, only when the errors are fatal,
+                    // i.e. when we can not compute the ranks.
+                    // Now, it returns true if there is any error.
+                    return check_bando(this)[1].length > 0;
+                },
+                scoreboard () {
                     if (this.fatalErrors)
                         return [];
 
-
-                    // TODO: we should apply functions first
-                    let offerte = applyFunctions(this);
-                    let agg = aggregativoCompensatore(this, offerte);
+                    let offerte = apply_functions(this);
+                    let agg = aggregativo_compensatore(this, offerte);
                     let ele = electre(this, offerte);
                     let tops = topsis(this, offerte);
 
@@ -713,11 +749,7 @@ function refreshGUI() {
                             a[field] - b[field]));
                 }
             },
-            filters: {
-                prec2: function(s) {
-                    return parseFloat(s).toFixed(2);
-                }
-            }
+            filters: common_filters,
         });
     }
 
@@ -727,7 +759,7 @@ function refreshGUI() {
             data: current,
             computed: {
                 errors: function() {
-                    return checkBando(this)[1];
+                    return check_bando(this)[1];
                 }
             },
         });
@@ -736,29 +768,18 @@ function refreshGUI() {
     // Refresh
     Object.keys(current).forEach((key) => {
         Vue.set(window.vm_structure, key, current[key]);
-        Vue.set(window.vm_simulation, key, current[key]);
+        Vue.set(window.vm_data, key, current[key]);
+     //   Vue.set(window.vm_rank, key, current[key]);
         Vue.set(window.vm_errors, key, current[key]);
     });
 }
 
 
-function criteriFlat(criteri) {
-    rec_list = (prefix, clst) => {
-        return clst.map((c, i) => {
-            let name = prefix + (i + 1);
-            if (!(c.subcriteri && c.subcriteri.length)) {
-                c.env_name = name; // Inject computed name
-                return [c];
-            }
-            return [].concat(...rec_list(name + '.', c.subcriteri));
-        });
-    };
-    return [].concat(...rec_list('', criteri));
-}
 
+// ============================================================================
+// SIMULATION functions
 
-
-function applyFunctions(bando) {
+function apply_functions(bando) {
     /* Given a bando, applies functions to the bids values and, if required,
         * scales the results. Produces a list of bids to be used with ranking
         * algorithms.
@@ -767,32 +788,32 @@ function applyFunctions(bando) {
     /* {nome, economica (0-1), tecnica [(0-1),...]} */
 
     // TODO: Implement riproporzionamento
+    //  we may have to first compute and the apply it.
 
 
-    let fc = criteriFlat(bando.criteri);
+    let ll = leafs_lst(bando.criteri);
 
     return bando.offerte.map((o, oi) => {
         // Compute economic bid.
-        let res = {nome:o.nome};
+        let res = {nome:o.nome},
+            eco_f = functions[bando.funzione_economica][eco_mode(bando)];
 
-        let eco_mode = bando.mod_economica === 'prezzo' ? 'down' : 'up',
-            eco_f = functions[bando.funzione_economica][eco_mode];
         res.economica = eco_f.f(
-            o.economica[0],             // Economic bid
+            o.economica,             // Economic bid
             bando.parametri_economica,  // Economic function parameters
             bando,                      // Bando for global var (i.e. base_asta)
             // All economic bids for interdependent functions
-            bando.offerte.map((o) => o.economica[0]));
+            bando.offerte.map((o) => o.economica));
 
         res.tecnica = o.tecnica.map((t, ti) => {
-            if (fc[ti].tipo === 'T') {          // Is tabular -> bool to int
-                return fc[ti].voci
+            if (ll[ti].tipo === 'T') {          // Is tabular -> bool to int
+                return ll[ti].voci
                     .map((v, vi) => v * t[vi])
                     .reduce(sum, 0);
-            } else if (fc[ti].tipo === 'Q') {
-                return functions[fc[ti].funzione].up.f(
+            } else if (ll[ti].tipo === 'Q') {
+                return functions[ll[ti].funzione].up.f(
                     t,                          // Current bid
-                    fc[ti].parametri,           // Parameters
+                    ll[ti].parametri,           // Parameters
                     bando,                      // Bando for global param
                     bando.offerte.map(o => o.tecnica[ti]));
             } else {
@@ -805,12 +826,9 @@ function applyFunctions(bando) {
 }
 
 
-function aggregativoCompensatore(bando, offerte) {
-    // TODO: WE SHOULD ACCOUNT ALSO FOR RIPARAMETRAZIONE
-    //  or only in "Apply func" ????
-
-    let fc = criteriFlat(bando.criteri);
-    let weights = [bando.peso_economica].concat(fc.map((c) => c.peso));
+function aggregativo_compensatore(bando, offerte) {
+    let ll = leafs_lst(bando.criteri);
+    let weights = [economic_weight(bando)].concat(ll.map((c) => c.peso));
 
     return offerte.map((o) => {
         return {
@@ -821,23 +839,6 @@ function aggregativoCompensatore(bando, offerte) {
         };
     });
 };
-
-function nmatrix(dim, def_value) {
-    /* Build ndimensional matrix and assign a def_value.
-     * dim: list with dimensions
-     * def_value: default value (0).
-     */
-    let value = def_value !== undefined? def_value : 0,
-        base = new Array(dim[dim.length-1]).fill(value);
-    for (let i = dim.length-2; i >= 0; i--) {
-        let next = [];
-        for (let j = 0; j < dim[i]; j++)
-            next.push(copy(base));
-        base = next;
-    }
-    return base
-}
-
 
 function electre(bando, offerte) {
     // ANAC Linee Guida 2.pdf
@@ -851,8 +852,8 @@ function electre(bando, offerte) {
     const bids = offerte.map(o => {
         return {nome:o.nome, v:[o.economica].concat(o.tecnica)};
     });
-    let fc = criteriFlat(bando.criteri);
-    const weights = [bando.peso_economica].concat(fc.map((c) => c.peso));
+    let ll = leafs_lst(bando.criteri);
+    const weights = [economic_weight(bando)].concat(ll.map((c) => c.peso));
 
     let rank = {}, i = 1;
     while (true) {
@@ -862,7 +863,7 @@ function electre(bando, offerte) {
                 rank[iter_bids[j].nome] = i;
             break;
         }
-        let winners = electreIteration(weights, iter_bids);
+        let winners = electre_iteration(weights, iter_bids);
         for (let j in winners)
             rank[winners[j]] = i;
         i += winners.length;
@@ -873,18 +874,18 @@ function electre(bando, offerte) {
     });
 }
 
-function electreIteration(w, bids) {
+function electre_iteration(w, bids) {
     /* w: weights
      * bids: flat `offerte` to be considered in this iteration.
      * returns: `nome` of the winner.
      */
 
 
-    /* FIXME: due to recursion in step C, we may have less than 3 bids.
-     *        The electre method performs poorly in such such conditions.
-     *        What to do in this condition is undefined.
-     *        We assign the same rank, i.e. both bids win.
-     *        Shall better discuss this point with maths guys.
+    /* NOTE: due to recursion in step C, we may have less than 3 bids.
+     *       The electre method performs poorly in such such conditions.
+     *       What to do in this condition is undefined.
+     *       We assign the same rank, i.e. both bids win.
+     *       Shall better discuss this point with maths guys.
      */
     if (bids.length <= 2) {
         return bids.map(b => b.nome);
@@ -945,7 +946,7 @@ function electreIteration(w, bids) {
             d[i][j] = dsum;
 
             if (dsum == 0) { // Then j is dominated by i. Re-run without j.
-                return electreIteration(w, bids.filter((_, idx) => idx != j));
+                return electre_iteration(w, bids.filter((_, idx) => idx != j));
             }
         }
     }
@@ -983,8 +984,8 @@ function topsis(bando, offerte) {
     const bids = offerte.map(o => {
         return {nome:o.nome, v:[o.economica].concat(o.tecnica)};
     });
-    let fc = criteriFlat(bando.criteri);
-    const w = [bando.peso_economica].concat(fc.map((c) => c.peso));
+    let ll = leafs_lst(bando.criteri);
+    const w = [economic_weight(bando)].concat(ll.map((c) => c.peso));
 
 
     let n = w.length,    // 'criteri' to evaluate.
@@ -1059,21 +1060,12 @@ function topsis(bando, offerte) {
     });
 }
 
-function switchView(view) {
-    // TODO: maybe add some cool effect like tile 3d rotation.
-    let structure  = document.getElementById('structure'),
-        simulation = document.getElementById('simulation');
 
-    if (view === 'structure') {
-        simulation.style.display = 'none';
-        structure.style.display = 'block';
-    } else if (view === 'simulation') {
-        structure.style.display = 'none';
-        simulation.style.display = 'block';
-    }
-}
 
-function cleanCriterio(c) {
+// ============================================================================
+// Consistency checks & export functions
+
+function clean_criterion(c) {
     let n = {
         // NOTE: optional and not actually exploited.
         nome: c.nome !== undefined? c.nome : '',
@@ -1082,7 +1074,7 @@ function cleanCriterio(c) {
     }
 
     if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
-        n.subcriteri = c.subcriteri.map(cleanCriterio);
+        n.subcriteri = c.subcriteri.map(clean_criterion);
         return n;
     }
 
@@ -1099,13 +1091,12 @@ function cleanCriterio(c) {
     return n;
 }
 
-function cleanBando(bando) {
+function clean_bando(bando) {
     let cleaned = {};
 
     let fstOrderAttributes = [
         'mod_economica',
         'funzione_economica',
-        'peso_economica',
         // `base_asta` is mandatory only if mod_economica is prezzo.
         // Since many sim. consist in switching modes, we keep it always.
         'base_asta',
@@ -1116,12 +1107,12 @@ function cleanBando(bando) {
 
     // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
     cleaned.parametri_economica = {};
-    let m = bando.mod_economica == 'prezzo'? 'down' : 'up';
+    let m = eco_mode(bando);
     Object.keys(functions[cleaned.funzione_economica][m].params)
         .forEach(p => cleaned.parametri_economica[p] = bando.parametri_economica[p]);
 
     // Criteri must be recursive
-    cleaned.criteri = bando.criteri.map(cleanCriterio);
+    cleaned.criteri = bando.criteri.map(clean_criterion);
 
     // Data, just copy
     cleaned.offerte = copy(bando.offerte);
@@ -1130,30 +1121,24 @@ function cleanBando(bando) {
 }
 
 
-function checkCriterio(c, prefix) {
+function check_criterion(c, prefix) {
     let errors = [];
+
+    if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
+        return errors.concat(...c.subcriteri.map((s, i) => check_criterion(s, prefix + '.' + (i+1))));
+    }
 
     if (typeof c.peso !== 'number' || c.peso < 0 || c.peso > 100) {
         errors.push('[C ' + prefix + '] ' + c.peso +
-            'non e\' un valore valido per il peso. ' +
-            'Deve essere un numero tra 0 e 100');
+            ' non e\' un valore valido per il peso. ' +
+            'Deve essere un numero tra 0 e 100,');
     }
 
-    if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
-        // TODO add controllo su pesi figli
-        let speso = c.subcriteri.map(s => s.peso).reduce(sum, 0);
-        if (speso != c.peso) {
-            errors.push('[C ' + prefix + '] La somma dei punti dei sotto criteri' +
-                ' non corrisponde al peso del criterio: ' + speso + ' <> ' + c.peso + '.');
-        }
-        errors = errors.concat(...c.subcriteri.map((s, i) => checkCriterio(s, prefix + '.' + (i+1))));
-        return errors;
-    }
 
     if (['Q','D','T'].indexOf(c.tipo) < 0) {
         errors.push('[C ' + prefix + '] ' + c.tipo +
             'non e\' un valore valido per \'tipo\'. ' +
-            'I vaolori possibili sono \'D\', \'T\'.');
+            'I vaolori possibili sono \'D\', \'T\' \'Q\'.');
     }
 
     if (c.tipo === 'Q') {
@@ -1163,7 +1148,7 @@ function checkCriterio(c, prefix) {
                 Object.keys(functions).join(',') + '.');
         } else {
             Object.keys(functions[c.funzione]['up'].params).forEach(p => {
-                errors = errors.concat(checkParametro('C ' + prefix, c.funzione, 'up',
+                errors = errors.concat(check_parameter('C ' + prefix, c.funzione, 'up',
                     c.parametri, p));
             });
         }
@@ -1186,14 +1171,14 @@ function checkCriterio(c, prefix) {
     return errors;
 }
 
-function checkParametro(field, func, m, params, p) {
+function check_parameter(field, func, m, params, p) {
     let dom = functions[func][m].params[p].domain,
         req = functions[func][m].params[p].required;
 
     if (((typeof params[p] === 'number') &&
             ((dom.start !== '' && params[p] < dom.start) ||
                 (dom.end !== '' && params[p] > dom.end))) ||
-        (req && (params[p] === undefined || params[p] === ''))) {
+        (req && isNaN(parseFloat(params[p])))) {
 
         return ['[' + field + '] Parametro ' + p + ': ' +
             params[p] + ' non e\' un valore valido. ' +
@@ -1206,7 +1191,7 @@ function checkParametro(field, func, m, params, p) {
 
 
 // TODO: PUT this as precontion for rendering "rank" and maybe also "points"
-function checkBando(bando, fix) {
+function check_bando(bando, fix) {
     /* Check the bando consistency and returns
      * [fatal:boolean, [...error_messages:string]]
      *
@@ -1236,15 +1221,16 @@ function checkBando(bando, fix) {
             Object.keys(functions).join(',') + '.');
     }
 
-    if (
-        typeof bando.peso_economica !== 'number' || bando.peso_economica < 0 ||
-        bando.peso_economica > 100) {
-        errors.push('[peso_economica] ' + bando.peso_economica +
-            'non e\' un valore valido. Deve essere un numero tra 0 e 100.');
+    // Sum must be 100
+    // TODO: consider issue warning if ew not in reasonale range.. [10-50] ?
+    let ew = economic_weight(bando);
+    if (ew < 0 || ew > 100) {
+        errors.push('[punti] la somma totale dei punti deve fare 100.' +
+            'Al momento e\' ' + (100 - ew));
     }
 
     if ((typeof bando.base_asta === 'number' && bando.base_asta < 0) ||
-        (bando.base_asta === undefined && bando.mod_economica === 'prezzo')){
+        (isNaN(parseFloat(bando.base_asta)) && bando.mod_economica === 'prezzo')){
         errors.push('[base_asta] ' + bando.base_asta +
             'non e\' un valore valido. Deve essere un numero tra 0 e 100.');
     }
@@ -1260,23 +1246,18 @@ function checkBando(bando, fix) {
     }
 
     // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
-    let m = bando.mod_economica == 'prezzo'? 'down' : 'up';
+    let m = eco_mode(bando);
     Object.keys(functions[bando.funzione_economica][m].params).forEach(p => {
-        errors = errors.concat(checkParametro('funzione_economica',
+        errors = errors.concat(check_parameter('funzione_economica',
             bando.funzione_economica, m, bando.parametri_economica, p));
    });
 
 
-    // Toatal points must be 100
-    let punti_tot = bando.criteri.map(c => c.peso || 0).reduce(sum, 0) + bando.peso_economica;
-    if (punti_tot !== 100)
-        errors.push('[Criteri] I punti totali del bando non sono 100: ' + punti_tot);
-
     // Criteri must be recursive
-    errors = errors.concat(...bando.criteri.map((s, si) => checkCriterio(s, '' + (si+1))));
+    errors = errors.concat(...bando.criteri.map((s, si) => check_criterion(s, '' + (si+1))));
 
-    // Data, just copy
-    let fc = criteriFlat(bando.criteri);
+    // Data
+    let ll = leafs_lst(bando.criteri);
     let name_unique = {};
     bando.offerte.forEach((o, i) => {
         name_unique[o.nome] = true;
@@ -1285,24 +1266,23 @@ function checkBando(bando, fix) {
             errors.push('[O ' + (i+1) + '] il campo nome e\' mancante.')
         }
 
-        if (o.economica === undefined || !Array.isArray(o.economica) ||
-            o.economica.length != 1) {
+        if (isNaN(parseFloat(o.economica))) {
             fatal = true;
             errors.push('[O ' + (i+1) + '] il campo economica deve essere un array di dimensione 1.');
         }
 
         if (o.tecnica === undefined || !Array.isArray(o.tecnica) ||
-            o.tecnica.length != fc.length) {
+            o.tecnica.length != ll.length) {
             fatal = true;
-            errors.push('[O ' + (i+1) + '] il campo tecnica deve essere un array di dimensione ' + fc.length + '.');
+            errors.push('[O ' + (i+1) + '] il campo tecnica deve essere un array di dimensione ' + ll.length + '.');
         }
 
         o.tecnica.forEach((t, ti) => {
-            if (fc[ti].tipo === 'T') {
-                if (!Array.isArray(t) || t.length != fc[ti].voci.length) {
+            if (ll[ti].tipo === 'T') {
+                if (!Array.isArray(t) || t.length != ll[ti].voci.length) {
                     fatal = true;
                     errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +
-                        ' deve essere un array di ' + fc[ti].voci.length +
+                        ' deve essere un array di ' + ll[ti].voci.length +
                         ' booleani.');
                 } else {
                     t.forEach((x, xi) => {
@@ -1329,22 +1309,10 @@ function checkBando(bando, fix) {
     return [fatal, errors];
 }
 
-/* ========================================================================== */
-/* Simulation                                                                 */
-/* ========================================================================== */
+// ============================================================================
+// Init gui elements
 
-/* ========================================================================== */
-/* Menu mappings                                                              */
-/* ========================================================================== */
-ipcRenderer.on('load_bando', (event , args) => {loadBando(args)});
-ipcRenderer.on('view', (event , args) => {switchView(args)});
-
-
-
-/* ========================================================================== */
-/* Main                                                                       */
-/* ========================================================================== */
-$(function () {
+function bootstrap_popover() {
     $('#ctree [data-toggle="popover"], #data [data-toggle="popover"]').each((i, o) => {
         let content = $(o).next('.popper-content');
         $(o).popover({
@@ -1376,9 +1344,38 @@ $(function () {
         // Hide popover when click on something else.
         if (!$(ev.target).closest('.popover, [data-toggle="popover"]').length)
             $('.popover.show').removeClass('show');
-    })
-});
+    });
+}
 
-refreshGUI();
-switchView('structure');
-//switchView('simulation');
+/* ========================================================================== */
+// Menu mappings
+
+function switchView(view) {
+    // TODO: maybe add some cool effect like tile 3d rotation.
+    let structure  = document.getElementById('structure'),
+        simulation = document.getElementById('simulation');
+
+    if (view === 'structure') {
+        simulation.style.display = 'none';
+        structure.style.display = 'block';
+    } else if (view === 'simulation') {
+        structure.style.display = 'none';
+        simulation.style.display = 'block';
+    }
+}
+
+ipcRenderer.on('load_bando', (event , args) => {loadBando(args)});
+ipcRenderer.on('view', (event , args) => {switchView(args)});
+
+
+
+/* ========================================================================== */
+/* Main                                                                       */
+/* ========================================================================== */
+$(function () {
+    refreshGUI();
+    switchView('structure');
+    //switchView('simulation');
+
+    bootstrap_popover();
+});

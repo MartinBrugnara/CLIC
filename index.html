@@ -137,11 +137,10 @@
                 v-bind:index="index"
                 v-bind:model="model"
                 v-bind:name="index+1"
-                v-bind:depth="1"
-                v-bind:werror="top_werror"></criterion>
+                v-bind:depth="1"></criterion>
 
             <span>
-                <i @click="addCriterio('')" class="fas fa-plus action"></i>
+                <i @click="add_root_criterion" class="fas fa-plus action"></i>
                 <label class="nextCid">({{ criteri.length + 1 }})</label>
             </span>
         </ul>
@@ -259,159 +258,158 @@
 
 
     <div id="simulation">
-        <div class="container d-flex">
-            <div class="flex-fill text-left">
-                <h3>Dati</h3>
-            </div>
-            <div class="d-flex align-items-end text-right mb-2">
-                <div>
-                    <div class="text-right">
-                        <strong>Nomi</strong>
-                        <div class="form-check-inline ml-2">
-                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="show" value="show" v-model="env_name_show">
-                            <label class="form-check-label" for="show">Mostra</label>
+        <div id="data-container">
+            <div class="container d-flex">
+                <div class="flex-fill text-left">
+                    <h3>Dati</h3>
+                </div>
+                <div class="d-flex align-items-end text-right mb-2">
+                    <div>
+                        <div class="text-right">
+                            <strong>Nomi</strong>
+                            <div class="form-check-inline ml-2">
+                                <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="show" value="show" v-model="env_name_show">
+                                <label class="form-check-label" for="show">Mostra</label>
+                            </div>
+                            <div class="form-check-inline mr-0">
+                                <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="hide" value="hide" v-model="env_name_show">
+                                <label class="form-check-label" for="hide">Nascondi</label>
+                            </div>
                         </div>
-                        <div class="form-check-inline mr-0">
-                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="hide" value="hide" v-model="env_name_show">
-                            <label class="form-check-label" for="hide">Nascondi</label>
-                        </div>
-                    </div>
 
-                    <div class="text-right">
-                        <strong>Modalit&agrave;</strong >
-                        <div class="form-check-inline ml-2">
-                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="points" value="points" v-model="env_data_mode">
-                            <label class="form-check-label" for="points">Punti</label>
-                        </div>
-                        <div class="form-check-inline">
-                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="raw" value="raw" v-model="env_data_mode">
-                            <label class="form-check-label" for="raw">Dati</label>
-                        </div>
-                        <div class="form-check-inline mr-0">
-                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="edit" value="edit" v-model="env_data_mode">
-                            <label class="form-check-label" for="edit">Modifica</label>
+                        <div class="text-right">
+                            <strong>Modalit&agrave;</strong >
+                            <div class="form-check-inline ml-2">
+                                <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="points" value="points" v-model="env_data_mode">
+                                <label class="form-check-label" for="points">Punti</label>
+                            </div>
+                            <div class="form-check-inline">
+                                <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="raw" value="raw" v-model="env_data_mode">
+                                <label class="form-check-label" for="raw">Dati</label>
+                            </div>
+                            <div class="form-check-inline mr-0">
+                                <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="edit" value="edit" v-model="env_data_mode">
+                                <label class="form-check-label" for="edit">Modifica</label>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="text-center">
-            <table id="data" class="table table-striped text-right mt-2 pb-2 tbl">
-                <thead>
-                    <tr class="names" v-if="enableNames">
-                        <th></th>
-                        <th><small>ECONOMICA</small></th>
-                        <th v-for="c in fstLvlNames" v-bind:colspan="c.size"><small>{{ c.nome.trim() }}</small></th>
-                        <th></th>
-                    </tr>
-                    <tr class="env_names">
-                        <th><span>#</span></th>
-                        <th><span v-if="!enableNames">Economica</span><span v-else>0</span></th>
+            <div class="text-center">
+                <table id="data" class="table table-striped text-right mt-2 pb-2 tbl">
+                    <thead>
+                        <tr class="names" v-if="enable_names">
+                            <th></th>
+                            <th><small>ECONOMICA</small></th>
+                            <th v-for="c in fst_lvl_names" v-bind:colspan="c.size"><small>{{ c.nome.trim() }}</small></th>
+                            <th></th>
+                        </tr>
+                        <tr class="env_names">
+                            <th><span>#</span></th>
+                            <th><span v-if="!enable_names">Economica</span><span v-else>0</span></th>
 
-                        <th scope="col" v-for="c in cols" v-bind:colspan="c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1">
-                            <a data-toggle="popover" data-placement="bottom"
-                                data-trigger="hover" data-env_name_show="true"><span v-bind:title="c.nome">{{c.env_name}}</span></a>
-                            <div class="popper-content hide">
-                                {{ c.nome || 'Non specificato' }}
-                                <!-- Alternative to allow edit
-                                <input type="text" class="mono" placeholder="Nome del criterio" v-model.trim="c.nome"
-                                    v-bind:size="amax([amin([78, (c.nome||'').trim().length + 3]), 18])">
-                                -->
-                            </div>
-                        </th>
-                        <th scope="col">
-                            <i class="fas fa-exclamation"></i>
-                        </th>
-                    </tr>
-                    <tr class="weights">
-                        <th><small>Peso</small></th>
-                        <th>
-                            <input v-if="env_data_mode == 'edit'" v-model.number="peso_economica" type="number" min="0" max="100" step="0.5">
-                            <small v-else>{{peso_economica}}</small>
-                        </th>
+                            <th scope="col" v-for="c in cols" v-bind:colspan="c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1">
+                                <a data-toggle="popover" data-placement="bottom"
+                                    data-trigger="hover" data-env_name_show="true"><span v-bind:title="c.nome">{{c.env_name}}</span></a>
+                                <div class="popper-content hide">
+                                    {{ c.nome || 'Non specificato' }}
+                                    <!-- Alternative to allow edit
+                                    <input type="text" class="mono" placeholder="Nome del criterio" v-model.trim="c.nome"
+                                        v-bind:size="amax([amin([78, (c.nome||'').trim().length + 3]), 18])">
+                                    -->
+                                </div>
+                            </th>
+                            <th scope="col">
+                                <i class="fas fa-exclamation"></i>
+                            </th>
+                        </tr>
+                        <tr class="weights">
+                            <th><small>Peso</small></th>
+                            <th>
+                                <small>{{ economic_weight }}</small>
+                            </th>
 
-                        <template v-for="c in cols">
-                            <template v-if="c.tipo == 'T'">
-                                <th v-if="env_data_mode == 'points'"><small>{{c.peso}}</small></th>
-                                <th v-else v-for="(v, vi) in c.voci">
-                                    <!-- NOTE: 99 instead of 100 to fit same size as bottom -->
-                                    <input v-if="env_data_mode == 'edit'" v-model.number="c.voci[vi]" type="number" min="0" max="99" step="0.5">
-                                    <small v-else>{{c.voci[vi]}}</small>
-                                </th>
+                            <template v-for="c in cols">
+                                <template v-if="c.tipo == 'T'">
+                                    <th v-if="env_data_mode == 'points'"><small>{{c.peso}}</small></th>
+                                    <th v-else v-for="(v, vi) in c.voci">
+                                        <input v-if="env_data_mode == 'edit'" v-model.number="c.voci[vi]" type="number" min="0" max="100" step="0.1" required>
+                                        <small v-else>{{c.voci[vi]}}</small>
+                                    </th>
+                                </template>
+                                <template v-else>
+                                    <th>
+                                        <input v-if="env_data_mode == 'edit'" v-model.number="c.peso" type="number" min="0" max="100" step="0.1" required>
+                                        <small v-else>{{c.peso}}</small>
+                                    </th>
+                                </template>
                             </template>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody v-bind:class="{'text-center': env_data_mode === 'edit'}">
+                        <tr v-for="(o, i) in offerte" :key="o.nome">
+                            <template v-if="env_data_mode == 'edit'">
+                                <td class="text-left"><input type="text" v-model.tirm.lazy="o.nome" required></td>
+                                <td><input type="number" min="0.01" step="0.01" v-model.number="o.economica" required></td>
+                                <template v-for="(t, ti) in o.tecnica">
+                                    <template v-if="cols[ti].tipo == 'T'">
+                                        <td v-for="(v, vi) in cols[ti].voci" class="text-center">
+                                            <input type="checkbox" v-model="t[vi]">
+                                        </td>
+                                    </template>
+                                    <template v-else-if="cols[ti].tipo == 'D'">
+                                        <td><input type="number" min="0" step="0.01" max="1" required v-model.number="o.tecnica[ti]"></td>
+                                    </template>
+                                    <template v-else>
+                                        <td><input type="number" min="0" step="0.01" required v-model.number="o.tecnica[ti]"></td>
+                                    </template>
+                                </template>
+                                <td class="text-center"><!-- actions -->
+                                    <i @click="clone(i)" class="far fa-copy action"></i>
+                                    <i @click="remove(i)" class="far fa-trash-alt action"></i>
+                                </td>
+                            </template>
+
                             <template v-else>
-                                <th>
-                                    <!-- NOTE: 99 instead of 100 to fit same size as bottom -->
-                                    <input v-if="env_data_mode == 'edit'" v-model.number="c.peso" type="number" min="0" max="99" step="0.5">
-                                    <small v-else>{{c.peso}}</small>
-                                </th>
+                                <!-- TODO: Add color backgroud to show distribution -->
+                                <td class="text-left">{{ o.nome }}</td>
+                                <td v-if="env_data_mode == 'points'">{{ points[i].economica * economic_weight | precn(2)}}</td>
+                                <td v-else>{{o.economica | precn(2)}}</td>
+                                <template v-for="(t, ti) in o.tecnica">
+                                    <template v-if="cols[ti].tipo == 'T'">
+                                        <td v-if="env_data_mode == 'points'">
+                                            {{ points[i].tecnica[ti] * cols[ti].peso | precn(2) }}
+                                        </td>
+                                        <td v-else v-for="(v, vi) in cols[ti].voci" class="text-center">
+                                            <!--
+                                                Do not use awesome + js here.
+                                                Only static content.
+                                            -->
+                                            <span v-if="t[vi]">&#x2714;</span>
+                                            <span v-else>&#x2718;</span>
+                                        </td>
+                                    </template>
+                                    <template v-else-if="env_data_mode == 'points'">
+                                        <td>{{ points[i].tecnica[ti] * cols[ti].peso | precn(2) }}</td>
+                                    </template>
+                                    <template v-else>
+                                        <td>{{ t | precn(2) }}</td>
+                                    </template>
+                                </template>
+                                <td class="text-center"><!-- actions -->
+                                    <i @click="clone(i)" class="far fa-copy action"></i>
+                                    <i @click="remove(i)" class="far fa-trash-alt action"></i>
+                                </td>
                             </template>
-                        </template>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="(o, i) in offerte" :key="o.nome">
-                        <template v-if="env_data_mode == 'edit'">
-                            <td class="text-left"><input type="text" v-model.trim="o.nome"></td>
-                            <td><input type="number" min="0.01" step="0.01" v-model.number="o.economica[0]"></td>
-                            <template v-for="(t, ti) in o.tecnica">
-                                <template v-if="cols[ti].tipo == 'T'">
-                                    <td v-for="(v, vi) in cols[ti].voci" class="text-center">
-                                        <input type="checkbox" v-model="t[vi]">
-                                    </td>
-                                </template>
-                                <template v-else-if="cols[ti].tipo == 'D'">
-                                    <td><input type="number" min="0" step="0.01" max="1" v-model.number="o.tecnica[ti]"></td>
-                                </template>
-                                <template v-else>
-                                    <td><input type="number" min="0" step="0.01" v-model.number="o.tecnica[ti]"></td>
-                                </template>
-                            </template>
-                            <td class="text-center"><!-- actions -->
-                                <i @click="clone(i)" class="far fa-copy action"></i>
-                                <i @click="remove(i)" class="far fa-trash-alt action"></i>
-                            </td>
-                        </template>
-
-                        <template v-else>
-                            <!-- TODO: Add color backgroud to show distribution -->
-                            <td class="text-left">{{ o.nome }}</td>
-                            <td v-if="env_data_mode == 'points'">{{ points[i].economica * peso_economica | prec2}}</td>
-                            <td v-else>{{o.economica[0] | prec2}}</td>
-                            <template v-for="(t, ti) in o.tecnica">
-                                <template v-if="cols[ti].tipo == 'T'">
-                                    <td v-if="env_data_mode == 'points'">
-                                        {{ points[i].tecnica[ti] * cols[ti].peso | prec2 }}
-                                    </td>
-                                    <td v-else v-for="(v, vi) in cols[ti].voci" class="text-center">
-                                        <!--
-                                            Do not use awesome + js here.
-                                            Only static content.
-                                        -->
-                                        <span v-if="t[vi]">&#x2714;</span>
-                                        <span v-else>&#x2718;</span>
-                                    </td>
-                                </template>
-                                <template v-else-if="env_data_mode == 'points'">
-                                    <td>{{ points[i].tecnica[ti] * cols[ti].peso | prec2 }}</td>
-                                </template>
-                                <template v-else>
-                                    <td>{{ t | prec2 }}</td>
-                                </template>
-                            </template>
-                            <td class="text-center"><!-- actions -->
-                                <i @click="clone(i)" class="far fa-copy action"></i>
-                                <i @click="remove(i)" class="far fa-trash-alt action"></i>
-                            </td>
-                        </template>
-                    </tr>
-                </tbody>
-                <caption class="text-center">
-                    <i @click="add" class="fas fa-plus action"></i>
-                </caption>
-            </table>
+                        </tr>
+                    </tbody>
+                    <caption class="text-center">
+                        <i @click="add" class="fas fa-plus action"></i>
+                    </caption>
+                </table>
+            </div>
         </div>
 
         <div class="text-center mt-4">
@@ -460,15 +458,15 @@
                         </th>
                     </tr>
                 </thead>
-                <tbody v-if="!fatalErrors">
+                <tbody v-if="!fatal_errors">
                     <tr v-for="(o, oi) in scoreboard">
                         <td>{{ o.nome }}</td>
-                        <td>{{ o.agg | prec2 }}</td>
+                        <td>{{ o.agg | precn(2) }}</td>
                         <td>{{ o.electre }}</td>
-                        <td>{{ o.topsis | prec2 }}</td>
+                        <td>{{ o.topsis | precn(2) }}</td>
                     </tr>
                 </tbody>
-                <caption v-if="fatalErrors">
+                <caption v-if="fatal_errors">
                     <p style="color:darkred">Corregi gli errori per poter calcolare le classifiche.</p>
                 </caption>
             </table>
@@ -481,4 +479,4 @@
     <script src="node_modules/vue/dist/vue.min.js"></script>
     <script src="static/js/index.js"></script>
 </body>
-</html>
+</htmla

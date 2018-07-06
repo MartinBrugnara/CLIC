@@ -53,7 +53,7 @@ body {
 
 
 .tbl tbody tr>td:not(:first-child) {font-family: monospace}
-#rank.tbl thead tr:nth-child(2)>th:not(:first-child) {font-family: monospace}
+#rank .tbl thead tr:nth-child(2)>th:not(:first-child) {font-family: monospace}
 #data thead tr.weight {font-family: monospace}
 
 #data thead tr.names {border-bottom: 1px solid #dee2e6}

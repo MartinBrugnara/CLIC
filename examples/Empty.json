@@ -2,7 +2,6 @@
     "mod_economica": "prezzo",
     "funzione_economica":"proporzionalita_inversa",
     "parametri_economica": {},
-    "peso_economica": 40,
     "base_asta": 0,
     "riparametrizzazione1": false,
     "riparametrizzazione2": false,
@@ -58,23 +57,23 @@
     "offerte": [
         {
             "nome":"Copma",
-            "economica":[612707.99],
+            "economica": 612707.99,
             "tecnica":[0.11,0,0.07,0.05,0.21,0.18,0.00,0.21,0.13,0,0.35,1,0,[false],80,[true,false]]
         }, {
             "nome":"Copura",
-            "economica":[551651.96],
+            "economica":551651.96,
             "tecnica":[0.59,0.59,1,1,1,0.21,0.63,0.21,1,1,0.74,1,0.33,[false],24,[true,true]]
         }, {
             "nome":"ATI Miorelli",
-            "economica":[596608.20],
+            "economica":596608.20,
             "tecnica":[0.59,1,0.63,0.65,0.81,0.42,0.43,0.08,0.13,0.32,0.35,1,0.13,[true],40,[true, true]]
         }, {
             "nome":"Ideal Service",
-            "economica":[613524.82],
+            "economica":613524.82,
             "tecnica":[1,0.39,0.88,0.88,0.58,1,1,1,0.21,0.32,1,1,0.6,[false],0,[true, true]]
         }, {
             "nome":"ATI DUCOPS",
-            "economica":[570900.97],
+            "economica":570900.97,
             "tecnica":[0,0.13,0.7,0.9,0,0,0.35,0.44,0.92,0.56,0,0,1,[false],120,[true, false]]
         }
     ]

@@ -31,6 +31,8 @@ const {ipcRenderer} = require('electron'),
 
 global.$ = global.jQuery = require('jquery');
 require('bootstrap');
+const deepEqual = require('deep-equal');
+
 // Vue is imported in the old way.
 
 
@@ -57,13 +59,21 @@ let current,            // Reference to the `bando` currently dislpayed.
 let app_status = {      // Applicatin status, used for info and save().
     rpath: '',
     fpath: '',
-    modified: false,
     read_only: false,
+    data: current,
+    org: {},
 }
+
 window.vm_app_status = new Vue({
     el: '#app_status',
     data: app_status,
-})
+    computed: {
+        modified () {
+            return !deepEqual(clean_bando(this.data), this.org);
+        }
+    }
+});
+
 
 
 
@@ -108,32 +118,18 @@ const common_filters = {
 
 
 
-
-
 // TODO:
-// 2) Consistency check (total weight sum, eval method, funcs param)
-// 3) cleanup code: split common/structure code
-//
-// 4) Report errors on data and provide a way to fix it.
-//    Most challanging are too many or to few entries.
-//    Myabe just report and hide.
-//
-// 5) When saving/exporting, dump only fields related to the bando
-//    not all injected shit (env_*).
-//
-// *) TODO: consider to not specify "economic weight" and infer it from missing
-//          point from "tecnica".
 //
 // 6) Riparametrazione
 //
 // Extra) Calcolo anamolia (solo Agg. Comp)
 //
-//
-//
 //  ASSUMPTION:
 //  We assume that the economic feature is to be maximized.
 //  We expect either to run with 'sconto' or that the applied function
 //  turns the problem from minimization to maximization.
+//
+//  If this won't be the case just add a switch to choose between up/down.
 
 
 // ============================================================================
@@ -148,18 +144,18 @@ let rnd = (min, max) => Math.floor((Math.random() * (max - min) + min) * 100)/10
 
 let eco_mode = (bando) => bando.mod_economica === 'prezzo' ? 'down' : 'up';
 
+
 // TODO: modifies all the code that uses this function to just use [ids]
 // and then come back to modify this one.
 let prefix_2_ids = function(prefix) {
     let p = '' + prefix;
     let ll = leafs_lst(current.criteri);
     // Search boundaries to delete
-    let ids = ll.map((c, i) => [c.env_name, i])
+    return ll.map((c, i) => [c.env_name, i])
             .filter(x => (x[0].indexOf(p + '.') === 0) ||
                          (x[0].indexOf(p) === 0 && p.length === x[0].length))
             .map(x => x[1])
             .sort();  // Should be already sorted. But better safe than sorry.
-    return [ids[0], ids.length, ids];
 }
 
 let max_bando_depth = function(bando) {
@@ -530,7 +526,7 @@ Vue.component('criterion', {
 // Generic functions
 
 /* args: {fpath, read_only} */
-function loadBando(args) {
+function load_bando(args) {
     // TODO: offer to save current first.
     console.log('Loading scenario:' + args.fpath);
 
@@ -540,24 +536,35 @@ function loadBando(args) {
 
         let app_base_path = app.getAppPath(),
             abp_idx = args.fpath.indexOf(app_base_path),
-            rpath = "..." + args.fpath.replace(app_base_path, '');
+            rpath = args.fpath.replace(app_base_path + '/', '');
 
-        patch = {
+        // TODO: add here check if the bando can not be loaded,
+        // if it is not fixable in the app raise exception.
+
+        current_org = clean_bando(bando_data);
+        current = copy(current_org);
+        let patch = {
             rpath: abp_idx === 0 ? rpath : args.fpath,
             fpath: args.fpath,
-            modified: false,
             read_only: args.read_only || false,
+            data: current,
+            org: current_org,
         };
 
+        // NOTE: we may also avoid the use of Vue.set
         Object.keys(patch).forEach((key) => {
-            Vue.set(app_status, key, patch[key]);
+            Vue.set(window.vm_app_status, key, patch[key]);
         });
 
-        current = bando_data,
         refreshGUI(bando_data);
     } catch(err) {
-        dialog.showErrorBox('Loading error',
-            'Unable to load ' + args.fpath + '\n' + JSON.stringify(err));
+        // TODO: improve how we display this error message.
+        // & this should be only Fatal.
+        console.error(err);
+        dialog.showErrorBox('Errore di caricamento',
+            'Si e\' verificatio un errore caricando ' + args.fpath + ' .\n' +
+            err.name + ': ' + err.message + '.');
+        import_export.clear(true);
     }
 }
 
@@ -565,24 +572,17 @@ function loadBando(args) {
 function refreshGUI() {
     if (!current) {
         // No bando loaded: load empty.
-        loadBando({fpath:  __dirname + '/examples/Empty.json', read_only:true});
+        load_bando({fpath:  __dirname + '/examples/Empty.json', read_only:true});
         return;
     }
 
-    // NOTE: All extra variables must be declared before init any object.
-    current.env_data_mode = 'raw';
-    current.env_name_show = 'hide';
-    current.env_data_orderby = 'agg_desc';
-
-    // TODO: consider alternatively to just destroy and rebuild.
 
     if (!window.vm_structure) {
         // Init
         window.vm_structure = new Vue({
             el: '#structure',
-            data: current,
-            updated: () => {
-                app_status.modified = true;
+            data: {
+                bando: current,
             },
             methods: {
                 add_root_criterion () {
@@ -597,15 +597,18 @@ function refreshGUI() {
             },
             computed: {
                 economic_weight () {
-                    return economic_weight(this);
+                    return economic_weight(this.bando);
                 },
                 funcs () {
                     // Just a proxy for constant global objecet
                     return functions;
                 },
+                eco_mode () {
+                    return eco_mode(this.bando);
+                },
                 eco_got_param: function() {
-                    let m = eco_mode(this);
-                    for (let i in functions[this.funzione_economica][m].params)
+                    let m = eco_mode(this.bando);
+                    for (let i in functions[this.bando.funzione_economica][m].params)
                         return true;
                     return false;
                 }
@@ -617,45 +620,45 @@ function refreshGUI() {
     if (!window.vm_data) {
         window.vm_data = new Vue({
             el: '#data-container',
-            data: current,
-            updated: () => {
-                // Modified data
-                app_status.modified = true;
+            data: {
+                env_data_mode: 'raw',
+                env_name_show: 'hide',
+                bando: current,
             },
             methods: {
                 // For DATA:
                 remove (index) {
-                    Vue.delete(this.offerte, index);
+                    Vue.delete(this.bando.offerte, index);
                 },
                 clone (index) {
-                    let cp = copy(this.offerte[index]);
+                    let cp = copy(this.bando.offerte[index]);
                     let nome = cp.nome;
 
                     if (!/ [i]+$/.test(nome))
                         nome += ' i';
-                    while (this.offerte.filter(o => o.nome == nome).length)
+                    while (this.bando.offerte.filter(o => o.nome == nome).length)
                         nome += 'i';
 
                     // Maybe ask via dialog or just generate.
                     cp.nome = nome;
-                    this.offerte.splice(index + 1, 0, cp);
+                    this.bando.offerte.splice(index + 1, 0, cp);
                 },
                 add () {
                     // Mine name
                     let nome = "Nuova"
                     if (!/ [i]+$/.test(nome))
                         nome += ' i';
-                    while (this.offerte.filter(o => o.nome == nome).length)
+                    while (this.bando.offerte.filter(o => o.nome == nome).length)
                         nome += 'i';
 
                     // Build
-                    let c = leafs_lst(this.criteri);
+                    let c = leafs_lst(this.bando.criteri);
                     let offerta = {
                         nome: nome,
                         // NOTE: economica must be > 0;
-                        economica: this.offerte.length < 2 ? rnd(0,1) : rnd(
-                            amin(this.offerte.map(o => o.economica)),
-                            amax(this.offerte.map(o => o.economica))
+                        economica: this.bando.offerte.length < 2 ? rnd(0,1) : rnd(
+                            amin(this.bando.offerte.map(o => o.economica)),
+                            amax(this.bando.offerte.map(o => o.economica))
                         ),
                         tecnica:  c.map((c, i) => {
                             if (c.tipo === 'T')
@@ -663,37 +666,37 @@ function refreshGUI() {
                             else if (c.tipo == 'D')
                                 return rnd(0,1);
                             else
-                                return this.offerte.length < 2 ? rnd(0,1) : rnd(
-                                    amin(this.offerte.map(o => o.tecnica[i])),
-                                    amax(this.offerte.map(o => o.tecnica[i]))
+                                return this.bando.offerte.length < 2 ? rnd(0,1) : rnd(
+                                    amin(this.bando.offerte.map(o => o.tecnica[i])),
+                                    amax(this.bando.offerte.map(o => o.tecnica[i]))
                                 );
                         })
                     }
 
                     // Add to current list
-                    this.offerte.push(offerta);
+                    this.bando.offerte.push(offerta);
                 }
             },
             computed: {
                 economic_weight () {
-                    return economic_weight(this);
+                    return economic_weight(this.bando);
                 },
                 fatal_errors () {
                     // FIXME: should return true, only when the errors are fatal,
                     // i.e. when we can not compute the ranks.
                     // Now, it returns true if there is any error.
-                    return check_bando(this)[1].length > 0;
+                    return check_bando(this.bando)[1].length > 0;
                 },
                 enable_names () {
                     return this.env_name_show === 'show' &&
-                        this.criteri.concat(leafs_lst(this.criteri))
+                        this.bando.criteri.concat(leafs_lst(this.bando.criteri))
                         .map(c => c.nome || '')
                         .filter(n => n.length)
                         .length > 0;
                 },
                 fst_lvl_names () {
-                    let ll = leafs_lst(this.criteri);
-                    return this.criteri.map((c, i) => {
+                    let ll = leafs_lst(this.bando.criteri);
+                    return this.bando.criteri.map((c, i) => {
                         let y = prefix_2_ids((i + 1) + '')
                             .map(i => ll[i].tipo === 'T' ? ll[i].voci.length : 1)
                             .reduce(sum, 0);
@@ -703,11 +706,11 @@ function refreshGUI() {
                         };
                     })
                 },
-                cols: function () {
-                    return leafs_lst(this.criteri);
+                cols () {
+                    return leafs_lst(this.bando.criteri);
                 },
-                points: function () {
-                    return apply_functions(this);
+                points () {
+                    return apply_functions(this.bando);
                 },
             },
             filters: common_filters,
@@ -720,22 +723,25 @@ function refreshGUI() {
         // TODO: consider having multiple Vue objects, one per data, one per rank.
         window.vm_rank = new Vue({
             el: '#rank',
-            data: current,
+            data: {
+                env_data_orderby: 'agg_desc',
+                bando: current,
+            },
             computed: {
                 fatal_errors () {
                     // FIXME: should return true, only when the errors are fatal,
                     // i.e. when we can not compute the ranks.
                     // Now, it returns true if there is any error.
-                    return check_bando(this)[1].length > 0;
+                    return check_bando(this.bando)[1].length > 0;
                 },
                 scoreboard () {
                     if (this.fatalErrors)
                         return [];
 
-                    let offerte = apply_functions(this);
-                    let agg = aggregativo_compensatore(this, offerte);
-                    let ele = electre(this, offerte);
-                    let tops = topsis(this, offerte);
+                    let offerte = apply_functions(this.bando);
+                    let agg = aggregativo_compensatore(this.bando, offerte);
+                    let ele = electre(this.bando, offerte);
+                    let tops = topsis(this.bando, offerte);
 
                     let board = {};
                     offerte.forEach((o) => board[o.nome] = {nome: o.nome});
@@ -761,22 +767,22 @@ function refreshGUI() {
     if (!window.vm_errors) {
         window.vm_errors = new Vue({
             el: '#errors',
-            data: current,
+            data: {
+                bando: current,
+            },
             computed: {
                 errors: function() {
-                    return check_bando(this)[1];
+                    return check_bando(this.bando)[1];
                 }
             },
         });
     }
 
     // Refresh
-    Object.keys(current).forEach((key) => {
-        Vue.set(window.vm_structure, key, current[key]);
-        Vue.set(window.vm_data, key, current[key]);
-     //   Vue.set(window.vm_rank, key, current[key]);
-        Vue.set(window.vm_errors, key, current[key]);
-    });
+    Vue.set(window.vm_structure, 'bando', current);
+    Vue.set(window.vm_data, 'bando', current);
+    Vue.set(window.vm_rank, 'bando', current);
+    Vue.set(window.vm_errors, 'bando', current);
 }
 
 
@@ -1074,15 +1080,13 @@ function clean_criterion(c) {
     let n = {
         // NOTE: optional and not actually exploited.
         nome: c.nome !== undefined? c.nome : '',
-        // OPT: consider remove if not leaf.
-        peso: c.peso,
     }
-
     if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
         n.subcriteri = c.subcriteri.map(clean_criterion);
         return n;
     }
 
+    n.peso = c.peso;
     n.tipo = c.tipo;
     n.funzione = c.funzione;
     if (n.tipo === 'Q') {
@@ -1098,6 +1102,9 @@ function clean_criterion(c) {
 
 function clean_bando(bando) {
     let cleaned = {};
+
+    if (bando === undefined)
+        return cleaned;
 
     let fstOrderAttributes = [
         'mod_economica',
@@ -1353,6 +1360,79 @@ function bootstrap_popover() {
 }
 
 /* ========================================================================== */
+// Import - Export
+let import_export = {
+    open: (path, force) => {
+        if(!deepEqual(clean_bando(current), current_org) && force !== true) {
+            if (dialog.showMessageBox({
+                type: 'question',
+                buttons: ['Annulla', 'Continua'],
+                defaultId: 0,
+                title: 'Bando modificato',
+                message: 'Il bando e\' stato modificato. Continuare senza salvare?',
+                cancelId: 0,
+            }) === 0) return;
+        }
+
+        if (!path) {
+            let paths = dialog.showOpenDialog({
+                title: 'Apri Bando',
+                filters: [{name: 'Bandi', extensions: ['json']}],
+                properties: ['openFile', 'treatPackageAsDirectory'],
+            });
+            if (!paths) return;
+            path = paths[0];
+        }
+
+        load_bando({
+            fpath: path,
+            read_only: path.indexOf(__dirname + '/examples') === 0,
+        });
+    },
+    save: () => {
+        import_export.save_as(app_status.read_only ? undefined : app_status.fpath);
+        // TODO: maybe pass a message to show to save_as
+    },
+    save_as: (path) => {
+        if (path === undefined) {
+            path = dialog.showSaveDialog({
+                title: 'Salva Bando',
+                defaultPath: 'bando_' + (new Date().getTime()) + '.json',
+            });
+            if (path === undefined)
+                return;
+        }
+
+        try {
+            // TODO: check for error before save.
+            // if corrupt rise error message asking if to continue.
+            if (check_bando(current)[1].length) {
+                if (dialog.showMessageBox({
+                    type: 'question',
+                    buttons: ['Annulla', 'Continua'],
+                    defaultId: 0,
+                    title: 'Bando corrotto',
+                    message: 'Il bando contiene errori che possono corrompere il salvataggio. Continuare?',
+                    cancelId: 0,
+                }) === 0) return;
+            }
+
+            let cleaned = clean_bando(current);
+            fs.writeFileSync(path, JSON.stringify(cleaned), {mode: 0o664, flag:'w+'});
+            current_org = cleaned;
+            Vue.set(window.vm_app_status, 'org', cleaned);
+        } catch(err) {
+            dialog.showErrorBox('Errore nel salvataggio',
+                'Si e\' verificatio un errore salvando ' + path + ' .\n' +
+                err.name + ': ' + err.message + '.');
+        }
+    },
+    clear (force) {
+        import_export.open(__dirname + '/examples/Empty.json', force === true);
+    }
+}
+
+/* ========================================================================== */
 // Menu mappings
 
 function switchView(view) {
@@ -1369,8 +1449,9 @@ function switchView(view) {
     }
 }
 
-ipcRenderer.on('load_bando', (event , args) => {loadBando(args)});
-ipcRenderer.on('view', (event , args) => {switchView(args)});
+ipcRenderer.on('load_bando', (event , args) => load_bando(args));
+ipcRenderer.on('view', (event , args) => switchView(args));
+ipcRenderer.on('cmd', (event , cmd) => import_export[cmd]());
 
 
 
@@ -1378,11 +1459,12 @@ ipcRenderer.on('view', (event , args) => {switchView(args)});
 /* Main                                                                       */
 /* ========================================================================== */
 $(function () {
-    console.log("main");
-
     refreshGUI();
     switchView('structure');
     //switchView('simulation');
 
     bootstrap_popover();
+
+    // TODO: wrap into div, and show loading icon instead.
+    $('body').removeClass('hide');
 });

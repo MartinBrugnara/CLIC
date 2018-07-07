@@ -79,7 +79,7 @@ function buildMenuBar() {
         submenu: [{
             label: 'Apri...',
             accelerator: 'CmdOrCtrl+O',
-            click: NotImplementedError,
+            click: () => win.webContents.send('cmd', 'open'),
         }, {
             label: 'Esempi',
             accelerator: 'Shift+CmdOrCtrl+O',
@@ -87,18 +87,19 @@ function buildMenuBar() {
         }, {
             label: 'Nuovo',
             accelerator: 'CmdOrCtrl+N',
-            click: NotImplementedError,
+            click: () => win.webContents.send('cmd', 'clear'),
         }, {
             type: 'separator'
         }, {
             label: 'Salva',
             accelerator: 'CmdOrCtrl+S',
-            click: NotImplementedError,
+            click: () => win.webContents.send('cmd', 'save'),
             // TODO: disable when current file is RO (e.g. examples).
+            // menuItem.enabled = false;
         }, {
             label: 'Salva come...',
             accelerator: 'Shift+CmdOrCtrl+S',
-            click: NotImplementedError,
+            click: () => win.webContents.send('cmd', 'save_as'),
         }]
     }, {
         label: 'Edit',
@@ -147,28 +148,7 @@ function buildMenuBar() {
             ]
     }, {
         role: 'help',
-        submenu: [{
-                label: 'Learn More',
-                click () {shell.openExternal('https://electron.atom.io')},
-            }, {
-                label: 'Documentation',
-                click () {
-                    shell.openExternal(
-                        `https://github.com/electron/electron/tree/v${process.versions.electron}/docs#readme`
-                    )
-                }
-            }, {
-                label: 'Community Discussions',
-                click () {
-                    shell.openExternal('https://discuss.atom.io/c/electron')
-                }
-            }, {
-                label: 'Search Issues',
-                click () {
-                    shell.openExternal('https://github.com/electron/electron/issues')
-                }
-            }
-        ]
+        submenu: []
     }];
 
     if (process.platform === 'darwin') {

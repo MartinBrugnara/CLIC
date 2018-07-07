@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="node_modules/\@fortawesome/fontawesome-free-webfonts/css/fa-solid.css">
     <link rel="stylesheet" href="static/css/index.css">
 </head>
-<body class="pb-5">
+<body class="pb-5 hide">
 
     <nav class="navbar navbar-dark bg-dark mb-4" id="app_status">
         <!-- Navbar content -->
@@ -54,13 +54,13 @@
         <div class="container mb-2">
             <div class="form-row">
                 <div class="form-group col-auto">
-                    <label for="eco_base_asta">Modalit&agrave;</label>
+                    <label for="mod_economica">Modalit&agrave;</label>
                     <div class="form-check">
-                        <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="ribasso" value="ribasso" v-model="mod_economica">
+                        <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="ribasso" value="ribasso" v-model="bando.mod_economica">
                         <label class="form-check-label" for="ribasso">Ribasso</label>
                     </div>
                     <div class="form-check">
-                        <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="prezzo" value="prezzo" v-model="mod_economica">
+                        <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="prezzo" value="prezzo" v-model="bando.mod_economica">
                         <label class="form-check-label" for="prezzo">Prezzo</label>
                     </div>
                 </div>
@@ -70,10 +70,10 @@
                     <h3><span v-bind:class="['badge', 'mb-0', {'badge-light': economic_weight === 30}, {'badge-danger': economic_weight < 0}, {'badge-warning': economic_weight !== 30 && economic_weight >= 0 }]">{{ economic_weight | prec_up_1 }}</span></h3>
                 </div>
 
-                <div class="form-group col-auto" v-if="mod_economica == 'prezzo'">
+                <div class="form-group col-auto" v-if="bando.mod_economica == 'prezzo'">
                     <label for="eco_base_asta">Base d'asta</label>
-                    <input type="number" class="form-control" name="eco_base_asta" id="eco_base_asta"
-                        min="0" step="0.01" v-model.number="base_asta" required>
+                    <input type="number" class="form-control" name="base_asta" id="base_asta"
+                        min="0" step="0.01" v-model.number="bando.base_asta" required>
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
                 </div>
 
@@ -83,7 +83,7 @@
                     <select
                         class="form-control"
                         id="eco_func"
-                        v-model="funzione_economica">
+                        v-model="bando.funzione_economica">
                         <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname  | undash | capitalize }}</option>
                     </select>
                 </div>
@@ -94,7 +94,7 @@
                     <div class="input-group">
                         <template
                             class="input-group"
-                            v-for="(p, pname) in funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params">
+                            v-for="(p, pname) in funcs[bando.funzione_economica][eco_mode].params">
 
                             <div class="input-group-prepend">
                                 <span class="input-group-text">{{ pname | csub | undash }}</span>
@@ -102,13 +102,13 @@
 
                             <input
                                 type="number"
-                                v-bind:min=     "funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params[pname].domain.start"
-                                v-bind:max=     "funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params[pname].domain.end"
-                                v-bind:step=    "funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params[pname].domain.step"
-                                v-bind:required="funcs[funzione_economica][mod_economica == 'prezzo' ? 'down' : 'up'].params[pname].required"
+                                v-bind:min=     "funcs[bando.funzione_economica][eco_mode].params[pname].domain.start"
+                                v-bind:max=     "funcs[bando.funzione_economica][eco_mode].params[pname].domain.end"
+                                v-bind:step=    "funcs[bando.funzione_economica][eco_mode].params[pname].domain.step"
+                                v-bind:required="funcs[bando.funzione_economica][eco_mode].params[pname].required"
                                 v-bind:name="pname"
                                 class="form-control no-expand"
-                                v-model.number="parametri_economica[pname]"
+                                v-model.number="bando.parametri_economica[pname]"
                             />
                         </template>
                     </div>
@@ -122,18 +122,18 @@
         <form class="form-inline">
             <label class="form-check-label">Riparametrizzazione:</label>
             <div class="form-check ml-2">
-                <input type="checkbox" class="form-check-input" id="rep1" v-model="riparametrizzazione1">
+                <input type="checkbox" class="form-check-input" id="rep1" v-model="bando.riparametrizzazione1">
                 <label class="form-check-label" for="rep1">1&deg; livello.</label>
             </div>
             <div class="form-check ml-2">
-                <input type="checkbox" class="form-check-input" id="rep2" v-model="riparametrizzazione2">
+                <input type="checkbox" class="form-check-input" id="rep2" v-model="bando.riparametrizzazione2">
                 <label class="form-check-label" for="rep2">2&deg; livello.</label>
             </div>
         </form>
 
         <ul id="ctree" class="nols">
             <criterion
-                v-for="(model, index) in criteri"
+                v-for="(model, index) in bando.criteri"
                 v-bind:index="index"
                 v-bind:model="model"
                 v-bind:name="index+1"
@@ -141,7 +141,7 @@
 
             <span>
                 <i @click="add_root_criterion" class="fas fa-plus action"></i>
-                <label class="nextCid">({{ criteri.length + 1 }})</label>
+                <label class="nextCid">({{ bando.criteri.length + 1 }})</label>
             </span>
         </ul>
     </div>
@@ -268,11 +268,16 @@
                         <div class="text-right">
                             <strong>Nomi</strong>
                             <div class="form-check-inline ml-2">
-                                <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="show" value="show" v-model="env_name_show">
+                                <input style="margin-top:0.05rem" class="form-check-input"
+                                type="radio" id="show" value="show"
+                                v-model="env_name_show">
+
                                 <label class="form-check-label" for="show">Mostra</label>
                             </div>
                             <div class="form-check-inline mr-0">
-                                <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="hide" value="hide" v-model="env_name_show">
+                                <input style="margin-top:0.05rem" class="form-check-input"
+                                type="radio" id="hide" value="hide"
+                                v-model="env_name_show">
                                 <label class="form-check-label" for="hide">Nascondi</label>
                             </div>
                         </div>
@@ -349,7 +354,7 @@
                         </tr>
                     </thead>
                     <tbody v-bind:class="{'text-center': env_data_mode === 'edit'}">
-                        <tr v-for="(o, i) in offerte" :key="o.nome">
+                        <tr v-for="(o, i) in bando.offerte" :key="o.nome">
                             <template v-if="env_data_mode == 'edit'">
                                 <td class="text-left"><input type="text" v-model.tirm.lazy="o.nome" required></td>
                                 <td><input type="number" min="0.01" step="0.01" v-model.number="o.economica" required></td>

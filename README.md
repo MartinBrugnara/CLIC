@@ -22,6 +22,27 @@ Mostra inoltre il risultato sia in forma tabellare che grafica.
 - Topsis
   - Durante la normalizzazione dei valori in input (`x_ij`), se la media geometrica per un criterio e' 0 i valori d'offerta per quel criterio non vanno normalizzati (visto che sono zero).
 
+- Riparametrazione 
+  - A tutti i criteri di tipo discrezionale (D), cioe' quelli dove il punteggio viene
+    assegnato da una commisione o tramite confronto a coppie, viene applicata la
+    funzione "proporzionalita' inversa" per garantire che l'offerta migliore 
+    abbia il punteggio di 1.
+
+  - Le riparametrazioni di primo e secondo livello vengono applicate solo
+    quando si utilizza l'aggregativo compensatore.
+
+  - NOTE: la riparametrazione di 1 livello serve __solo__ per fixare il
+    fatto che non necessariamente una media/confronto a coppie abbia 1.
+
+  - _DOMANDA:_ I criteri tabellari (T) devono essere sempre riscalati?   
+
+- Soglie:
+    - NOTA: non ancora implementate.
+
+- Parte economica
+  - Si prevede la possibilia' di specificare un solo criterio per la parte economica,
+    i.e. un solo valore per il prezzo o/ il ribasso. Non sono previsti subcriteri.
+
 ## Cose interessanti
   - Comportamento di Electre quando esistono offerte identiche: una domina l'altra perche' `d_ij` risulta 0... peccato non si tenga conto di `c_ij`.
 

@@ -54,7 +54,7 @@
         <div class="container mb-2">
             <div class="form-row">
                 <div class="form-group col-auto">
-                    <label for="mod_economica">Modalit&agrave;</label>
+                    <label for="mod_economica" class="font-weight-bold">Modalit&agrave;</label>
                     <div class="form-check">
                         <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="ribasso" value="ribasso" v-model="bando.mod_economica">
                         <label class="form-check-label" for="ribasso">Ribasso</label>
@@ -66,19 +66,19 @@
                 </div>
 
                 <div class="form-group col-auto no-expand">
-                    <label>Peso</label>
+                    <label class="font-weight-bold">Peso</label>
                     <h3><span v-bind:class="['badge', 'mb-0', {'badge-light': economic_weight === 30}, {'badge-danger': economic_weight < 0}, {'badge-warning': economic_weight !== 30 && economic_weight >= 0 }]">{{ economic_weight | prec_up_1 }}</span></h3>
                 </div>
 
                 <div class="form-group col-auto" v-if="bando.mod_economica == 'prezzo'">
-                    <label for="eco_base_asta">Base d'asta</label>
+                    <label for="eco_base_asta" class="font-weight-bold">Base d'asta</label>
                     <input type="number" class="form-control" name="base_asta" id="base_asta"
                         min="0" step="0.01" v-model.number="bando.base_asta" required>
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
                 </div>
 
                 <div class="form-group col-auto">
-                    <label for="eco_func">Formula</label>
+                    <label for="eco_func" class="font-weight-bold">Formula</label>
                     <!--class="custom-select"-->
                     <select
                         class="form-control"
@@ -89,8 +89,7 @@
                 </div>
 
                 <div class="form-group col-auto" v-if="eco_got_param">
-                    <label>Parametri</label>
-
+                    <label class="font-weight-bold">Parametri</label>
                     <div class="input-group">
                         <template
                             class="input-group"
@@ -119,15 +118,15 @@
 
         <h3>Offerta Tecnica</h3>
 
-        <form class="form-inline">
-            <label class="form-check-label">Riparametrizzazione:</label>
+        <form class="form-inline mb-2">
+            <label class="form-check-label font-weight-bold">Riparametrizzazione:</label>
             <div class="form-check ml-2">
                 <input type="checkbox" class="form-check-input" id="rep1" v-model="bando.riparametrizzazione1">
-                <label class="form-check-label" for="rep1">1&deg; livello.</label>
+                <label class="form-check-label" for="rep1">1&deg; livello ([sub]criteri).</label>
             </div>
             <div class="form-check ml-2">
                 <input type="checkbox" class="form-check-input" id="rep2" v-model="bando.riparametrizzazione2">
-                <label class="form-check-label" for="rep2">2&deg; livello.</label>
+                <label class="form-check-label" for="rep2">2&deg; livello (parte economica/tecnica).</label>
             </div>
         </form>
 
@@ -283,7 +282,7 @@
                         </div>
 
                         <div class="text-right">
-                            <strong>Modalit&agrave;</strong >
+                            <strong>Modalit&agrave;</strong>
                             <div class="form-check-inline ml-2">
                                 <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="points" value="points" v-model="env_data_mode">
                                 <label class="form-check-label" for="points">Punti</label>

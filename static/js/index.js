@@ -225,70 +225,170 @@ let nmatrix = function (dim, def_value) {
 
 
 
-// 'identita' is default.
-// NOTE: for each property MUST always define:
-//      {domain:{start:0, end:'', step:1}, required: true}
-//      if a value is unknow put empty string
 const functions = {
     // {name:{
     //      up:{f:, params:{name: {(opts:[]|domain:{start:, end:}}}}, // rialzo
     //      dow:{f:, params:{name:{(opts:[]|domain:{start:, end:}}}}, // ribasso
     // }
-
-    // TODO: consider track also: intrdependent or not to enforce some rules.
-    // @see consip warning
+    // 'identita' is default.
     //
+    // If the function is defined only in one way, leave out the other.
     "identita": {
         // This shall be used only with the ELECTRE method,
         // when the user whant to use the raw values instead of the scaled one.
         up: {
-            f: (P, x, bando, others) => P,
+            f: (P, x, bando, all) => P,
             params: {}
         },
         down: {
-            f: (P, x, bando, others) => P,
+            f: (P, x, bando, all) => P,
             params: {}
         }
     },
     "proporzionalita_inversa": {
+        // Bozen 1
         // This covers 92.49% of Bozen runs.
         up: {
-            f: (P, x, bando, others) => {
+            f: (P, x, bando, all) => {
                 if (P === 0) return 0;
-                return amax(others) * 1.0 / P;
+                return amax(all) * 1.0 / P;
             },
             params: {}
         },
         down: {
-            f: (P, x, bando, others) => {
+            f: (P, x, bando, all) => {
                 if (P === 0) return 0;
-                return amin(others) * 1.0 / P;
+                return amin(all) * 1.0 / P;
             },
             params: {}
         }
     },
-    "lineare_semplice": {
+    "riduzione_percentuale_del_prezzo": {
+        // Bozen 2
+        // This covers 1.06% of Bozen runs.
+        down: {
+            f: (P, x, bando, all) => 1 - ((P - amin(all)) * 1.0 / amin(all)) * 100 / x.c,
+            params: {c: {domain:{start:0.01, end:100, step:0.01}, required: true}}
+        },
+    },
+    "incremento_lineare": {
+        // Bozen 3
+        // This covers 0.45% of Bozen runs.
+        down: {
+            f: (P, x, bando, all) => 1 - (P - amin(all)) * 1.0/(amax(all) - amin(all)),
+            params: {},
+        }
+    },
+    "spezzata_gausiana": {
+        // Bozen 4
+        down: {
+            f: (P, x, bando, all) => {
+                let mean = all.reduce(sum, 0) * 1.0 / all.length,
+                    a = mean * 0.5, b = mean * 0.7,
+                    d = mean * 1.3, e = mean * 1.5,
+                    s = b/d * 1;
+
+                if (a <= P && P < b)
+                    return (P-a)/(b-a);
+                if (b <= P && P < d)
+                    return (1 - (P - b)/(d-b)) * (1-s) + s;
+                if (d <= P && P <= e)
+                    return s/(d-e)*(P-e);
+                return 0;
+            },
+            params: {},
+        }
+    },
+    "retta_base_valore_fisso": {
+        // Bozen 5
+        down: {
+            f: (P, x, bando, all) => 1 - ((1-x.c)/(amin(all) - bando.base_asta)*(amin(all) - P)),
+            params:{c: {domain:{start:0.00, end:1, step:0.01}, required: true}}
+        }
+    },
+    "retta_base_prezzo_minimo": {
+        // Bozen 6
+        down:{
+            f: (P, x, bando, all) => (P-bando.base_asta) / (amin(all) - bando.base_asta),
+            params:{},
+        }
+    },
+    "retta_base_zero": {
+        // Bozen 7
+        down:{
+            f: (P, x, bando, all) => (bando.base_asta - P) / bando.base_asta,
+            params:{},
+        }
+    },
+    "retta_prezzo_minimo": {
+        // Bozen 8
+        down:{
+            f: (P, x, bando, all) => (amax(all) + amin(all) - P) / amax(all),
+            params:{},
+        }
+    },
+    "allegato_g": {
+        // Bozen 9 - 0.64%
+        // Allegato G, Contratti relativi a lavori
+        down:{
+            f: (P, x, bando, all) => (bando.base_asta - P)/(bando.base_asta - amax(all)),
+            params:{},
+        }
+    },
+    "allegato_m": {
+        // Bozen 10 - 0.79%
+        // Allegato M, Contratti relativi a servizi attinenti all'archiettura e all'ingegneria
+        // Consip: "lineare_spezzata_sulla media"
         up: {
-            f: (P, x, bando, others) => {
+            f: (P, x, bando, all) => {
+                let mean = all.reduce(sum, 0) / all.length;
+                if (P <= mean)
+                    return x.x * P / mean;
+                else
+                    return x.x + (1-x.x) * (P - mean) / (amax(all) - mean);
+            },
+            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
+        }
+    },
+    "allegato_p": {
+        // Bozen 11
+        // Allegato P, Contratti relativi a forniture e altri servizi
+        down:{
+            f: (P, x, bando, all) => {
+                let mean = all.reduce(sum, 0) / all.length;
+                if (P <= mean)
+                    return x.x * P / mean;
+                else
+                    return x.x + (1-x.x) * (P - mean) / (amax(all) - mean);
+            },
+            params:{
+                x: {domain:{start:0.80, end:0.90, step:0.05}, required: true},
+            },
+        }
+    },
+    "alleagato_p_lineare_semplice": {
+        up: {
+            f: (P, x, bando, all) => P * 1.0 / amax(P),
+            params: {}
+        },
+    },
+    "consip_lineare_semplice": {
+        up: {
+            f: (P, x, bando, all) => {
                 // QUESTION: if soglia non specificato --> ??
+                // TODO: what happen when soglia === soglia_min?
                 return (P - x.soglia_min)*1.0/(x.soglia - x.soglia_min)
             },
             params: {
-                // FIXME: ain't soglia the mean?
-                // TODO: is this really required?
-                soglia:     {domain:{start:0, end:'', step:1}, required: true},
-                soglia_min: {domain:{start:0, end:'', step:1}, required: true},
+                soglia:     {domain:{start:0, end:'', step:0.01}, required: true},
+                soglia_min: {domain:{start:0, end:'', step:0.01}, required: true},
             }
         },
         down: {
-            f: (P, x, bando, others) => {
-                // FIXME: if soglia non specificato --> ??
+            f: (P, x, bando, all) => {
                 return (bando.base_asta - P)*1.0/(bando.base_asta - x.soglia)
             },
-            params: {
-                // TODO: is this really required
-                soglia: {domain:{start:0, end:'', step:1}, required: true},
-            }
+            params: {soglia: {domain:{start:0, end:'', step:0.01}, required: true}}
         }
 
     },
@@ -301,26 +401,68 @@ const functions = {
         //      Consip: alpha in (0.5, 0.6, 0.7)
         // * Lineare alla migliore offerta (alpha = 1)
         up: {
-            f: (P, x, bando, others) => {
-                return Math.pow(P*1.0 / amax(others), x.alfa)
+            f: (P, x, bando, all) => {
+                return Math.pow(P*1.0 / amax(all), x.alfa)
             },
             params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
 
         },
         down: {
-            f: (P, x, bando, others) => {
+            f: (P, x, bando, all) => {
                 let BA = bando.base_asta;
-
-                // FIXME: only 4 debug!!
-                console.warn("for debug: if not specified BA is max(offerta_economica)");
-                if (!bando.base_asta)
-                    BA = amax(others);
-
-                return Math.pow((BA - P) * 1.0 / (BA - amin(others)), x.alfa)
+                return Math.pow((BA - P) * 1.0 / (BA - amin(all)), x.alfa)
             },
             params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
         }
     },
+    "non_lineare_concava": {
+        // Consip
+        up: {
+            f: (P, x, bando, all) => 1 - (1 - P) ** x.n,
+            params: {n: {domain:{start:0, step:0.01}, required: true}}
+        },
+        down: {
+            f: (P, x, bando, all) => 1 - (P/bando.base_asta) ** x.n,
+            params: {n: {domain:{start:0, step:0.01}, required: true}}
+        }
+    },
+    "lineare_spezzata_sulla_media": {
+        // Bozen 10 - 0.79%
+        // Consip: "lineare_spezzata_sulla media"
+
+        up: {
+            // Allegato M, Contratti relativi a servizi attinenti all'archiettura e all'ingegneria
+            f: (P, x, bando, all) => {
+                let mean = all.reduce(sum, 0) / all.length;
+                if (P <= mean)
+                    return x.x * P / mean;
+                else
+                    return x.x + (1-x.x) * (P - mean) / (amax(all) - mean);
+            },
+            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
+        },
+        down: {
+            f: (P, x, bando, all) => {
+                let mean = all.reduce(sum, 0) / all.length;
+                if (P >= mean)
+                    return x.x * (bando.base_asta - P) * (bando.base_asta - mean);
+                else
+                    return x.x + (1-x.x) * (mean-P) * (mean-amin(all));
+
+            },
+            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
+        }
+    },
+    "lineare_min_max": {
+        up: {
+            f: (P, x, bando, all) => 1 - (amax(all) - P) / (amax(all) - amin(all)),
+            params:{}
+        },
+        down: {
+            f: (P, x, bando, all) => 1 - (P - amin(all)) / (amax(all) - amin(all)),
+            params:{}
+        },
+    }
 }
 
 
@@ -1377,7 +1519,7 @@ function bootstrap_popover() {
                 '<h3 class="popover-header">Nome x</h3>' +
                 '<div class="popover-body"></div></div>',
         }).on('show.bs.popover', function() {
-            $('.popover.show').removeClass('show'); // hide the others.
+            $('.popover.show').removeClass('show'); // hide open ones.
             content.removeClass('hide').addClass('show');
         }).on('hide.bs.popover', function() {
             content.addClass('hide');

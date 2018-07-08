@@ -163,7 +163,9 @@ let prefix_2_ids = function(prefix) {
             .filter(x => (x[0].indexOf(p + '.') === 0) ||
                          (x[0].indexOf(p) === 0 && p.length === x[0].length))
             .map(x => x[1])
-            .sort();  // Should be already sorted. But better safe than sorry.
+            // Should be already sorted. But better safe than sorry.
+            // Btw, if not function is supplied id uses alphabetical asc order.
+            .sort((a,b) => a-b);
 }
 
 let max_bando_depth = function(bando) {
@@ -433,32 +435,23 @@ Vue.component('criterion', {
                 for (let j=0; j<cnt; j++)                           // delete #cnt
                     Vue.delete(current.offerte[i].tecnica, start);  // actually delete
 
+            let key = this.name.toString().split('.').map(i => parseInt(''+i)-1),
+                ptr = current.criteri;
+
+            // Visiting children
+            let ptrs = [];
+            for (let i=0; i < key.length; i++) {
+                ptrs.push(ptr);
+                ptr = ptr[key[i]].subcriteri;
+            }
+
             // Finding the greates anchestor which has got
             // no other children other than us, and deleting it.
-            let key = this.name.toString().split('.').map(i => parseInt(''+i)-1),
-                depth = key.length,
-                ptr;
-            do {
-                // TODO: Optimize. This is really stupid.
-                // Do just one visit, record at each step the subcriteri.length,
-                // then over the array.
-
-                // Search anchestor at generation `depth`.
-                ptr = current.criteri; // this is already depth 1
-                for (let i=0; i < depth-1; i++) {
-                    // Get the `subcriteri` list that contains the one we shall delete.
-                    ptr = ptr[key[i]].subcriteri;
-                }
-
-                if (ptr.length > 1)
-                    break;
-
-                // Not found, try w/the parent. Worst case we go to current.criteri.
-                depth -= 1;
-            } while(depth > 0); // or 1 ??
+            let k;
+            for (k=ptrs.length-1; k > 0 && ptrs[k].length === 1; k--);
 
             // Actually delete sub-tree
-            Vue.delete(ptr, key[depth-1]);
+            Vue.delete(ptrs[k], key[k]);
 
             // Update stats abouth depth
             current.env_depth = max_bando_depth(current);

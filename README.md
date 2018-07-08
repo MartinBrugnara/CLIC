@@ -23,21 +23,27 @@ Mostra inoltre il risultato sia in forma tabellare che grafica.
   - Durante la normalizzazione dei valori in input (`x_ij`), se la media geometrica per un criterio e' 0 i valori d'offerta per quel criterio non vanno normalizzati (visto che sono zero).
 
 - Riparametrazione 
+<!-- Discuss first and then implement.
   - A tutti i criteri di tipo discrezionale (D), cioe' quelli dove il punteggio viene
     assegnato da una commisione o tramite confronto a coppie, viene applicata la
     funzione "proporzionalita' inversa" per garantire che l'offerta migliore 
     abbia il punteggio di 1.
+-->
 
   - Le riparametrazioni di primo e secondo livello vengono applicate solo
-    quando si utilizza l'aggregativo compensatore.
+    quando si utilizza l'aggregativo compensatore (electre e topsis gia' la prevedono nel loro algoritmo).
 
-  - NOTE: la riparametrazione di 1 livello serve __solo__ per fixare il
-    fatto che non necessariamente una media/confronto a coppie abbia 1.
+  - La riparametrazione di primo livello viene applicata solo alle foglie.
+  - La riparametrazioni di secondo livello solo a valore finale di offerta tecnica,
+    i.e. non tra i subcriteri intermedi.  
+    __DOMANDA:__ E'corretto?
 
-  - _DOMANDA:_ I criteri tabellari (T) devono essere sempre riscalati?   
+  - __DOMANDA:__ I criteri tabellari (T) devono essere sempre riscalati?   
+    Al momento lo sono solo se rip. di livello 1 e' richiesta.
+    (just divide by max indeax of weight in apply_functions).
 
 - Soglie:
-    - NOTA: non ancora implementate.
+    - _NOTA:_ non ancora implementate per offerta tecnica.
 
 - Parte economica
   - Si prevede la possibilia' di specificare un solo criterio per la parte economica,

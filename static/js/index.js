@@ -192,6 +192,10 @@ let leafs_lst = function(criteri) {
     return [].concat(...rec_list('', criteri));
 }
 
+let tech_weights = function(ll) {
+    return ll.map(criterion_weight);
+}
+
 let nmatrix = function (dim, def_value) {
     /* Build ndimensional matrix and assign a def_value.
      * dim: list with dimensions
@@ -211,8 +215,7 @@ let nmatrix = function (dim, def_value) {
 
 
 
-// First one is default
-// TODO: add support for "tabellare" -> [Consip: Scelte, Range]
+// 'identita' is default.
 // NOTE: for each property MUST always define:
 //      {domain:{start:0, end:'', step:1}, required: true}
 //      if a value is unknow put empty string
@@ -706,11 +709,17 @@ function refreshGUI() {
                         };
                     })
                 },
+                weights () {
+                    return tech_weights(leafs_lst(this.bando.criteri));
+                },
                 cols () {
                     return leafs_lst(this.bando.criteri);
                 },
                 points () {
-                    return apply_functions(this.bando);
+                    let offerte = apply_functions(this.bando)
+                    if (this.bando.riparametrizzazione1)
+                        offerte = apply_scale(this.bando, offerte);
+                    return offerte;
                 },
             },
             filters: common_filters,
@@ -798,10 +807,6 @@ function apply_functions(bando) {
 
     /* {nome, economica (0-1), tecnica [(0-1),...]} */
 
-    // TODO: Implement riproporzionamento
-    //  we may have to first compute and the apply it.
-
-
     let ll = leafs_lst(bando.criteri);
 
     return bando.offerte.map((o, oi) => {
@@ -820,7 +825,8 @@ function apply_functions(bando) {
             if (ll[ti].tipo === 'T') {          // Is tabular -> bool to int
                 return ll[ti].voci
                     .map((v, vi) => v * t[vi])
-                    .reduce(sum, 0);
+                    // NOTE: Dive by amax instead to guarantee 0-1 range cover.
+                    .reduce(sum, 0) / ll[ti].voci.reduce(sum, 0);
             } else if (ll[ti].tipo === 'Q') {
                 return functions[ll[ti].funzione].up.f(
                     t,                          // Current bid
@@ -836,12 +842,53 @@ function apply_functions(bando) {
     });
 }
 
+function apply_scale(bando, offerte) {
+    // RIPARAMETRAZIONE 1
+
+    // Scale each leaf
+    let ll   = leafs_lst(bando.criteri),
+        maxs = ll.map((_, i) => amax(offerte.map(o => o.tecnica[i])));
+
+    return  offerte.map(o => {
+        return {
+            nome: o.nome,
+            economica: o.economica / amax(offerte.map(o => o.economica)),
+            tecnica: o.tecnica
+                // this guarnatees [0-1]
+                .map((t, i) => maxs[i] ? t/maxs[i] : 0),
+        }
+    });
+}
+
 
 function aggregativo_compensatore(bando, offerte) {
-    let ll = leafs_lst(bando.criteri);
-    let weights = [economic_weight(bando)].concat(ll.map((c) => c.peso));
+   let ll       = leafs_lst(bando.criteri);
+       tweights = tech_weights(ll);
+       eweight  = economic_weight(bando);
 
-    return offerte.map((o) => {
+    if (bando.riparametrizzazione1)
+        offerte = apply_scale(bando, offerte);
+
+    if (bando.riparametrizzazione2) {
+        // Rescale tecnica and economica to give 1 to the best.
+        let tech = offerte.map(o =>
+            o.tecnica
+                .map((v, vi) => tweights[vi] * v)
+                .reduce(sum, 0)
+        );
+
+        let mtech = amax(tech),
+            meco  = amax(offerte.map(o => o.economica));
+        return offerte.map((o, i) => {
+            return {
+                nome: o.nome,
+                agg: o.economica / meco * eweight + tech[i] / mtech * (100-eweight) ,
+            }
+        })
+    }
+
+    let weights = [eweight].concat(tweights);
+    return offerte.map(o => {
         return {
             nome: o.nome,
             agg: [o.economica].concat(o.tecnica)
@@ -864,7 +911,7 @@ function electre(bando, offerte) {
         return {nome:o.nome, v:[o.economica].concat(o.tecnica)};
     });
     let ll = leafs_lst(bando.criteri);
-    const weights = [economic_weight(bando)].concat(ll.map((c) => c.peso));
+    const weights = [economic_weight(bando)].concat(tech_weights(ll));
 
     let rank = {}, i = 1;
     while (true) {
@@ -996,7 +1043,7 @@ function topsis(bando, offerte) {
         return {nome:o.nome, v:[o.economica].concat(o.tecnica)};
     });
     let ll = leafs_lst(bando.criteri);
-    const w = [economic_weight(bando)].concat(ll.map((c) => c.peso));
+    const w = [economic_weight(bando)].concat(tech_weights(ll));
 
 
     let n = w.length,    // 'criteri' to evaluate.
@@ -1086,7 +1133,6 @@ function clean_criterion(c) {
         return n;
     }
 
-    n.peso = c.peso;
     n.tipo = c.tipo;
     n.funzione = c.funzione;
     if (n.tipo === 'Q') {
@@ -1097,6 +1143,8 @@ function clean_criterion(c) {
 
     if (n.tipo === 'T')
         n.voci = c.voci
+    else
+        n.peso = c.peso;
     return n;
 }
 
@@ -1140,17 +1188,16 @@ function check_criterion(c, prefix) {
         return errors.concat(...c.subcriteri.map((s, i) => check_criterion(s, prefix + '.' + (i+1))));
     }
 
-    if (typeof c.peso !== 'number' || c.peso < 0 || c.peso > 100) {
-        errors.push('[C ' + prefix + '] ' + c.peso +
-            ' non e\' un valore valido per il peso. ' +
-            'Deve essere un numero tra 0 e 100,');
-    }
-
-
     if (['Q','D','T'].indexOf(c.tipo) < 0) {
         errors.push('[C ' + prefix + '] ' + c.tipo +
             'non e\' un valore valido per \'tipo\'. ' +
             'I vaolori possibili sono \'D\', \'T\' \'Q\'.');
+    }
+
+    if (c.tipo !== 'T' && (typeof c.peso !== 'number' || c.peso < 0 || c.peso > 100)) {
+        errors.push('[C ' + prefix + '] ' + c.peso +
+            ' non e\' un valore valido per il peso. ' +
+            'Deve essere un numero tra 0 e 100,');
     }
 
     if (c.tipo === 'Q') {

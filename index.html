@@ -334,18 +334,18 @@
                                 <small>{{ economic_weight }}</small>
                             </th>
 
-                            <template v-for="c in cols">
+                            <template v-for="(c, ci) in cols">
                                 <template v-if="c.tipo == 'T'">
-                                    <th v-if="env_data_mode == 'points'"><small>{{c.peso}}</small></th>
+                                    <th v-if="env_data_mode == 'points'"><small>{{ weights[ci] }}</small></th>
                                     <th v-else v-for="(v, vi) in c.voci">
                                         <input v-if="env_data_mode == 'edit'" v-model.number="c.voci[vi]" type="number" min="0" max="100" step="0.1" required>
-                                        <small v-else>{{c.voci[vi]}}</small>
+                                        <small v-else>{{ c.voci[vi] }}</small>
                                     </th>
                                 </template>
                                 <template v-else>
                                     <th>
                                         <input v-if="env_data_mode == 'edit'" v-model.number="c.peso" type="number" min="0" max="100" step="0.1" required>
-                                        <small v-else>{{c.peso}}</small>
+                                        <small v-else>{{ c.peso }}</small>
                                     </th>
                                 </template>
                             </template>
@@ -384,7 +384,7 @@
                                 <template v-for="(t, ti) in o.tecnica">
                                     <template v-if="cols[ti].tipo == 'T'">
                                         <td v-if="env_data_mode == 'points'">
-                                            {{ points[i].tecnica[ti] * cols[ti].peso | precn(2) }}
+                                            {{ points[i].tecnica[ti] * weights[ti] | precn(2) }}
                                         </td>
                                         <td v-else v-for="(v, vi) in cols[ti].voci" class="text-center">
                                             <!--

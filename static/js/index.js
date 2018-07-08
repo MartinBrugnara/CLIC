@@ -353,7 +353,7 @@ const functions = {
     "allegato_p": {
         // Bozen 11
         // Allegato P, Contratti relativi a forniture e altri servizi
-        down:{
+        down: {
             f: (P, x, bando, all) => {
                 let mean = all.reduce(sum, 0) / all.length;
                 if (P <= mean)
@@ -361,14 +361,12 @@ const functions = {
                 else
                     return x.x + (1-x.x) * (P - mean) / (amax(all) - mean);
             },
-            params:{
-                x: {domain:{start:0.80, end:0.90, step:0.05}, required: true},
-            },
+            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
         }
     },
     "alleagato_p_lineare_semplice": {
         up: {
-            f: (P, x, bando, all) => P * 1.0 / amax(P),
+            f: (P, x, bando, all) => amax(all) > 0 ? P * 1.0 / amax(all) : 0,
             params: {}
         },
     },

@@ -84,7 +84,9 @@
                         class="form-control"
                         id="eco_func"
                         v-model="bando.funzione_economica">
-                        <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname  | undash | capitalize }}</option>
+                        <template v-for="(o, fname) in funcs">
+                            <option v-if="o[eco_mode] !== undefined" v-bind:value="fname">{{ fname  | undash | capitalize }}</option>
+                        </template>
                     </select>
                 </div>
 
@@ -189,7 +191,9 @@
 
                 <select class="custom-select" v-if="model.tipo === 'Q'"
                         v-model="model.funzione" @change="function_change">
-                    <option v-for="(o, fname) in funcs" v-bind:value="fname">{{ fname | undash | capitalize }}</option>
+                    <template v-for="(o, fname) in funcs">
+                        <option v-if="o['up'] !== undefined" v-bind:value="fname">{{ fname | undash | capitalize }}</option>
+                    </template>
                 </select>
 
                 <div v-if="model.tipo == 'T'" class="input-group-append">

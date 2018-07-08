@@ -63,7 +63,7 @@ function lsExamples() {
             label: fname.replace(/\.json$/g, ''),
             click: () => {
                 const fpath = examples_dir + fname;
-                win.webContents.send('load_bando', {fpath: fpath, read_only: true});
+                win.webContents.send('load_bando', {fpath: fpath});
             },
         };
     });

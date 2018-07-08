@@ -57,9 +57,7 @@ let current,            // Reference to the `bando` currently dislpayed.
     current_org;        // Reference to a copy of the bando as parsed from JSON.
 
 let app_status = {      // Applicatin status, used for info and save().
-    rpath: '',
     fpath: '',
-    read_only: false,
     data: current,
     org: {},
 }
@@ -68,6 +66,16 @@ window.vm_app_status = new Vue({
     el: '#app_status',
     data: app_status,
     computed: {
+        rpath () {
+            let app_base_path = app.getAppPath(),
+                abp_idx = this.fpath.indexOf(app_base_path),
+                rp      = this.fpath.replace(app_base_path + '/', '');
+            return abp_idx === 0 ? rp : this.fpath;
+        },
+        read_only () {
+            // TODO: consider also to check if can actually write there.
+            return this.fpath.indexOf(__dirname + '/examples') === 0;
+        },
         modified () {
             return !deepEqual(clean_bando(this.data), this.org);
         }
@@ -530,16 +538,11 @@ Vue.component('criterion', {
 
 /* args: {fpath, read_only} */
 function load_bando(args) {
-    // TODO: offer to save current first.
     console.log('Loading scenario:' + args.fpath);
 
     try {
         let raw_content = fs.readFileSync(args.fpath, "utf8");
         let bando_data = JSON.parse(raw_content);
-
-        let app_base_path = app.getAppPath(),
-            abp_idx = args.fpath.indexOf(app_base_path),
-            rpath = args.fpath.replace(app_base_path + '/', '');
 
         // TODO: add here check if the bando can not be loaded,
         // if it is not fixable in the app raise exception.
@@ -547,9 +550,7 @@ function load_bando(args) {
         current_org = clean_bando(bando_data);
         current = copy(current_org);
         let patch = {
-            rpath: abp_idx === 0 ? rpath : args.fpath,
             fpath: args.fpath,
-            read_only: args.read_only || false,
             data: current,
             org: current_org,
         };
@@ -575,7 +576,7 @@ function load_bando(args) {
 function refreshGUI() {
     if (!current) {
         // No bando loaded: load empty.
-        load_bando({fpath:  __dirname + '/examples/Empty.json', read_only:true});
+        load_bando({fpath:  __dirname + '/examples/Empty.json'});
         return;
     }
 
@@ -1431,13 +1432,10 @@ let import_export = {
             path = paths[0];
         }
 
-        load_bando({
-            fpath: path,
-            read_only: path.indexOf(__dirname + '/examples') === 0,
-        });
+        load_bando({fpath: path});
     },
     save: () => {
-        import_export.save_as(app_status.read_only ? undefined : app_status.fpath);
+        import_export.save_as(vm_app_status.read_only ? undefined : vm_app_status.fpath);
         // TODO: maybe pass a message to show to save_as
     },
     save_as: (path) => {
@@ -1468,6 +1466,7 @@ let import_export = {
             fs.writeFileSync(path, JSON.stringify(cleaned), {mode: 0o664, flag:'w+'});
             current_org = cleaned;
             Vue.set(window.vm_app_status, 'org', cleaned);
+            Vue.set(window.vm_app_status, 'fpath', path);
         } catch(err) {
             dialog.showErrorBox('Errore nel salvataggio',
                 'Si e\' verificatio un errore salvando ' + path + ' .\n' +

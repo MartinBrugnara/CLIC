@@ -90,7 +90,6 @@ body {
 /* Error style from bootstrap but without other was-validate class requirement */
 /* TODO: copy also style for sibling error message display */
 .form-control:invalid, .form-control.is-invalid,
-.was-validated
 .custom-select:invalid,
 .custom-select.is-invalid {
   border-color: #dc3545;
@@ -100,6 +99,23 @@ body {
 .custom-select:invalid:focus, .custom-select.is-invalid:focus {
   border-color: #dc3545;
   box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+#data input:invalid,
+#data input.is-invalid,
+#data select:invalid,
+#data select.is-invalid {
+  border-color: #dc3545;
+  border-style: solid;
+}
+
+#data input:invalid:focus,
+#data input.is-invalid:focus,
+#data select:invalid:focus,
+#data select.is-invalid:focus {
+  border-color: #dc3545;
+  border-style: solid;
+  /* box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25); */
 }
 
 input[type='number']:not([max]) {width: 14ch}

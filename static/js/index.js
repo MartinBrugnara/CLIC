@@ -1661,6 +1661,11 @@ function check_bando(bando, fix) {
                         }
                     });
                 }
+            } else if (ll[ti].tipo === 'D') {
+                if (typeof t !== 'number' || t < 0 || t > 1) {
+                    errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +
+                        ' deve essere un numero tra 0 e 1.');
+                }
             } else {
                 if (typeof t !== 'number' || t < 0) {
                     errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +

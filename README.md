@@ -43,7 +43,11 @@ Mostra inoltre il risultato sia in forma tabellare che grafica.
     (just divide by max indeax of weight in apply_functions).
 
 - Soglie:
-    - _NOTA:_ non ancora implementate per offerta tecnica.
+    - Update copyright: some icons (i.e. threshold) are from icons8 which require link back for free usage <a href="https://icons8.com">Icon pack by Icons8</a>.
+        We also modded the svg.
+
+- Anomalia:
+    - Non e'/verra' implementato.
 
 - Parte economica
   - Si prevede la possibilia' di specificare un solo criterio per la parte economica,
@@ -54,6 +58,8 @@ Mostra inoltre il risultato sia in forma tabellare che grafica.
 
 ## Extra
 - `git grep IMP` per filtrare una serie di possibili miglioramenti/ottimizzazioni.
+
+## TODO
 
 Author: @MartinBrugnara  
 Copyright (C) 2018 Martin Brugnara - Università degli Studi di Trento  

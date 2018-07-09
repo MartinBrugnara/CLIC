@@ -303,7 +303,8 @@ const functions = {
         // Bozen 5
         down: {
             f: (P, x, bando, all) => 1 - ((1-x.c)/(amin(all) - bando.base_asta)*(amin(all) - P)),
-            params:{c: {domain:{start:0.00, end:1, step:0.01}, required: true}}
+            params:{c: {domain:{start:0.00, end:1, step:0.01}, required: true}},
+            base_asta: true,
         }
     },
     "retta_base_prezzo_minimo": {
@@ -311,6 +312,7 @@ const functions = {
         down:{
             f: (P, x, bando, all) => (P-bando.base_asta) / (amin(all) - bando.base_asta),
             params:{},
+            base_asta: true,
         }
     },
     "retta_base_zero": {
@@ -318,6 +320,7 @@ const functions = {
         down:{
             f: (P, x, bando, all) => (bando.base_asta - P) / bando.base_asta,
             params:{},
+            base_asta: true,
         }
     },
     "retta_prezzo_minimo": {
@@ -333,6 +336,7 @@ const functions = {
         down:{
             f: (P, x, bando, all) => (bando.base_asta - P)/(bando.base_asta - amax(all)),
             params:{},
+            base_asta: true,
         }
     },
     "allegato_m": {
@@ -386,7 +390,8 @@ const functions = {
             f: (P, x, bando, all) => {
                 return (bando.base_asta - P)*1.0/(bando.base_asta - x.soglia)
             },
-            params: {soglia: {domain:{start:0, end:'', step:0.01}, required: true}}
+            params: {soglia: {domain:{start:0, end:'', step:0.01}, required: true}},
+            base_asta: true,
         }
 
     },
@@ -410,7 +415,8 @@ const functions = {
                 let BA = bando.base_asta;
                 return Math.pow((BA - P) * 1.0 / (BA - amin(all)), x.alfa)
             },
-            params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
+            params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}},
+            base_asta: true,
         }
     },
     "non_lineare_concava": {
@@ -421,7 +427,8 @@ const functions = {
         },
         down: {
             f: (P, x, bando, all) => 1 - (P/bando.base_asta) ** x.n,
-            params: {n: {domain:{start:0, step:0.01}, required: true}}
+            params: {n: {domain:{start:0, step:0.01}, required: true}},
+            base_asta: true,
         }
     },
     "lineare_spezzata_sulla_media": {
@@ -449,6 +456,7 @@ const functions = {
 
             },
             params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
+            base_asta: true,
         }
     },
     "lineare_min_max": {
@@ -490,6 +498,14 @@ Vue.component('criterion', {
         funcs () {
             // Just a proxy for constant global objecet
             return functions;
+        },
+        funcs_lst () {
+            return Object.keys(functions).map(fname => {
+                return {
+                    fname: fname,
+                    o: functions[fname],
+                }
+            }).sort((a, b) => 2 * (a.fname > b.fname) - 1);
         },
         isWeightEditable () {
             return this.is_leaf && this.model.tipo !== 'T';
@@ -607,6 +623,9 @@ Vue.component('criterion', {
             pointer = copy(pointer[key[key.length-1]]);
             pointer.subcriteri = [copy(pointer)];
             pointer.peso = undefined;
+            pointer.soglia = undefined;
+            pointer.mod_soglia = undefined;
+
 
             Vue.set(raw, key[key.length-1], pointer)
 
@@ -616,6 +635,7 @@ Vue.component('criterion', {
 
             // Update stats abouth depth
             current.env_depth = max_bando_depth(current);
+            Vue.nextTick(refresh_popover);
         },
         add () {
             let x = prefix_2_ids(this.name),
@@ -630,7 +650,7 @@ Vue.component('criterion', {
             pointer = pointer[key[key.length - 1]].subcriteri;
 
             // Create a new one.
-            let newc = {peso:0, tipo:'D'}
+            let newc = {peso:0, tipo:'D', soglia:0, mod_soglia:'punti'}
             // if doesn not work, try with set() at pointer.length
             pointer.push(newc);
 
@@ -642,6 +662,7 @@ Vue.component('criterion', {
 
             // Update stats abouth depth
             current.env_depth = max_bando_depth(current);
+            Vue.nextTick(refresh_popover);
         },
         add_voce () {
             // Add to the tree and add default entry in data (false)
@@ -736,9 +757,20 @@ function refreshGUI() {
                 economic_weight () {
                     return economic_weight(this.bando);
                 },
+                base_required () {
+                    return this.funcs[this.bando.funzione_economica][this.eco_mode].base_asta === true;
+                },
                 funcs () {
                     // Just a proxy for constant global objecet
                     return functions;
+                },
+                funcs_lst () {
+                    return Object.keys(functions).map(fname => {
+                        return {
+                            fname: fname,
+                            o: functions[fname],
+                        }
+                    }).sort((a, b) => 2 * (a.fname > b.fname) - 1);
                 },
                 eco_mode () {
                     return eco_mode(this.bando);
@@ -853,7 +885,7 @@ function refreshGUI() {
                     let offerte = apply_functions(this.bando)
                     if (this.bando.riparametrizzazione1)
                         offerte = apply_scale(this.bando, offerte);
-                    return offerte;
+                    return apply_thresholds(this.bando, this.bando.offerte, offerte);
                 },
             },
             filters: common_filters,
@@ -882,6 +914,10 @@ function refreshGUI() {
                         return [];
 
                     let offerte = apply_functions(this.bando);
+                    offerte = apply_thresholds(this.bando, this.bando.offerte, offerte);
+                    excluded = offerte.filter(o => o.excluded).map(o => o.nome).join(', ');
+                    offerte = offerte.filter(o => !o.excluded);
+
                     let agg = aggregativo_compensatore(this.bando, offerte);
                     let ele = electre(this.bando, offerte);
                     let tops = topsis(this.bando, offerte);
@@ -896,11 +932,14 @@ function refreshGUI() {
                     let x = this.env_data_orderby.split('_'),
                         field = x[0], order = x[1];
 
-                    return Object.values(board).sort((a,b) =>
-                        (-1)**(order == 'desc') *
-                        (field == 'nome' ?
-                            2 * (a[field] > b[field]) - 1 :
-                            a[field] - b[field]));
+                    return {
+                        rank: Object.values(board).sort((a,b) =>
+                            (-1)**(order == 'desc') *
+                            (field == 'nome' ?
+                                2 * (a[field] > b[field]) - 1 :
+                                a[field] - b[field])),
+                        excluded: excluded,
+                    }
                 }
             },
             filters: common_filters,
@@ -973,6 +1012,36 @@ function apply_functions(bando) {
         });
 
         return res;
+    });
+}
+
+function apply_thresholds(bando, raw, points) {
+    let ll   = leafs_lst(bando.criteri);
+    return points.map((o, i) => {
+        let issues = {};
+        raw[i].tecnica
+            .map((t, ti) => {
+                if (ll[ti].mod_soglia !== 'valore')
+                    return '';
+                if (ll[ti].tipo === 'T')
+                    t = t.reduce(sum, 0);
+                return t < ll[ti].soglia ? ti : '';
+            }).concat(o.tecnica
+                .map((t, ti) => {
+                    if (ll[ti].mod_soglia !== 'punti')
+                        return '';
+                    return t < ll[ti].soglia ? ti : '';
+                })
+            ).filter(x => typeof x === 'number')
+            .forEach(x => issues[x] = true);
+
+        return {
+            nome: o.nome,
+            economica: o.economica,
+            tecnica: o.tecnica,
+            excluded_for: issues,
+            excluded: Object.keys(issues).length > 0,
+        }
     });
 }
 
@@ -1275,6 +1344,9 @@ function clean_criterion(c) {
             .forEach(p => n.parametri[p] = c.parametri[p]);
     }
 
+    n.soglia = c.soglia || 0;
+    n.mod_soglia = c.mod_soglia || 'punti';
+
     if (n.tipo === 'T')
         n.voci = c.voci
     else
@@ -1324,7 +1396,7 @@ function check_criterion(c, prefix) {
 
     if (['Q','D','T'].indexOf(c.tipo) < 0) {
         errors.push('[C ' + prefix + '] ' + c.tipo +
-            'non e\' un valore valido per \'tipo\'. ' +
+            ' non e\' un valore valido per \'tipo\'. ' +
             'I vaolori possibili sono \'D\', \'T\' \'Q\'.');
     }
 
@@ -1360,6 +1432,23 @@ function check_criterion(c, prefix) {
                 }
             })
         }
+    }
+
+    // Add check for mod_soglia
+    if (['punti', 'valore'].indexOf(c.mod_soglia) < 0) {
+            errors.push('[C ' + prefix + '] ' + c.mod_soglia + ' non e\' un valore ' +
+                'valido come mod_soglia. Le opzioni valide sono `punti` e `valore`.');
+    }
+
+    if ((c.mod_soglia === 'punti' || c.tipo === 'D') &&
+            (isNaN(parseFloat(c.soglia)) || c.soglia < 0 || c.soglia > 1))
+    {
+            // 'D' e punti devono essere tra 0 e 1
+            errors.push('[C ' + prefix + '] ' + c.soglia + ' non e\' un valore ' +
+                'valido come soglia. Deve essere un numero tra 0 e 1.');
+    } else if (isNaN(parseFloat(c.soglia)) || c.soglia < 0) {
+        errors.push('[C ' + prefix + '] ' + c.soglia + ' non e\' un valore ' +
+            'valido come soglia. Deve essere un numero maggiore o uguale a 0.');
     }
     return errors;
 }
@@ -1418,24 +1507,29 @@ function check_bando(bando, fix) {
     // TODO: consider issue warning if ew not in reasonale range.. [10-50] ?
     let ew = economic_weight(bando);
     if (ew < 0 || ew > 100) {
-        errors.push('[punti] la somma totale dei punti deve fare 100.' +
-            'Al momento e\' ' + (100 - ew));
+        errors.push('[punti] la somma totale dei punti deve fare 100. ' +
+            'Al momento e\' ' + (100 - ew) + '.');
     }
 
-    if ((typeof bando.base_asta === 'number' && bando.base_asta < 0) ||
-        (isNaN(parseFloat(bando.base_asta)) && bando.mod_economica === 'prezzo')){
+    if (typeof bando.base_asta === 'number' && bando.base_asta <= 0){
         errors.push('[base_asta] ' + bando.base_asta +
-            'non e\' un valore valido. Deve essere un numero tra 0 e 100.');
+            ' non e\' un valore valido. Se specificato deve essere un numero maggiore di 0.');
+    }
+
+    if (functions[bando.funzione_economica][eco_mode(bando)].base_asta === true &&
+        (isNaN(parseFloat(bando.base_asta)) || bando.base_asta <= 0)) {
+        errors.push('[base_asta] ' + bando.base_asta +
+            ' non e\' un valore valido. Il campo e\' richiesto per la funzione scelta.');
     }
 
     if (typeof bando.riparametrizzazione1 !== 'boolean') {
         errors.push('[riparametrizzazione1 ] ' + bando.riparametrizzazione1 +
-            'non e\' un valore valido. Deve essere un boolean (true, false).');
+            ' non e\' un valore valido. Deve essere un boolean (true, false).');
     }
 
     if (typeof bando.riparametrizzazione2 !== 'boolean') {
         errors.push('[riparametrizzazione2 ] ' + bando.riparametrizzazione2 +
-            'non e\' un valore valido. Deve essere un boolean (true, false).');
+            ' non e\' un valore valido. Deve essere un boolean (true, false).');
     }
 
     // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
@@ -1443,7 +1537,7 @@ function check_bando(bando, fix) {
     Object.keys(functions[bando.funzione_economica][m].params).forEach(p => {
         errors = errors.concat(check_parameter('funzione_economica',
             bando.funzione_economica, m, bando.parametri_economica, p));
-   });
+    });
 
 
     // Criteri must be recursive
@@ -1461,7 +1555,7 @@ function check_bando(bando, fix) {
 
         if (isNaN(parseFloat(o.economica))) {
             fatal = true;
-            errors.push('[O ' + (i+1) + '] il campo economica deve essere un array di dimensione 1.');
+            errors.push('[O ' + (i+1) + '] il campo economica deve essere un numero.');
         }
 
         if (o.tecnica === undefined || !Array.isArray(o.tecnica) ||
@@ -1488,14 +1582,14 @@ function check_bando(bando, fix) {
             } else {
                 if (typeof t !== 'number' || t < 0) {
                     errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +
-                        ' deve essere un numero maggiore di 0');
+                        ' deve essere un numero maggiore di 0.');
                 }
             }
         });
     });
 
     if (Object.keys(name_unique).length !== bando.offerte.length) {
-        errors.push('[Offerte] I nomi delle offerte devono essere unici');
+        errors.push('[Offerte] I nomi delle offerte devono essere unici.');
         fatal = true;
     }
 
@@ -1505,8 +1599,9 @@ function check_bando(bando, fix) {
 // ============================================================================
 // Init gui elements
 
-function bootstrap_popover() {
-    $('#ctree [data-toggle="popover"], #data [data-toggle="popover"]').each((i, o) => {
+function refresh_popover() {
+    $('#ctree [data-toggle="popover"]:not([data-original-title]), #data [data-toggle="popover"]:not([data-original-title])').each((i, o) => {
+
         let content = $(o).next('.popper-content');
         $(o).popover({
             html:true,
@@ -1524,14 +1619,22 @@ function bootstrap_popover() {
         }).on('inserted.bs.popover', function(o) {
             let xo = o;
             return () => {
-                if ($(xo).data('env_name_show') && current.env_name_show === 'hide')
-                    $('.popover').addClass('superHide');
+                if (xo.dataset.force_status === 'hide')
+                    $('.popover').addClass('super-hide');
                 else
-                    $('.popover').removeClass('superHide');
+                    $('.popover').removeClass('super-hide');
 
             };
         }(o));
     });
+}
+
+function hide_all_popover() {
+    $('.popover.show').removeClass('show');
+}
+
+function bootstrap_popover() {
+    refresh_popover();
 
     $('body').click(function(ev) {
         // Hide popover when click on something else.
@@ -1614,7 +1717,7 @@ let import_export = {
 /* ========================================================================== */
 // Menu mappings
 
-function switchView(view) {
+function switch_view(view) {
     // TODO: maybe add some cool effect like tile 3d rotation.
     let structure  = document.getElementById('structure'),
         simulation = document.getElementById('simulation');
@@ -1626,10 +1729,12 @@ function switchView(view) {
         structure.style.display = 'none';
         simulation.style.display = 'block';
     }
+
+    hide_all_popover();
 }
 
 ipcRenderer.on('load_bando', (event , args) => load_bando(args));
-ipcRenderer.on('view', (event , args) => switchView(args));
+ipcRenderer.on('view', (event , args) => switch_view(args));
 ipcRenderer.on('cmd', (event , cmd) => import_export[cmd]());
 
 
@@ -1639,8 +1744,8 @@ ipcRenderer.on('cmd', (event , cmd) => import_export[cmd]());
 /* ========================================================================== */
 $(function () {
     refreshGUI();
-    switchView('structure');
-    //switchView('simulation');
+    switch_view('structure');
+    //switch_view('simulation');
 
     bootstrap_popover();
 

@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const {app, BrowserWindow, Menu, MenuItem, globalShortcut} = require('electron')
 const fs = require('fs')
+var path = require('path')
 
 const NotImplementedError = () => {console.error('Not yet implemented')};
 
@@ -35,7 +36,7 @@ function createWindow () {
         height: 600,
         // title: 'CLIC - Contest simulator', // What would be that for?
         show: false,
-
+        icon: path.join(__dirname, 'assets/icons/png/64x64.png'),
     })
 
     // Defer show until window is fully loaded.

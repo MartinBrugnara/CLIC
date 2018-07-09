@@ -960,11 +960,93 @@ function refreshGUI() {
         });
     }
 
+    if (!window.vm_lab) {
+        // Init
+        window.vm_lab = new Vue({
+            el: '#lab',
+            data: {
+                env_selected_criteria: [],
+                env_new_criteria: '',
+                env_show_eco: false,
+                bando: current,
+            },
+            computed: {
+                criteria () {
+                    return leafs_lst(this.bando.criteri)
+                        .filter(c => c.tipo === 'Q')
+                        .filter(c => this.env_selected_criteria
+                            .filter(s => s.env_name === c.env_name)
+                            .length === 0);
+                },
+                eco_mode () {
+                    return eco_mode(this.bando);
+                },
+                funcs_lst () {
+                    return Object.keys(functions).map(fname => {
+                        return {
+                            fname: fname,
+                            o: functions[fname],
+                        }
+                    }).sort((a, b) => 2 * (a.fname > b.fname) - 1);
+                },
+                funcs () {
+                    return functions;
+                },
+                padding () {
+                    if (!pad)
+                        return '0';
+                    if (!current.env_depth)
+                        current.env_depth = max_bando_depth(current);
+                    let label = ((mx * 2 - 1) * char_width);
+                    if (!pad_structure)
+                        return label + 'px';
+                    return (mx - this.depth - 1) * indent + label  + 'px';
+                },
+            },
+            methods: {
+                done (i) {
+                    if (i === -1)
+                        this.env_show_eco = false;
+                    else
+                        Vue.delete(this.env_selected_criteria, i);
+                },
+                manage () {
+                    if (this.env_new_criteria === "-1") {
+                        this.env_show_eco = true;
+                    } else {
+                        if (!this.criteria[this.env_new_criteria])
+                            return;
+                        this.env_selected_criteria.push(this.criteria[this.env_new_criteria]);
+                    }
+                    Vue.nextTick(refresh_popover);
+                },
+                function_change(i) {
+                    let model = this.env_selected_criteria[i];
+
+                    // Be sure parameters are populated.
+                    for (let pname in functions[model.funzione].up.params) {
+                        let p = functions[model.funzione].up.params[pname];
+                        if (!model.parametri)
+                            Vue.set(model, "parametri", {});
+                        if (model.parametri[pname] === undefined) {
+                            let v = 0;
+                            if (p.domain && p.domain.start) v = p.domain.start;
+                            Vue.set(model.parametri, pname, v);
+                        }
+                    }
+                }
+            },
+            filters: common_filters,
+        });
+    }
+
+
     // Refresh
     Vue.set(window.vm_structure, 'bando', current);
     Vue.set(window.vm_data, 'bando', current);
     Vue.set(window.vm_rank, 'bando', current);
     Vue.set(window.vm_errors, 'bando', current);
+    Vue.set(window.vm_lab, 'bando', current);
 }
 
 
@@ -1600,7 +1682,9 @@ function check_bando(bando, fix) {
 // Init gui elements
 
 function refresh_popover() {
-    $('#ctree [data-toggle="popover"]:not([data-original-title]), #data [data-toggle="popover"]:not([data-original-title])').each((i, o) => {
+    $('#ctree [data-toggle="popover"]:not([data-original-title]), '+
+      '#lab [data-toggle="popover"]:not([data-original-title]), '+
+      '#data [data-toggle="popover"]:not([data-original-title])').each((i, o) => {
 
         let content = $(o).next('.popper-content');
         $(o).popover({
@@ -1744,8 +1828,8 @@ ipcRenderer.on('cmd', (event , cmd) => import_export[cmd]());
 /* ========================================================================== */
 $(function () {
     refreshGUI();
-    switch_view('structure');
-    //switch_view('simulation');
+    //switch_view('structure');
+    switch_view('simulation');
 
     bootstrap_popover();
 

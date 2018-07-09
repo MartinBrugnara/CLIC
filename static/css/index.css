@@ -110,6 +110,9 @@ input[type='number']:not([max]) {width: 14ch}
   width: 26px;
 }
 
-tr.excluded {text-decoration: line-through}
+tr.excluded td:not(:last-child) {text-decoration: line-through}
 tr.excluded td.issue {color: red}
 tbody.edit tr.excluded td.issue {background: #f8d7da}
+
+#lab_lst {padding-left:1.5em;list-style: none}
+#lab_lst label {font-weight: 600; margin-left: -1.5em}

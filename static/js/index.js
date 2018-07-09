@@ -744,7 +744,7 @@ function refreshGUI() {
             },
             methods: {
                 add_root_criterion () {
-                    let newc = {peso:0, tipo:'D'}
+                    let newc = {peso:0, tipo:'D', soglia:0, mod_soglia:'punti'}
                     current.criteri.push(newc);
 
                     // Adapt the data.
@@ -1833,8 +1833,8 @@ ipcRenderer.on('cmd', (event , cmd) => import_export[cmd]());
 /* ========================================================================== */
 $(function () {
     refreshGUI();
-    //switch_view('structure');
-    switch_view('simulation');
+    switch_view('structure');
+    // switch_view('simulation');
 
     bootstrap_popover();
 

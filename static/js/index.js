@@ -714,7 +714,7 @@ function load_bando(args) {
             Vue.set(window.vm_app_status, key, patch[key]);
         });
 
-        refreshGUI(bando_data);
+        refresh_gui(bando_data);
     } catch(err) {
         // TODO: improve how we display this error message.
         // & this should be only Fatal.
@@ -727,7 +727,7 @@ function load_bando(args) {
 }
 
 // -- Global state.
-function refreshGUI() {
+function refresh_gui() {
     if (!current) {
         // No bando loaded: load empty.
         load_bando({fpath:  __dirname + '/examples/Empty.json'});
@@ -751,6 +751,8 @@ function refreshGUI() {
                     let r = current.offerte.length, default_value = 0;
                     for (let i=0; i<r; i++)                              // bids
                         current.offerte[i].tecnica.push(default_value);  // actually delete
+
+                    Vue.nextTick(refresh_popover);
                 },
             },
             computed: {
@@ -786,12 +788,17 @@ function refreshGUI() {
         });
     }
 
+    // Uset to init and refresh
+    const vm_data_defaults = {
+        env_data_mode: 'raw',
+        env_name_show: 'hide',
+    };
     if (!window.vm_data) {
         window.vm_data = new Vue({
             el: '#data-container',
             data: {
-                env_data_mode: 'raw',
-                env_name_show: 'hide',
+                env_data_mode: vm_data_defaults.env_data_mode,
+                env_name_show: vm_data_defaults.env_name_show,
                 bando: current,
             },
             methods: {
@@ -892,14 +899,13 @@ function refreshGUI() {
         });
     }
 
-    if (!window.vm_rank) {
 
-        // Init
-        // TODO: consider having multiple Vue objects, one per data, one per rank.
+    const vm_rank_defaults = {env_data_orderby: 'agg_desc'}
+    if (!window.vm_rank) {
         window.vm_rank = new Vue({
             el: '#rank',
             data: {
-                env_data_orderby: 'agg_desc',
+                env_data_orderby: vm_rank_defaults.env_data_orderby,
                 bando: current,
             },
             computed: {
@@ -946,6 +952,7 @@ function refreshGUI() {
         });
     }
 
+
     if (!window.vm_errors) {
         window.vm_errors = new Vue({
             el: '#errors',
@@ -960,14 +967,20 @@ function refreshGUI() {
         });
     }
 
+
+    let vm_lab_defaults = {
+        env_selected_criteria: [],
+        env_new_criteria: '-1',
+        env_show_eco: false,
+    };
     if (!window.vm_lab) {
         // Init
         window.vm_lab = new Vue({
             el: '#lab',
             data: {
-                env_selected_criteria: [],
-                env_new_criteria: '',
-                env_show_eco: false,
+                env_selected_criteria: copy(vm_lab_defaults.env_selected_criteria),
+                env_new_criteria: vm_lab_defaults.env_new_criteria,
+                env_show_eco: vm_lab_defaults.env_show_eco,
                 bando: current,
             },
             computed: {
@@ -1040,13 +1053,21 @@ function refreshGUI() {
         });
     }
 
-
     // Refresh
     Vue.set(window.vm_structure, 'bando', current);
     Vue.set(window.vm_data, 'bando', current);
     Vue.set(window.vm_rank, 'bando', current);
     Vue.set(window.vm_errors, 'bando', current);
     Vue.set(window.vm_lab, 'bando', current);
+
+    // Reset defaults
+    // data, lab, rank
+    for (k in vm_data_defaults)
+        Vue.set(window.vm_data, k, copy(vm_data_defaults[k]));
+    for (k in vm_rank_defaults)
+        Vue.set(window.vm_rank, k, copy(vm_rank_defaults[k]));
+    for (k in vm_lab_defaults)
+        Vue.set(window.vm_lab, k, copy(vm_lab_defaults[k]));
 }
 
 
@@ -1189,7 +1210,6 @@ function electre(bando, offerte) {
     //
     // From: FILE 1_ ESTRATTO 02_OEPV E METODI MULTICRITERI.pdf
     // Per definire una classifica, è necessario ripetere la procedura cancellando di volta in volta l’offerta risultata vincitrice nella tornata precedente.
-    // Per le ragioni indicate il metodo Electre può risultare non adeguato quando il numero delle offerte presentate è inferiore a tre, perché causa effetti distorsivi nel processo di valutazione.
 
     // Prepare set of real `offerte`
     const bids = offerte.map(o => {
@@ -1199,13 +1219,8 @@ function electre(bando, offerte) {
     const weights = [economic_weight(bando)].concat(tech_weights(ll));
 
     let rank = {}, i = 1;
-    while (true) {
+    while (i <= bids.length) {
         let iter_bids = bids.filter(o => rank[o.nome] === undefined);
-        if (iter_bids.length <= 2) {
-            for (let j in iter_bids)
-                rank[iter_bids[j].nome] = i;
-            break;
-        }
         let winners = electre_iteration(weights, iter_bids);
         for (let j in winners)
             rank[winners[j]] = i;
@@ -1223,19 +1238,11 @@ function electre_iteration(w, bids) {
      * returns: `nome` of the winner.
      */
 
-
-    /* NOTE: due to recursion in step C, we may have less than 3 bids.
-     *       The electre method performs poorly in such such conditions.
-     *       What to do in this condition is undefined.
-     *       We assign the same rank, i.e. both bids win.
-     *       Shall better discuss this point with maths guys.
-     */
-    if (bids.length <= 2) {
-        return bids.map(b => b.nome);
-    }
-
     let n = w.length,    // 'criteri' to evaluate.
         r = bids.length; // number of offers
+
+    if (r === 1)
+        return [bids[0].nome];
 
     // Step B
     let f = nmatrix([n,r,r]);
@@ -1289,7 +1296,10 @@ function electre_iteration(w, bids) {
             d[i][j] = dsum;
 
             if (dsum == 0) { // Then j is dominated by i. Re-run without j.
-                return electre_iteration(w, bids.filter((_, idx) => idx != j));
+                let rec = electre_iteration(w, bids.filter((_, idx) => idx != j));
+                if (csum === 0) // was tied -> assign same score.
+                    rec = rec.concat([bids[j].nome]);
+                return rec;
             }
         }
     }
@@ -1832,7 +1842,7 @@ ipcRenderer.on('cmd', (event , cmd) => import_export[cmd]());
 /* Main                                                                       */
 /* ========================================================================== */
 $(function () {
-    refreshGUI();
+    refresh_gui();
     switch_view('structure');
     // switch_view('simulation');
 

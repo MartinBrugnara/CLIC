@@ -1822,7 +1822,7 @@ function switch_view(view) {
     hide_all_popover();
 }
 
-ipcRenderer.on('load_bando', (event , args) => load_bando(args));
+ipcRenderer.on('load_bando', (event , args) => import_export.open(args.fpath));
 ipcRenderer.on('view', (event , args) => switch_view(args));
 ipcRenderer.on('cmd', (event , cmd) => import_export[cmd]());
 

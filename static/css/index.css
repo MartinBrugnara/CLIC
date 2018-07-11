@@ -72,6 +72,7 @@ body {
 .action {color:#ccc; fill:#ccc}
 .action:hover {color: #333; cursor:pointer; fill:#333}
 .action .active {color:red;fill:red}
+.hold .action {color:#4f9fcf}
 
 #rank input[type="radio"] {display:none}
 #rank input[type="radio"]+label {

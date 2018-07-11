@@ -792,6 +792,12 @@ function refresh_gui() {
     const vm_data_defaults = {
         env_data_mode: 'raw',
         env_name_show: 'hide',
+        env_freezed: {},
+        // column_id: [{ /* one per offer */
+        //   was_issue: bool
+        //   points: float 0-1
+        //   raw: float > 0 || [bool]
+        // }]
     };
     if (!window.vm_data) {
         window.vm_data = new Vue({
@@ -799,6 +805,7 @@ function refresh_gui() {
             data: {
                 env_data_mode: vm_data_defaults.env_data_mode,
                 env_name_show: vm_data_defaults.env_name_show,
+                env_freezed: copy(vm_data_defaults.env_freezed),
                 bando: current,
             },
             methods: {
@@ -851,6 +858,14 @@ function refresh_gui() {
 
                     // Add to current list
                     this.bando.offerte.push(offerta);
+                },
+                freeze (c_env_name) {
+                    // FIXME: implement
+                    console.warn("freeze not implemented");
+                },
+                unfreeze (c_env_name) {
+                    // FIXME: implement
+                    console.warn("unfreeze not implemented");
                 }
             },
             computed: {
@@ -969,6 +984,7 @@ function refresh_gui() {
 
 
     let vm_lab_defaults = {
+        env_freezed: {},
         env_selected_criteria: [],
         env_new_criteria: '-1',
         env_show_eco: false,
@@ -978,6 +994,7 @@ function refresh_gui() {
         window.vm_lab = new Vue({
             el: '#lab',
             data: {
+                env_freezed: copy(vm_lab_defaults.env_freezed),
                 env_selected_criteria: copy(vm_lab_defaults.env_selected_criteria),
                 env_new_criteria: vm_lab_defaults.env_new_criteria,
                 env_show_eco: vm_lab_defaults.env_show_eco,
@@ -1033,7 +1050,7 @@ function refresh_gui() {
                     }
                     Vue.nextTick(refresh_popover);
                 },
-                function_change(i) {
+                function_change (i) {
                     let model = this.env_selected_criteria[i];
 
                     // Be sure parameters are populated.
@@ -1047,6 +1064,33 @@ function refresh_gui() {
                             Vue.set(model.parametri, pname, v);
                         }
                     }
+                },
+                toggle_freeze (i) {
+                    let model = this.env_selected_criteria[i];
+                    if (this.env_freezed[model.env_name]) this.unfreeze(model.env_name);
+                    else this.freeze(model);
+                },
+                freeze (c) {
+                    window.vm_data.freeze(name);
+
+                    // Build str
+                    let str = [];
+                    str.push(common_filters.capitalize(common_filters.undash(c.funzione)));
+                    str.push('con');
+
+                    for (let pname in this.funcs[c.funzione].up.params) {
+                        let p = this.funcs[c.funzione].up.params[pname];
+                        pname_clean =  common_filters.csub(common_filters.undash(pname));
+                        str.push(pname_clean + '=' + c.parametri[pname]);
+                        str.push('e');
+                    }
+                    str.pop();
+
+                    Vue.set(this.env_freezed, c.env_name, str.join(' '));
+                },
+                unfreeze (name) {
+                    window.vm_data.unfreeze(name);
+                    Vue.delete(this.env_freezed, name);
                 }
             },
             filters: common_filters,
@@ -1850,4 +1894,8 @@ $(function () {
 
     // TODO: wrap into div, and show loading icon instead.
     $('body').removeClass('hide');
+
+    // TODO: only for dev
+    import_export.open('examples/Esempio_Pulizie.json')
+
 });

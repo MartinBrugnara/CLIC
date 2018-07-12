@@ -128,8 +128,10 @@ input[type='number']:not([max]) {width: 14ch}
 }
 
 tr.excluded td:not(:last-child) {text-decoration: line-through}
-tr.excluded td.issue {color: red}
+tr.excluded td.issue, td.frozen.issue {color: red}
 tbody.edit tr.excluded td.issue {background: #f8d7da}
 
 #lab_lst {padding-left:1.5em;list-style: none}
 #lab_lst label {font-weight: 600; margin-left: -1.5em}
+
+.frozen {color: #4f9fcf}

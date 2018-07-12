@@ -792,12 +792,7 @@ function refresh_gui() {
     const vm_data_defaults = {
         env_data_mode: 'raw',
         env_name_show: 'hide',
-        env_freezed: {},
-        // column_id: [{ /* one per offer */
-        //   was_issue: bool
-        //   points: float 0-1
-        //   raw: float > 0 || [bool]
-        // }]
+        env_frozen: {},
     };
     if (!window.vm_data) {
         window.vm_data = new Vue({
@@ -805,7 +800,7 @@ function refresh_gui() {
             data: {
                 env_data_mode: vm_data_defaults.env_data_mode,
                 env_name_show: vm_data_defaults.env_name_show,
-                env_freezed: copy(vm_data_defaults.env_freezed),
+                env_frozen: copy(vm_data_defaults.env_frozen),
                 bando: current,
             },
             methods: {
@@ -860,12 +855,23 @@ function refresh_gui() {
                     this.bando.offerte.push(offerta);
                 },
                 freeze (c_env_name) {
-                    // FIXME: implement
-                    console.warn("freeze not implemented");
+                    let col_id = this.cols
+                        .map((c, i) => ({i: i, c: c})).
+                        filter(x => {
+                            return x.c.env_name === c_env_name;
+                        })[0].i;
+                    console.log("Cold id for", c_env_name, "is", col_id);
+
+                    let frozen_col = this.bando.offerte.map((o, i) => ({
+                        was_issue: this.points[i].excluded_for[col_id],
+                        points: this.points[i].tecnica[col_id],
+                        raw: this.bando.offerte[i].tecnica[col_id],
+                    }));
+
+                    Vue.set(this.env_frozen, c_env_name, frozen_col);
                 },
                 unfreeze (c_env_name) {
-                    // FIXME: implement
-                    console.warn("unfreeze not implemented");
+                    Vue.delete(this.env_frozen, c_env_name);
                 }
             },
             computed: {
@@ -984,7 +990,7 @@ function refresh_gui() {
 
 
     let vm_lab_defaults = {
-        env_freezed: {},
+        env_frozen: {},
         env_selected_criteria: [],
         env_new_criteria: '-1',
         env_show_eco: false,
@@ -994,7 +1000,7 @@ function refresh_gui() {
         window.vm_lab = new Vue({
             el: '#lab',
             data: {
-                env_freezed: copy(vm_lab_defaults.env_freezed),
+                env_frozen: copy(vm_lab_defaults.env_frozen),
                 env_selected_criteria: copy(vm_lab_defaults.env_selected_criteria),
                 env_new_criteria: vm_lab_defaults.env_new_criteria,
                 env_show_eco: vm_lab_defaults.env_show_eco,
@@ -1067,11 +1073,11 @@ function refresh_gui() {
                 },
                 toggle_freeze (i) {
                     let model = this.env_selected_criteria[i];
-                    if (this.env_freezed[model.env_name]) this.unfreeze(model.env_name);
+                    if (this.env_frozen[model.env_name]) this.unfreeze(model.env_name);
                     else this.freeze(model);
                 },
                 freeze (c) {
-                    window.vm_data.freeze(name);
+                    window.vm_data.freeze(c.env_name);
 
                     // Build str
                     let str = [];
@@ -1085,12 +1091,17 @@ function refresh_gui() {
                         str.push('e');
                     }
                     str.pop();
+                    str.push(str.pop() + '.');
 
-                    Vue.set(this.env_freezed, c.env_name, str.join(' '));
+                    if (c.soglia) {
+                        str = str.concat(['Con soglia impostata a', c.mod_soglia, c.soglia + '.'])
+                    }
+
+                    Vue.set(this.env_frozen, c.env_name, str.join(' '));
                 },
                 unfreeze (name) {
                     window.vm_data.unfreeze(name);
-                    Vue.delete(this.env_freezed, name);
+                    Vue.delete(this.env_frozen, name);
                 }
             },
             filters: common_filters,
@@ -1112,6 +1123,8 @@ function refresh_gui() {
         Vue.set(window.vm_rank, k, copy(vm_rank_defaults[k]));
     for (k in vm_lab_defaults)
         Vue.set(window.vm_lab, k, copy(vm_lab_defaults[k]));
+
+    Vue.nextTick(refresh_popover);
 }
 
 
@@ -1741,6 +1754,8 @@ function check_bando(bando, fix) {
 // Init gui elements
 
 function refresh_popover() {
+    console.log("pop to init", $('[data-toggle="popover"]:not([data-original-title])').length);
+
     $('#ctree [data-toggle="popover"]:not([data-original-title]), '+
       '#lab [data-toggle="popover"]:not([data-original-title]), '+
       '#data [data-toggle="popover"]:not([data-original-title])').each((i, o) => {
@@ -1766,14 +1781,13 @@ function refresh_popover() {
                     $('.popover').addClass('super-hide');
                 else
                     $('.popover').removeClass('super-hide');
-
             };
         }(o));
     });
 }
 
 function hide_all_popover() {
-    $('.popover.show').removeClass('show');
+    $('[data-toggle="popover"]').popover('hide');
 }
 
 function bootstrap_popover() {
@@ -1782,7 +1796,7 @@ function bootstrap_popover() {
     $('body').click(function(ev) {
         // Hide popover when click on something else.
         if (!$(ev.target).closest('.popover, [data-toggle="popover"]').length)
-            $('.popover.show').removeClass('show');
+            $('[data-toggle="popover"]').popover('hide');
     });
 }
 
@@ -1890,10 +1904,11 @@ $(function () {
     switch_view('structure');
     // switch_view('simulation');
 
-    bootstrap_popover();
 
     // TODO: wrap into div, and show loading icon instead.
     $('body').removeClass('hide');
+
+    bootstrap_popover();
 
     // TODO: only for dev
     import_export.open('examples/Esempio_Pulizie.json')

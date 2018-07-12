@@ -175,7 +175,6 @@
                     </div>
                 </a>
                 <div class="popper-content hide">
-                    {{ name }}
                     <div class="form-check-inline">
                         <input style="margin-top:0.05rem" class="form-check-input"
                         type="radio" v-bind:id="name + '_threshold_points'" value="punti"
@@ -350,15 +349,12 @@
                             <th><span>#</span></th>
                             <th><span v-if="!enable_names">Economica</span><span v-else>0</span></th>
 
-                            <th scope="col" v-for="c in cols" v-bind:colspan="c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1">
+                            <th scope="col" v-for="c in cols"
+                                v-bind:colspan="(c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1) * (env_frozen[c.env_name] ? 2 : 1)">
                                 <a data-toggle="popover" data-placement="bottom"
                                     data-trigger="hover" v-bind:data-force_status="env_name_show"><span v-bind:title="c.nome">{{c.env_name}}</span></a>
                                 <div class="popper-content hide">
                                     {{ c.nome || 'Non specificato' }}
-                                    <!-- Alternative to allow edit
-                                    <input type="text" class="mono" placeholder="Nome del criterio" v-model.trim="c.nome"
-                                        v-bind:size="amax([amin([78, (c.nome||'').trim().length + 3]), 18])">
-                                    -->
                                 </div>
                             </th>
                             <th scope="col">
@@ -373,14 +369,14 @@
 
                             <template v-for="(c, ci) in cols">
                                 <template v-if="c.tipo == 'T'">
-                                    <th v-if="env_data_mode == 'points'"><small>{{ weights[ci] }}</small></th>
-                                    <th v-else v-for="(v, vi) in c.voci">
+                                    <th v-if="env_data_mode == 'points'" v-bind:colspan="env_frozen[c.env_name] ? 2 : 1"><small>{{ weights[ci] }}</small></th>
+                                    <th v-else v-for="(v, vi) in c.voci" v-bind:colspan="env_frozen[c.env_name] ? 2 : 1">
                                         <input v-if="env_data_mode == 'edit'" v-model.number="c.voci[vi]" type="number" min="0" max="100" step="0.1" required>
                                         <small v-else>{{ c.voci[vi] }}</small>
                                     </th>
                                 </template>
                                 <template v-else>
-                                    <th>
+                                    <th v-bind:colspan="env_frozen[c.env_name] ? 2 : 1">
                                         <input v-if="env_data_mode == 'edit'" v-model.number="c.peso" type="number" min="0" max="100" step="0.1" required>
                                         <small v-else>{{ c.peso }}</small>
                                     </th>
@@ -603,15 +599,15 @@
                                         <div class="popper-content hide">
                                             <div class="form-check-inline">
                                                 <input style="margin-top:0.05rem" class="form-check-input"
-                                                type="radio" v-bind:id="name + '_threshold_points'" value="punti"
+                                                type="radio" v-bind:id="model.env_name + '_threshold_points'" value="punti"
                                                 v-model="model.mod_soglia">
-                                                <label class="form-check-label" v-bind:for="name + '_threshold_points'">Punti</label>
+                                                <label class="form-check-label" v-bind:for="model.env_name + '_threshold_points'">Punti</label>
                                             </div>
                                             <div class="form-check-inline">
                                                 <input style="margin-top:0.05rem" class="form-check-input"
-                                                    type="radio" v-bind:id="name + '_threshold_raw'" value="valore"
+                                                    type="radio" v-bind:id="model.env_name + '_threshold_raw'" value="valore"
                                                     v-model="model.mod_soglia">
-                                                <label class="form-check-label" v-bind:for="name + '_threshold_raw'">Valore</label>
+                                                <label class="form-check-label" v-bind:for="model.env_name + '_threshold_raw'">Valore</label>
                                             </div>
 
                                             <input type="number" min="0" step="0.01" class="form-control form-control-sm "

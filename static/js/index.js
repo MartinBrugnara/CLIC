@@ -860,7 +860,6 @@ function refresh_gui() {
                         filter(x => {
                             return x.c.env_name === c_env_name;
                         })[0].i;
-                    console.log("Cold id for", c_env_name, "is", col_id);
 
                     let frozen_col = this.bando.offerte.map((o, i) => ({
                         was_issue: this.points[i].excluded_for[col_id],
@@ -895,11 +894,14 @@ function refresh_gui() {
                     let ll = leafs_lst(this.bando.criteri);
                     return this.bando.criteri.map((c, i) => {
                         let y = prefix_2_ids((i + 1) + '')
-                            .map(i => ll[i].tipo === 'T' ? ll[i].voci.length : 1)
+                            .map(i =>
+                                (ll[i].tipo === 'T' ? ll[i].voci.length : 1) *
+                                (this.env_frozen[ll[i].env_name] ? 2 : 1))
                             .reduce(sum, 0);
+
                         return {
                             nome: c.nome,
-                            size: y
+                            size: y,
                         };
                     })
                 },
@@ -1754,8 +1756,6 @@ function check_bando(bando, fix) {
 // Init gui elements
 
 function refresh_popover() {
-    console.log("pop to init", $('[data-toggle="popover"]:not([data-original-title])').length);
-
     $('#ctree [data-toggle="popover"]:not([data-original-title]), '+
       '#lab [data-toggle="popover"]:not([data-original-title]), '+
       '#data [data-toggle="popover"]:not([data-original-title])').each((i, o) => {

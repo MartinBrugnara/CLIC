@@ -44,9 +44,10 @@ Mostra inoltre il risultato sia in forma tabellare che grafica.
     Al momento lo sono solo se rip. di livello 1 e' richiesta.
     (just divide by max indeax of weight in apply_functions).
 
-- Soglie:
+- Copyright:
     - Update copyright: some icons (i.e. threshold) are from icons8 which require link back for free usage <a href="https://icons8.com">Icon pack by Icons8</a>.
         We also modded the svg.
+    - Base dell icona viene da: https://thenounproject.com/search/?q=click&i=942543
 
 - Anomalia:
     - Non e'/verra' implementato.

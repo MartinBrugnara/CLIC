@@ -342,7 +342,7 @@
                         <tr class="names" v-if="enable_names">
                             <th></th>
                             <th v-bind:colspan="env_frozen['eco'] ? 2 : 1"><small>ECONOMICA</small></th>
-                            <th v-for="c in fst_lvl_names" v-bind:colspan="c.size"><small>{{ c.nome.trim() }}</small></th>
+                            <th v-for="c in fst_lvl_names" v-bind:colspan="c.size"><small>{{ (c.nome||'').trim() }}</small></th>
                             <th></th>
                         </tr>
                         <tr class="env_names">
@@ -657,7 +657,7 @@
                                         <select class="custom-select" v-if="model.tipo === 'Q'"
                                                 v-model="model.funzione" @change="function_change(i)">
                                             <template v-for="f in funcs_lst" :key="f.fname">
-                                                <option v-if="f.o['up'] !== undefined" v-bind:value="f.fname">{{ f.fname | undash | capitalize }}</option>
+                                                <option v-if="f.o.up !== undefined" v-bind:value="f.fname">{{ f.fname | undash | capitalize }}</option>
                                             </template>
                                         </select>
                                     </div>
@@ -681,7 +681,7 @@
                                                 v-model.number="model.parametri[pname]" />
                                         </div>
                                     </template>
-                               </div>
+                                </div>
                             </div>
                             <p v-if="env_frozen[model.env_name]"><i class="text-info">Dati congelati con:</i> {{ env_frozen[model.env_name] }}</p>
                         </li>

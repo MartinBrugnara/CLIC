@@ -553,6 +553,7 @@ Vue.component('criterion', {
             }
 
             // Avoid messing with the data if the kind of function is not changed.
+            let old_type = this.env_last_tipo;
             if (this.env_last_tipo && this.env_last_tipo === this.model.tipo)
                 return
             this.env_last_tipo = this.model.tipo;
@@ -578,6 +579,10 @@ Vue.component('criterion', {
                     }
                 }
             }
+
+            // Update lab
+            if (old_type === 'Q');
+                window.vm_lab.release_by_prefix(this.name);
         },
         remove () {
             // Prepare to adapt data
@@ -611,6 +616,9 @@ Vue.component('criterion', {
 
             // Update stats abouth depth
             current.env_depth = max_bando_depth(current);
+
+            // Clean up lab
+            window.vm_lab.release_by_prefix(this.name);
         },
         sub () {
             let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
@@ -635,6 +643,11 @@ Vue.component('criterion', {
 
             // Update stats abouth depth
             current.env_depth = max_bando_depth(current);
+
+            // Update lab
+            if (pointer.subcriteri[0].tipo === 'Q')
+                window.vm_lab.update_name(this.name, this.name + '.1');
+
             Vue.nextTick(refresh_popover);
         },
         add () {
@@ -650,7 +663,7 @@ Vue.component('criterion', {
             pointer = pointer[key[key.length - 1]].subcriteri;
 
             // Create a new one.
-            let newc = {peso:0, tipo:'D', soglia:0, mod_soglia:'punti'}
+            let newc = {peso:0, tipo:'D', soglia:0, mod_soglia:'punti', nome:''}
             // if doesn not work, try with set() at pointer.length
             pointer.push(newc);
 
@@ -663,6 +676,8 @@ Vue.component('criterion', {
             // Update stats abouth depth
             current.env_depth = max_bando_depth(current);
             Vue.nextTick(refresh_popover);
+
+            // Since we appending by the end, no need to update lab
         },
         add_voce () {
             // Add to the tree and add default entry in data (false)
@@ -744,7 +759,7 @@ function refresh_gui() {
             },
             methods: {
                 add_root_criterion () {
-                    let newc = {peso:0, tipo:'D', soglia:0, mod_soglia:'punti'}
+                    let newc = {peso:0, tipo:'D', soglia:0, mod_soglia:'punti', nome:''}
                     current.criteri.push(newc);
 
                     // Adapt the data.
@@ -894,6 +909,10 @@ function refresh_gui() {
                 },
                 unfreeze_eco () {
                     Vue.delete(this.env_frozen, 'eco');
+                },
+                update_frozen_name(old, actual) {
+                    Vue.set(this.env_frozen, actual, this.env_frozen[old]);
+                    Vue.delete(this.env_frozen, old);
                 }
             },
             computed: {
@@ -918,7 +937,8 @@ function refresh_gui() {
                     return this.bando.criteri.map((c, i) => {
                         let y = prefix_2_ids((i + 1) + '')
                             .map(i =>
-                                (ll[i].tipo === 'T' ? ll[i].voci.length : 1) *
+                                (ll[i].tipo === 'T' && this.env_data_mode !== 'points' ?
+                                    ll[i].voci.length : 1) *
                                 (this.env_frozen[ll[i].env_name] ? 2 : 1))
                             .reduce(sum, 0);
 
@@ -1131,6 +1151,41 @@ function refresh_gui() {
                 unfreeze (name) {
                     window.vm_data.unfreeze(name);
                     Vue.delete(this.env_frozen, name);
+                },
+                release_by_prefix (prefix) {
+                    Object.keys(this.env_frozen)
+                        .map((k, i) => ({k:k, i:i}))
+                        .filter(x => x.k === prefix ||
+                                x.k.indexOf(prefix + '.') === 0)
+                        .forEach(x => this.done(x.i));
+                },
+                update_name (old, actual) {
+                    // === Substitue current element with new one from ll in env_selected,
+
+                    // Find index of old
+                    let match = Object.keys(this.env_frozen)
+                        .map((k, i) => ({k:k, i:i}))
+                        .filter(x => x.k === old)
+
+                    if (match.length !== 1) {
+                        console.error(old, "matched wrong # of records (1)", match);
+                    }
+
+                    let old_id = match[0].i;
+
+
+
+                    // Replace reference
+                    Vue.set(this.env_selected_criteria, old_id,
+                        this.criteria.filter(x => x.env_name === actual)[0]);
+
+                    // === update name in env_freezed (no data)
+                    if (!this.env_frozen[old])
+                        return;
+
+                    Vue.set(this.env_frozen, actual, this.env_frozen[old])
+                    Vue.delete(this.env_frozen, old);
+                    window.vm_data.update_frozen_name(old, actual);
                 },
                 toggle_eco_freeze () {
                     if (!this.env_frozen['eco']) {

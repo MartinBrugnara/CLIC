@@ -807,6 +807,10 @@ function refresh_gui() {
                 // For DATA:
                 remove (index) {
                     Vue.delete(this.bando.offerte, index);
+
+                    // Update frozen
+                    for (let c in this.env_frozen)
+                        Vue.delete(this.env_frozen[c], index);
                 },
                 clone (index) {
                     let cp = copy(this.bando.offerte[index]);
@@ -820,6 +824,10 @@ function refresh_gui() {
                     // Maybe ask via dialog or just generate.
                     cp.nome = nome;
                     this.bando.offerte.splice(index + 1, 0, cp);
+
+                    // Update frozen
+                    for (let c in this.env_frozen)
+                        this.env_frozen[c].splice(index+1,0,{did_not_exists:true});
                 },
                 add () {
                     // Mine name
@@ -853,6 +861,10 @@ function refresh_gui() {
 
                     // Add to current list
                     this.bando.offerte.push(offerta);
+
+                    // Update freeze list
+                    for (let c in this.env_frozen)
+                        this.env_frozen[c].push({did_not_exists: true})
                 },
                 freeze (c_env_name) {
                     let col_id = this.cols
@@ -871,6 +883,17 @@ function refresh_gui() {
                 },
                 unfreeze (c_env_name) {
                     Vue.delete(this.env_frozen, c_env_name);
+                },
+                freeze_eco () {
+                    let frozen_col = this.bando.offerte.map((o, i) => ({
+                        points: this.points[i].economica,
+                        raw: this.bando.offerte[i].economica,
+                    }));
+
+                    Vue.set(this.env_frozen, 'eco', frozen_col);
+                },
+                unfreeze_eco () {
+                    Vue.delete(this.env_frozen, 'eco');
                 }
             },
             computed: {
@@ -1043,10 +1066,14 @@ function refresh_gui() {
             },
             methods: {
                 done (i) {
-                    if (i === -1)
+                    if (i === -1) {
+                        if (this.env_frozen['eco'])
+                            this.toggle_eco_freeze();
                         this.env_show_eco = false;
-                    else
+                    } else {
+                        this.unfreeze(this.env_selected_criteria[i].env_name);
                         Vue.delete(this.env_selected_criteria, i);
+                    }
                 },
                 manage () {
                     if (this.env_new_criteria === "-1") {
@@ -1104,6 +1131,30 @@ function refresh_gui() {
                 unfreeze (name) {
                     window.vm_data.unfreeze(name);
                     Vue.delete(this.env_frozen, name);
+                },
+                toggle_eco_freeze () {
+                    if (!this.env_frozen['eco']) {
+                        window.vm_data.freeze_eco();
+
+                        let str = [];
+                        str.push(common_filters.capitalize(common_filters.undash(this.bando.funzione_economica)));
+                        str.push('con');
+
+                        let params = this.funcs[this.bando.funzione_economica][eco_mode(this.bando)].params;
+                        for (let pname in params) {
+                            let p = params[pname];
+                            pname_clean =  common_filters.csub(common_filters.undash(pname));
+                            str.push(pname_clean + '=' + this.bando.parametri_economica[pname]);
+                            str.push('e');
+                        }
+                        str.pop();
+                        str.push(str.pop() + '.');
+
+                        Vue.set(this.env_frozen, 'eco', str.join(' '));
+                    } else {
+                        window.vm_data.unfreeze_eco();
+                        Vue.delete(this.env_frozen, 'eco');
+                    }
                 }
             },
             filters: common_filters,

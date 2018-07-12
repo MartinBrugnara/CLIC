@@ -341,13 +341,13 @@
                     <thead>
                         <tr class="names" v-if="enable_names">
                             <th></th>
-                            <th><small>ECONOMICA</small></th>
+                            <th v-bind:colspan="env_frozen['eco'] ? 2 : 1"><small>ECONOMICA</small></th>
                             <th v-for="c in fst_lvl_names" v-bind:colspan="c.size"><small>{{ c.nome.trim() }}</small></th>
                             <th></th>
                         </tr>
                         <tr class="env_names">
                             <th><span>#</span></th>
-                            <th><span v-if="!enable_names">Economica</span><span v-else>0</span></th>
+                            <th v-bind:colspan="env_frozen['eco'] ? 2 : 1"><span v-if="!enable_names">Economica</span><span v-else>0</span></th>
 
                             <th scope="col" v-for="c in cols"
                                 v-bind:colspan="(c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1) * (env_frozen[c.env_name] ? 2 : 1)">
@@ -363,7 +363,7 @@
                         </tr>
                         <tr class="weights">
                             <th><small>Peso</small></th>
-                            <th>
+                            <th v-bind:colspan="env_frozen['eco'] ? 2 : 1">
                                 <small>{{ economic_weight }}</small>
                             </th>
 
@@ -389,6 +389,10 @@
                         <tr v-for="(o, i) in bando.offerte" :key="o.nome" v-bind:class="{excluded: points[i].excluded}">
                             <template v-if="env_data_mode == 'edit'">
                                 <td class="text-left"><input type="text" v-model.tirm.lazy="o.nome" required></td>
+
+                                <!-- inject origianl frozen (if exists): RO -> like "raw" mode -->
+                                <td v-if="env_frozen['eco']" class="frozen"><template v-if="!env_frozen['eco'][i].did_not_exists">{{ env_frozen['eco'][i].raw | precn(2) }}</template></td>
+
                                 <td><input type="number" min="0.01" step="0.01" v-model.number="o.economica" required></td>
                                 <template v-for="(t, ti) in o.tecnica">
 
@@ -397,12 +401,14 @@
                                         <template v-if="cols[ti].tipo == 'T'">
                                             <td v-for="(v, vi) in cols[ti].voci"
                                                 v-bind:class="['text-center', 'frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]">
-                                                <span v-if="env_frozen[cols[ti].env_name][i].raw[vi]">&#x2714;</span>
-                                                <span v-else>&#x2718;</span>
+                                                <template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">
+                                                    <span v-if="env_frozen[cols[ti].env_name][i].raw[vi]">&#x2714;</span>
+                                                    <span v-else>&#x2718;</span>
+                                                </template>
                                             </td>
                                         </template>
                                         <template v-else>
-                                            <td v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]">{{ env_frozen[cols[ti].env_name][i].raw | precn(2) }}</td>
+                                            <td v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]"><template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">{{ env_frozen[cols[ti].env_name][i].raw | precn(2) }}</template></td>
                                         </template>
                                     </template>
 
@@ -427,6 +433,13 @@
 
                             <template v-else>
                                 <td class="text-left">{{ o.nome }}</td>
+
+                                <!-- inject origianl frozen (if exists) -->
+                                <template v-if="env_frozen['eco']">
+                                    <td class="frozen" v-if="env_data_mode == 'points'"><template v-if="!env_frozen['eco'][i].did_not_exists">{{ env_frozen['eco'][i].points * economic_weight | precn(2)}}</template></td>
+                                    <td class="frozen" v-else><template v-if="!env_frozen['eco'][i].did_not_exists">{{ env_frozen['eco'][i].raw | precn(2) }}</template></td>
+                                </template>
+
                                 <td v-if="env_data_mode == 'points'">{{ points[i].economica * economic_weight | precn(2)}}</td>
                                 <td v-else>{{o.economica | precn(2)}}</td>
                                 <template v-for="(t, ti) in o.tecnica">
@@ -436,18 +449,22 @@
                                         <template v-if="cols[ti].tipo == 'T'">
                                             <td v-if="env_data_mode == 'points'"
                                                 v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issues}]">
-                                                {{ env_frozen[cols[ti].env_name][i].points * cols[ti].peso | precn(2) }}
+                                                <template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">
+                                                    {{ env_frozen[cols[ti].env_name][i].points * cols[ti].peso | precn(2) }}
+                                                </template>
                                             </td>
                                             <td v-else v-for="(v, vi) in cols[ti].voci" v-bind:class="['text-center', 'frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]">
-                                                <span v-if="env_frozen[cols[ti].env_name][i].raw[vi]">&#x2714;</span>
-                                                <span v-else>&#x2718;</span>
+                                                <template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">
+                                                    <span v-if="env_frozen[cols[ti].env_name][i].raw[vi]">&#x2714;</span>
+                                                    <span v-else>&#x2718;</span>
+                                                </template>
                                             </td>
                                         </template>
                                         <template v-else-if="env_data_mode == 'points'">
-                                            <td v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]">{{ env_frozen[cols[ti].env_name][i].points * cols[ti].peso | precn(2) }}</td>
+                                            <td v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]"><template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">{{ env_frozen[cols[ti].env_name][i].points * cols[ti].peso | precn(2) }}</template></td>
                                         </template>
                                         <template v-else>
-                                            <td v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]">{{ env_frozen[cols[ti].env_name][i].raw | precn(2) }}</td>
+                                            <td v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]"><template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">{{ env_frozen[cols[ti].env_name][i].raw | precn(2) }}</template></td>
                                         </template>
                                     </template>
 
@@ -507,16 +524,17 @@
                         <li v-if="env_show_eco" class="mb-2">
                             <div class="d-flex flex-wrap">
                                 <form class="form-inline mb-2 flex-shrink-0">
-                                    <div class="mr-3">
-                                        <label style="{'display': 'inline-flex'}" class="my-1 mr-1">Economica</label>
+                                    <div class="mr-3 d-flex">
+                                        <label style="{'display': 'inline-flex'}" class="mr-1">Economica</label>
 
-                                        <a @click="done(-1)" class="ml-auto">
+                                        <a @click="toggle_eco_freeze" v-bind:class="{'ml-auto': true, hold: env_frozen['eco']}">
+                                            <i class="fas fa-snowflake action ml-1"></i>
+                                        </a>
+                                        <a @click="done(-1)">
                                             <i class="fas fa-check action ml-1"></i>
                                         </a>
                                     </div>
-                                </form>
 
-                                <form class="form-inline mb-2 flex-grow-1">
                                     <div class="input-group">
                                         <select
                                             class="custom-select"
@@ -567,6 +585,8 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <p v-if="env_frozen['eco']"><i class="text-info">Dati congelati con:</i> {{ env_frozen['eco'] }}</p>
                         </li>
 
 

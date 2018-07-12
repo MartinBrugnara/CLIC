@@ -521,7 +521,7 @@
                     </form>
 
                     <ul id="lab_lst">
-                        <li v-if="env_show_eco" class="mb-2">
+                        <li v-if="env_show_eco" class="mb-3">
                             <div class="d-flex flex-wrap">
                                 <form class="form-inline mb-2 flex-shrink-0">
                                     <div class="mr-3 d-flex">
@@ -590,8 +590,7 @@
                         </li>
 
 
-
-                        <li v-for="(model, i) in env_selected_criteria" class="mb-2">
+                        <li v-for="(model, i) in env_selected_criteria" class="mb-3">
                             <div class="d-flex flex-wrap">
                                 <form class="form-inline mb-2 flex-shrink-0">
                                     <div class="mr-3">
@@ -691,7 +690,7 @@
                 <div class="col-md text-center">
                     <h3>Ranking</h3>
 
-                    <table id="rank" class="table table-striped text-right tbl">
+                    <table id="rank" class="table text-right tbl">
                         <thead>
                             <tr>
                                 <th>
@@ -735,9 +734,9 @@
                         <tbody v-if="!fatal_errors">
                             <tr v-for="(o, oi) in scoreboard.rank">
                                 <td>{{ o.nome }}</td>
-                                <td>{{ o.agg | precn(2) }}</td>
-                                <td>{{ o.electre }}</td>
-                                <td>{{ o.topsis | precn(2) }}</td>
+                                <td v-bind:data-rank="o.agg_rank">{{ o.agg | precn(2) }}</td>
+                                <td v-bind:data-rank="o.electre">{{ o.electre }}</td>
+                                <td v-bind:data-rank="o.topsis_rank">{{ o.topsis | precn(2) }}</td>
                             </tr>
                         </tbody>
                         <caption v-if="!fatal_errors && scoreboard.excluded">

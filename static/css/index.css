@@ -135,3 +135,17 @@ tbody.edit tr.excluded td.issue {background: #f8d7da}
 #lab_lst label {font-weight: 600; margin-left: -1.5em}
 
 .frozen {color: #4f9fcf}
+
+#rank tr td:not(:last-child),
+#rank tr th:not(:last-child)
+  {border-right: 1px solid #fff}
+
+/* Grey palette */
+#rank td[data-rank="1"] {background-color:#9e9e9e; color: #000}
+#rank td[data-rank="2"] {background-color:#bdbdbd; color: #000}
+#rank td[data-rank="3"] {background-color:#e0e0e0; color: #000}
+
+/* Green palette */
+#rank td[data-rank="1"] {background-color:#33691e; color: #fff}
+#rank td[data-rank="2"] {background-color:#558b2f; color: #fff}
+#rank td[data-rank="3"] {background-color:#7cb342; color: #fff}

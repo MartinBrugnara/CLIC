@@ -990,15 +990,23 @@ function refresh_gui() {
                     excluded = offerte.filter(o => o.excluded).map(o => o.nome).join(', ');
                     offerte = offerte.filter(o => !o.excluded);
 
-                    let agg = aggregativo_compensatore(this.bando, offerte);
+                    let agg = aggregativo_compensatore(this.bando, offerte)
+                        .sort((a, b) => b.agg - a.agg);
                     let ele = electre(this.bando, offerte);
-                    let tops = topsis(this.bando, offerte);
+                    let tops = topsis(this.bando, offerte)
+                        .sort((a, b) => b.topsis - a.topsis);
 
                     let board = {};
                     offerte.forEach((o) => board[o.nome] = {nome: o.nome});
-                    agg.forEach((e) => board[e.nome].agg = e.agg);
+                    agg.forEach((e, r) => {
+                        board[e.nome].agg = e.agg;
+                        board[e.nome].agg_rank = r + 1;
+                    });
                     ele.forEach((e) => board[e.nome].electre = e.electre);
-                    tops.forEach((e) => board[e.nome].topsis = e.topsis);
+                    tops.forEach((e, r) => {
+                        board[e.nome].topsis = e.topsis;
+                        board[e.nome].topsis_rank = r + 1;
+                    });
 
                     // Offerta, Agg, Electre, Electre100 Tops
                     let x = this.env_data_orderby.split('_'),

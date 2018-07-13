@@ -34,6 +34,8 @@ import 'bootstrap'
 import Vue from 'vue'
 import * as deepEqual from 'deep-equal'
 
+import functions from './functions.ts'
+
 const EXAMPLES_DIR = path.join(app.getAppPath(), 'src/assets/examples'),
       F_EMPTY_BANDO = path.join(EXAMPLES_DIR, 'Nuovo.json');
 
@@ -130,25 +132,8 @@ const common_filters = {
     },
 }
 
-
-
-// TODO:
-//
-// 6) Riparametrazione
-//
-// Extra) Calcolo anamolia (solo Agg. Comp)
-//
-//  ASSUMPTION:
-//  We assume that the economic feature is to be maximized.
-//  We expect either to run with 'sconto' or that the applied function
-//  turns the problem from minimization to maximization.
-//
-//  If this won't be the case just add a switch to choose between up/down.
-
-
 // ============================================================================
 // Support functions
-
 let amax = (x:number[]):number => Math.max.apply(Math, x);
 let amin = (x:number[]):number => Math.min.apply(Math, x);
 let sum = (a:number, b:number):number => a + b;
@@ -158,9 +143,6 @@ let rnd = (min:number, max:number): number => Math.floor((Math.random() * (max -
 
 let eco_mode = (bando) => bando.mod_economica === 'prezzo' ? 'down' : 'up';
 
-
-// TODO: modifies all the code that uses this function to just use [ids]
-// and then come back to modify this one.
 let prefix_2_ids = function(prefix) {
     let p = '' + prefix;
     let ll = leafs_lst(current.criteri);
@@ -227,257 +209,6 @@ let nmatrix = function (dim: number[], def_value?: any) {
     }
     return base
 }
-
-
-
-
-const functions = {
-    // {name:{
-    //      up:{f:, params:{name: {(opts:[]|domain:{start:, end:}}}}, // rialzo
-    //      dow:{f:, params:{name:{(opts:[]|domain:{start:, end:}}}}, // ribasso
-    // }
-    // 'identita' is default.
-    //
-    // If the function is defined only in one way, leave out the other.
-    "identita": {
-        // This shall be used only with the ELECTRE method,
-        // when the user whant to use the raw values instead of the scaled one.
-        up: {
-            f: (P, x, bando, all_bids) => P,
-            params: {}
-        },
-        down: {
-            f: (P, x, bando, all_bids) => P,
-            params: {}
-        }
-    },
-    "proporzionalita_inversa": {
-        // Bozen 1
-        // This covers 92.49% of Bozen runs.
-        up: {
-            f: (P, x, bando, all_bids) => {
-                if (P === 0) return 0;
-                return amax(all_bids) * 1.0 / P;
-            },
-            params: {}
-        },
-        down: {
-            f: (P, x, bando, all_bids) => {
-                if (P === 0) return 0;
-                return amin(all_bids) * 1.0 / P;
-            },
-            params: {}
-        }
-    },
-    "riduzione_percentuale_del_prezzo": {
-        // Bozen 2
-        // This covers 1.06% of Bozen runs.
-        down: {
-            f: (P, x, bando, all_bids) => 1 - ((P - amin(all_bids)) * 1.0 / amin(all_bids)) * 100 / x.c,
-            params: {c: {domain:{start:0.01, end:100, step:0.01}, required: true}}
-        },
-    },
-    "incremento_lineare": {
-        // Bozen 3
-        // This covers 0.45% of Bozen runs.
-        down: {
-            f: (P, x, bando, all_bids) => 1 - (P - amin(all_bids)) * 1.0/(amax(all_bids) - amin(all_bids)),
-            params: {},
-        }
-    },
-    "spezzata_gausiana": {
-        // Bozen 4
-        down: {
-            f: (P, x, bando, all_bids) => {
-                let mean = all_bids.reduce(sum, 0) * 1.0 / all_bids.length,
-                    a = mean * 0.5, b = mean * 0.7,
-                    d = mean * 1.3, e = mean * 1.5,
-                    s = b/d * 1;
-
-                if (a <= P && P < b)
-                    return (P-a)/(b-a);
-                if (b <= P && P < d)
-                    return (1 - (P - b)/(d-b)) * (1-s) + s;
-                if (d <= P && P <= e)
-                    return s/(d-e)*(P-e);
-                return 0;
-            },
-            params: {},
-        }
-    },
-    "retta_base_valore_fisso": {
-        // Bozen 5
-        down: {
-            f: (P, x, bando, all_bids) => 1 - ((1-x.c)/(amin(all_bids) - bando.base_asta)*(amin(all_bids) - P)),
-            params:{c: {domain:{start:0.00, end:1, step:0.01}, required: true}},
-            base_asta: true,
-        }
-    },
-    "retta_base_prezzo_minimo": {
-        // Bozen 6
-        down:{
-            f: (P, x, bando, all_bids) => (P-bando.base_asta) / (amin(all_bids) - bando.base_asta),
-            params:{},
-            base_asta: true,
-        }
-    },
-    "retta_base_zero": {
-        // Bozen 7
-        down:{
-            f: (P, x, bando, all_bids) => (bando.base_asta - P) / bando.base_asta,
-            params:{},
-            base_asta: true,
-        }
-    },
-    "retta_prezzo_minimo": {
-        // Bozen 8
-        down:{
-            f: (P, x, bando, all_bids) => (amax(all_bids) + amin(all_bids) - P) / amax(all_bids),
-            params:{},
-        }
-    },
-    "allegato_g": {
-        // Bozen 9 - 0.64%
-        // Allegato G, Contratti relativi a lavori
-        down:{
-            f: (P, x, bando, all_bids) => (bando.base_asta - P)/(bando.base_asta - amax(all_bids)),
-            params:{},
-            base_asta: true,
-        }
-    },
-    "allegato_m": {
-        // Bozen 10 - 0.79%
-        // Allegato M, Contratti relativi a servizi attinenti all'archiettura e all'ingegneria
-        // Consip: "lineare_spezzata_sulla media"
-        up: {
-            f: (P, x, bando, all_bids) => {
-                let mean = all_bids.reduce(sum, 0) / all_bids.length;
-                if (P <= mean)
-                    return x.x * P / mean;
-                else
-                    return x.x + (1-x.x) * (P - mean) / (amax(all_bids) - mean);
-            },
-            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
-        }
-    },
-    "allegato_p": {
-        // Bozen 11
-        // Allegato P, Contratti relativi a forniture e altri servizi
-        down: {
-            f: (P, x, bando, all_bids) => {
-                let mean = all_bids.reduce(sum, 0) / all_bids.length;
-                if (P <= mean)
-                    return x.x * P / mean;
-                else
-                    return x.x + (1-x.x) * (P - mean) / (amax(all_bids) - mean);
-            },
-            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
-        }
-    },
-    "alleagato_p_lineare_semplice": {
-        up: {
-            f: (P, x, bando, all_bids) => amax(all_bids) > 0 ? P * 1.0 / amax(all_bids) : 0,
-            params: {}
-        },
-    },
-    "consip_lineare_semplice": {
-        up: {
-            f: (P, x, bando, all_bids) => {
-                // QUESTION: if soglia non specificato --> ??
-                // TODO: what happen when soglia === soglia_min?
-                return (P - x.soglia_min)*1.0/(x.soglia - x.soglia_min)
-            },
-            params: {
-                soglia:     {domain:{start:0, end:'', step:0.01}, required: true},
-                soglia_min: {domain:{start:0, end:'', step:0.01}, required: true},
-            }
-        },
-        down: {
-            f: (P, x, bando, all_bids) => {
-                return (bando.base_asta - P)*1.0/(bando.base_asta - x.soglia)
-            },
-            params: {soglia: {domain:{start:0, end:'', step:0.01}, required: true}},
-            base_asta: true,
-        }
-
-    },
-    "concava_alla_migliore_offerta": {
-        // This covers:
-        // * DECRETO DEL PRESIDENTE DELLA PROVINCIA 21 ottobre 2016, n. 16- 50/Leg
-        //      https://didatticaonline.unitn.it/ricerca/course/view.php?id=65
-        //      alpha in (0.1, 0.2, 0.3)
-        // * Concava alla migliore offerta
-        //      Consip: alpha in (0.5, 0.6, 0.7)
-        // * Lineare alla migliore offerta (alpha = 1)
-        up: {
-            f: (P, x, bando, all_bids) => {
-                return Math.pow(P*1.0 / amax(all_bids), x.alfa)
-            },
-            params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
-
-        },
-        down: {
-            f: (P, x, bando, all_bids) => {
-                let BA = bando.base_asta;
-                return Math.pow((BA - P) * 1.0 / (BA - amin(all_bids)), x.alfa)
-            },
-            params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}},
-            base_asta: true,
-        }
-    },
-    "non_lineare_concava": {
-        // Consip
-        up: {
-            f: (P, x, bando, all_bids) => 1 - (1 - P) ** x.n,
-            params: {n: {domain:{start:0, step:0.01}, required: true}}
-        },
-        down: {
-            f: (P, x, bando, all_bids) => 1 - (P/bando.base_asta) ** x.n,
-            params: {n: {domain:{start:0, step:0.01}, required: true}},
-            base_asta: true,
-        }
-    },
-    "lineare_spezzata_sulla_media": {
-        // Bozen 10 - 0.79%
-        // Consip: "lineare_spezzata_sulla media"
-
-        up: {
-            // Allegato M, Contratti relativi a servizi attinenti all'archiettura e all'ingegneria
-            f: (P, x, bando, all_bids) => {
-                let mean = all_bids.reduce(sum, 0) / all_bids.length;
-                if (P <= mean)
-                    return x.x * P / mean;
-                else
-                    return x.x + (1-x.x) * (P - mean) / (amax(all_bids) - mean);
-            },
-            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
-        },
-        down: {
-            f: (P, x, bando, all_bids) => {
-                let mean = all_bids.reduce(sum, 0) / all_bids.length;
-                if (P >= mean)
-                    return x.x * (bando.base_asta - P) * (bando.base_asta - mean);
-                else
-                    return x.x + (1-x.x) * (mean-P) * (mean-amin(all_bids));
-
-            },
-            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
-            base_asta: true,
-        }
-    },
-    "lineare_min_max": {
-        up: {
-            f: (P, x, bando, all_bids) => 1 - (amax(all_bids) - P) / (amax(all_bids) - amin(all_bids)),
-            params:{}
-        },
-        down: {
-            f: (P, x, bando, all_bids) => 1 - (P - amin(all_bids)) / (amax(all_bids) - amin(all_bids)),
-            params:{}
-        },
-    }
-}
-
-
 
 // ============================================================================
 // Components
@@ -1700,6 +1431,15 @@ function check_criterion(c, prefix) {
                 errors = errors.concat(check_parameter('C ' + prefix, c.funzione, 'up',
                     c.parametri, p));
             });
+
+
+            if (functions[c.funzione]['up'].validators) {
+                errors = errors.concat(functions[c.funzione]['up'].validators
+                    .map(v => v(c.parametri))
+                    .filter(r => !r[0])
+                    .map(r => '[C ' + prefix + '] parameteri: ' + r[1]));
+            }
+
         }
     }
 
@@ -1742,8 +1482,8 @@ function check_parameter(field, func, m, params, p) {
         req = functions[func][m].params[p].required;
 
     if (((typeof params[p] === 'number') &&
-            ((dom.start !== '' && params[p] < dom.start) ||
-                (dom.end !== '' && params[p] > dom.end))) ||
+            ((dom.start !== null && params[p] < dom.start) ||
+                (dom.end !== null && params[p] > dom.end))) ||
         (req && isNaN(parseFloat(params[p])))) {
 
         return ['[' + field + '] Parametro ' + p + ': ' +
@@ -1822,6 +1562,14 @@ function check_bando(bando, fix?:boolean):[boolean,string[]] {
         errors = errors.concat(check_parameter('funzione_economica',
             bando.funzione_economica, m, bando.parametri_economica, p));
     });
+
+    if (functions[bando.funzione_economica][m].validators) {
+        errors = errors.concat(functions[bando.funzione_economica][m].validators
+            .map(v => v(bando.parametri_economica))
+            .filter(r => !r[0])
+            .map(r => '[funzione_economica] parameteri: ' + r[1]));
+    }
+
 
 
     // Criteri must be recursive

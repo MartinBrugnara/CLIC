@@ -24,18 +24,25 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 
-const {ipcRenderer} = require('electron'),
-    {dialog, app} = require('electron').remote;
-    fs = require('fs'),
-    path = require('path');
+//const electron = require('electron')
+import {ipcRenderer} from 'electron'
+const {dialog, app} = require('electron').remote;
+const fs = require('fs')
+const path = require('path')
+import * as $ from 'jquery'
+import 'bootstrap'
+import Vue from 'vue'
+import * as deepEqual from 'deep-equal'
 
-global.$ = global.jQuery = require('jquery');
-require('bootstrap');
-const deepEqual = require('deep-equal');
+const EXAMPLES_DIR = path.join(app.getAppPath(), 'src/assets/examples'),
+      F_EMPTY_BANDO = path.join(EXAMPLES_DIR, 'Nuovo.json');
 
-// Vue is imported in the old way.
-
-
+let vm_app_status,
+    vm_lab,
+    vm_structure,
+    vm_data,
+    vm_rank,
+    vm_errors;
 
 
 // ============================================================================
@@ -62,19 +69,18 @@ let app_status = {      // Applicatin status, used for info and save().
     org: {},
 }
 
-window.vm_app_status = new Vue({
+vm_app_status = new Vue({
     el: '#app_status',
     data: app_status,
     computed: {
         rpath () {
-            let app_base_path = app.getAppPath(),
-                abp_idx = this.fpath.indexOf(app_base_path),
-                rp      = this.fpath.replace(app_base_path + '/', '');
+            let abp_idx = this.fpath.indexOf(EXAMPLES_DIR),
+                rp      = this.fpath.replace(EXAMPLES_DIR + '/', '');
             return abp_idx === 0 ? rp : this.fpath;
         },
         read_only () {
             // TODO: consider also to check if can actually write there.
-            return this.fpath.indexOf(__dirname + '/examples') === 0;
+            return this.fpath.indexOf(EXAMPLES_DIR) === 0;
         },
         modified () {
             return !deepEqual(clean_bando(this.data), this.org);
@@ -95,7 +101,7 @@ const common_filters = {
         return str.replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
     },
     csub: function(str) {
-        repl = {
+        let repl = {
             "alpha": "α",
             "alfa": "α",
         }
@@ -118,8 +124,8 @@ const common_filters = {
     npadded: function(n, tot) {
         let ns = n.toString(),
             ts = tot.toString();
-        let prefix = new Array(ts.length - ns.length)
-            .fill(' ').reduce((a,b) => a+b, '');
+        let prefix: string[] = new Array(ts.length - ns.length)
+            .fill(' ').reduce(concat, '');
         return prefix + ns;
     },
 }
@@ -143,12 +149,12 @@ const common_filters = {
 // ============================================================================
 // Support functions
 
-let amax = (x) => Math.max.apply(Math, x);
-let amin = (x) => Math.min.apply(Math, x);
-let sum = (a, b) => (a || 0) + (b || 0);
-let concat = (a, b) => a + b;
+let amax = (x:number[]):number => Math.max.apply(Math, x);
+let amin = (x:number[]):number => Math.min.apply(Math, x);
+let sum = (a:number, b:number):number => a + b;
+let concat = (a:string, b:string): string => a + b;
 let copy = (o) => JSON.parse(JSON.stringify(o));
-let rnd = (min, max) => Math.floor((Math.random() * (max - min) + min) * 100)/100;
+let rnd = (min:number, max:number): number => Math.floor((Math.random() * (max - min) + min) * 100)/100;
 
 let eco_mode = (bando) => bando.mod_economica === 'prezzo' ? 'down' : 'up';
 
@@ -169,7 +175,7 @@ let prefix_2_ids = function(prefix) {
 }
 
 let max_bando_depth = function(bando) {
-    f = (b) => {
+    let f = (b) => {
         if (!b.subcriteri) return 1;
         return Math.max.apply(Math, b.subcriteri.map(f)) + 1;
     }
@@ -189,7 +195,7 @@ let economic_weight = function(bando) {
 }
 
 let leafs_lst = function(criteri) {
-    rec_list = (prefix, clst) => {
+    let rec_list = (prefix, clst) => {
         return clst.map((c, i) => {
             let name = prefix + (i + 1);
             if (!(c.subcriteri && c.subcriteri.length)) {
@@ -206,7 +212,7 @@ let tech_weights = function(ll) {
     return ll.map(criterion_weight);
 }
 
-let nmatrix = function (dim, def_value) {
+let nmatrix = function (dim: number[], def_value?: any) {
     /* Build ndimensional matrix and assign a def_value.
      * dim: list with dimensions
      * def_value: default value (0).
@@ -237,11 +243,11 @@ const functions = {
         // This shall be used only with the ELECTRE method,
         // when the user whant to use the raw values instead of the scaled one.
         up: {
-            f: (P, x, bando, all) => P,
+            f: (P, x, bando, all_bids) => P,
             params: {}
         },
         down: {
-            f: (P, x, bando, all) => P,
+            f: (P, x, bando, all_bids) => P,
             params: {}
         }
     },
@@ -249,16 +255,16 @@ const functions = {
         // Bozen 1
         // This covers 92.49% of Bozen runs.
         up: {
-            f: (P, x, bando, all) => {
+            f: (P, x, bando, all_bids) => {
                 if (P === 0) return 0;
-                return amax(all) * 1.0 / P;
+                return amax(all_bids) * 1.0 / P;
             },
             params: {}
         },
         down: {
-            f: (P, x, bando, all) => {
+            f: (P, x, bando, all_bids) => {
                 if (P === 0) return 0;
-                return amin(all) * 1.0 / P;
+                return amin(all_bids) * 1.0 / P;
             },
             params: {}
         }
@@ -267,7 +273,7 @@ const functions = {
         // Bozen 2
         // This covers 1.06% of Bozen runs.
         down: {
-            f: (P, x, bando, all) => 1 - ((P - amin(all)) * 1.0 / amin(all)) * 100 / x.c,
+            f: (P, x, bando, all_bids) => 1 - ((P - amin(all_bids)) * 1.0 / amin(all_bids)) * 100 / x.c,
             params: {c: {domain:{start:0.01, end:100, step:0.01}, required: true}}
         },
     },
@@ -275,15 +281,15 @@ const functions = {
         // Bozen 3
         // This covers 0.45% of Bozen runs.
         down: {
-            f: (P, x, bando, all) => 1 - (P - amin(all)) * 1.0/(amax(all) - amin(all)),
+            f: (P, x, bando, all_bids) => 1 - (P - amin(all_bids)) * 1.0/(amax(all_bids) - amin(all_bids)),
             params: {},
         }
     },
     "spezzata_gausiana": {
         // Bozen 4
         down: {
-            f: (P, x, bando, all) => {
-                let mean = all.reduce(sum, 0) * 1.0 / all.length,
+            f: (P, x, bando, all_bids) => {
+                let mean = all_bids.reduce(sum, 0) * 1.0 / all_bids.length,
                     a = mean * 0.5, b = mean * 0.7,
                     d = mean * 1.3, e = mean * 1.5,
                     s = b/d * 1;
@@ -302,7 +308,7 @@ const functions = {
     "retta_base_valore_fisso": {
         // Bozen 5
         down: {
-            f: (P, x, bando, all) => 1 - ((1-x.c)/(amin(all) - bando.base_asta)*(amin(all) - P)),
+            f: (P, x, bando, all_bids) => 1 - ((1-x.c)/(amin(all_bids) - bando.base_asta)*(amin(all_bids) - P)),
             params:{c: {domain:{start:0.00, end:1, step:0.01}, required: true}},
             base_asta: true,
         }
@@ -310,7 +316,7 @@ const functions = {
     "retta_base_prezzo_minimo": {
         // Bozen 6
         down:{
-            f: (P, x, bando, all) => (P-bando.base_asta) / (amin(all) - bando.base_asta),
+            f: (P, x, bando, all_bids) => (P-bando.base_asta) / (amin(all_bids) - bando.base_asta),
             params:{},
             base_asta: true,
         }
@@ -318,7 +324,7 @@ const functions = {
     "retta_base_zero": {
         // Bozen 7
         down:{
-            f: (P, x, bando, all) => (bando.base_asta - P) / bando.base_asta,
+            f: (P, x, bando, all_bids) => (bando.base_asta - P) / bando.base_asta,
             params:{},
             base_asta: true,
         }
@@ -326,7 +332,7 @@ const functions = {
     "retta_prezzo_minimo": {
         // Bozen 8
         down:{
-            f: (P, x, bando, all) => (amax(all) + amin(all) - P) / amax(all),
+            f: (P, x, bando, all_bids) => (amax(all_bids) + amin(all_bids) - P) / amax(all_bids),
             params:{},
         }
     },
@@ -334,7 +340,7 @@ const functions = {
         // Bozen 9 - 0.64%
         // Allegato G, Contratti relativi a lavori
         down:{
-            f: (P, x, bando, all) => (bando.base_asta - P)/(bando.base_asta - amax(all)),
+            f: (P, x, bando, all_bids) => (bando.base_asta - P)/(bando.base_asta - amax(all_bids)),
             params:{},
             base_asta: true,
         }
@@ -344,12 +350,12 @@ const functions = {
         // Allegato M, Contratti relativi a servizi attinenti all'archiettura e all'ingegneria
         // Consip: "lineare_spezzata_sulla media"
         up: {
-            f: (P, x, bando, all) => {
-                let mean = all.reduce(sum, 0) / all.length;
+            f: (P, x, bando, all_bids) => {
+                let mean = all_bids.reduce(sum, 0) / all_bids.length;
                 if (P <= mean)
                     return x.x * P / mean;
                 else
-                    return x.x + (1-x.x) * (P - mean) / (amax(all) - mean);
+                    return x.x + (1-x.x) * (P - mean) / (amax(all_bids) - mean);
             },
             params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
         }
@@ -358,25 +364,25 @@ const functions = {
         // Bozen 11
         // Allegato P, Contratti relativi a forniture e altri servizi
         down: {
-            f: (P, x, bando, all) => {
-                let mean = all.reduce(sum, 0) / all.length;
+            f: (P, x, bando, all_bids) => {
+                let mean = all_bids.reduce(sum, 0) / all_bids.length;
                 if (P <= mean)
                     return x.x * P / mean;
                 else
-                    return x.x + (1-x.x) * (P - mean) / (amax(all) - mean);
+                    return x.x + (1-x.x) * (P - mean) / (amax(all_bids) - mean);
             },
             params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
         }
     },
     "alleagato_p_lineare_semplice": {
         up: {
-            f: (P, x, bando, all) => amax(all) > 0 ? P * 1.0 / amax(all) : 0,
+            f: (P, x, bando, all_bids) => amax(all_bids) > 0 ? P * 1.0 / amax(all_bids) : 0,
             params: {}
         },
     },
     "consip_lineare_semplice": {
         up: {
-            f: (P, x, bando, all) => {
+            f: (P, x, bando, all_bids) => {
                 // QUESTION: if soglia non specificato --> ??
                 // TODO: what happen when soglia === soglia_min?
                 return (P - x.soglia_min)*1.0/(x.soglia - x.soglia_min)
@@ -387,7 +393,7 @@ const functions = {
             }
         },
         down: {
-            f: (P, x, bando, all) => {
+            f: (P, x, bando, all_bids) => {
                 return (bando.base_asta - P)*1.0/(bando.base_asta - x.soglia)
             },
             params: {soglia: {domain:{start:0, end:'', step:0.01}, required: true}},
@@ -404,16 +410,16 @@ const functions = {
         //      Consip: alpha in (0.5, 0.6, 0.7)
         // * Lineare alla migliore offerta (alpha = 1)
         up: {
-            f: (P, x, bando, all) => {
-                return Math.pow(P*1.0 / amax(all), x.alfa)
+            f: (P, x, bando, all_bids) => {
+                return Math.pow(P*1.0 / amax(all_bids), x.alfa)
             },
             params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}}
 
         },
         down: {
-            f: (P, x, bando, all) => {
+            f: (P, x, bando, all_bids) => {
                 let BA = bando.base_asta;
-                return Math.pow((BA - P) * 1.0 / (BA - amin(all)), x.alfa)
+                return Math.pow((BA - P) * 1.0 / (BA - amin(all_bids)), x.alfa)
             },
             params: {alfa: {domain:{start:0, end:1, step:0.05}, required: true}},
             base_asta: true,
@@ -422,11 +428,11 @@ const functions = {
     "non_lineare_concava": {
         // Consip
         up: {
-            f: (P, x, bando, all) => 1 - (1 - P) ** x.n,
+            f: (P, x, bando, all_bids) => 1 - (1 - P) ** x.n,
             params: {n: {domain:{start:0, step:0.01}, required: true}}
         },
         down: {
-            f: (P, x, bando, all) => 1 - (P/bando.base_asta) ** x.n,
+            f: (P, x, bando, all_bids) => 1 - (P/bando.base_asta) ** x.n,
             params: {n: {domain:{start:0, step:0.01}, required: true}},
             base_asta: true,
         }
@@ -437,22 +443,22 @@ const functions = {
 
         up: {
             // Allegato M, Contratti relativi a servizi attinenti all'archiettura e all'ingegneria
-            f: (P, x, bando, all) => {
-                let mean = all.reduce(sum, 0) / all.length;
+            f: (P, x, bando, all_bids) => {
+                let mean = all_bids.reduce(sum, 0) / all_bids.length;
                 if (P <= mean)
                     return x.x * P / mean;
                 else
-                    return x.x + (1-x.x) * (P - mean) / (amax(all) - mean);
+                    return x.x + (1-x.x) * (P - mean) / (amax(all_bids) - mean);
             },
             params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
         },
         down: {
-            f: (P, x, bando, all) => {
-                let mean = all.reduce(sum, 0) / all.length;
+            f: (P, x, bando, all_bids) => {
+                let mean = all_bids.reduce(sum, 0) / all_bids.length;
                 if (P >= mean)
                     return x.x * (bando.base_asta - P) * (bando.base_asta - mean);
                 else
-                    return x.x + (1-x.x) * (mean-P) * (mean-amin(all));
+                    return x.x + (1-x.x) * (mean-P) * (mean-amin(all_bids));
 
             },
             params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
@@ -461,11 +467,11 @@ const functions = {
     },
     "lineare_min_max": {
         up: {
-            f: (P, x, bando, all) => 1 - (amax(all) - P) / (amax(all) - amin(all)),
+            f: (P, x, bando, all_bids) => 1 - (amax(all_bids) - P) / (amax(all_bids) - amin(all_bids)),
             params:{}
         },
         down: {
-            f: (P, x, bando, all) => 1 - (P - amin(all)) / (amax(all) - amin(all)),
+            f: (P, x, bando, all_bids) => 1 - (P - amin(all_bids)) / (amax(all_bids) - amin(all_bids)),
             params:{}
         },
     }
@@ -505,7 +511,7 @@ Vue.component('criterion', {
                     fname: fname,
                     o: functions[fname],
                 }
-            }).sort((a, b) => 2 * (a.fname > b.fname) - 1);
+            }).sort();
         },
         isWeightEditable () {
             return this.is_leaf && this.model.tipo !== 'T';
@@ -518,7 +524,9 @@ Vue.component('criterion', {
                 return '0';
             if (!current.env_depth)
                 current.env_depth = max_bando_depth(current);
-            let label = ((mx * 2 - 1) * char_width);
+
+            let mx = current.env_depth,
+                label = ((mx * 2 - 1) * char_width);
             if (!pad_structure)
                 return label + 'px';
             return (mx - this.depth - 1) * indent + label  + 'px';
@@ -529,6 +537,8 @@ Vue.component('criterion', {
         }
     },
     methods: {
+        amin: amin,
+        amax: amax,
         function_change () {
             // Structure
             if (this.model.tipo === 'Q') {
@@ -581,8 +591,8 @@ Vue.component('criterion', {
             }
 
             // Update lab
-            if (old_type === 'Q');
-                window.vm_lab.release_by_prefix(this.name);
+            if (old_type === 'Q')
+                vm_lab.release_by_prefix(this.name);
         },
         remove () {
             // Prepare to adapt data
@@ -618,7 +628,7 @@ Vue.component('criterion', {
             current.env_depth = max_bando_depth(current);
 
             // Clean up lab
-            window.vm_lab.release_by_prefix(this.name);
+            vm_lab.release_by_prefix(this.name);
         },
         sub () {
             let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
@@ -646,7 +656,7 @@ Vue.component('criterion', {
 
             // Update lab
             if (pointer.subcriteri[0].tipo === 'Q')
-                window.vm_lab.update_name(this.name, this.name + '.1');
+                vm_lab.update_name(this.name, this.name + '.1');
 
             Vue.nextTick(refresh_popover);
         },
@@ -726,10 +736,10 @@ function load_bando(args) {
 
         // NOTE: we may also avoid the use of Vue.set
         Object.keys(patch).forEach((key) => {
-            Vue.set(window.vm_app_status, key, patch[key]);
+            Vue.set(vm_app_status, key, patch[key]);
         });
 
-        refresh_gui(bando_data);
+        refresh_gui();
     } catch(err) {
         // TODO: improve how we display this error message.
         // & this should be only Fatal.
@@ -737,7 +747,9 @@ function load_bando(args) {
         dialog.showErrorBox('Errore di caricamento',
             'Si e\' verificatio un errore caricando ' + args.fpath + ' .\n' +
             err.name + ': ' + err.message + '.');
-        import_export.clear(true);
+
+        if (args.fpath !== F_EMPTY_BANDO)
+            import_export.clear(true);
     }
 }
 
@@ -745,19 +757,21 @@ function load_bando(args) {
 function refresh_gui() {
     if (!current) {
         // No bando loaded: load empty.
-        load_bando({fpath:  __dirname + '/examples/Empty.json'});
+        load_bando({fpath: F_EMPTY_BANDO});
         return;
     }
 
 
-    if (!window.vm_structure) {
+    if (!vm_structure) {
         // Init
-        window.vm_structure = new Vue({
+        vm_structure = new Vue({
             el: '#structure',
             data: {
                 bando: current,
             },
             methods: {
+                amin: amin,
+                amax: amax,
                 add_root_criterion () {
                     let newc = {peso:0, tipo:'D', soglia:0, mod_soglia:'punti', nome:''}
                     current.criteri.push(newc);
@@ -787,16 +801,15 @@ function refresh_gui() {
                             fname: fname,
                             o: functions[fname],
                         }
-                    }).sort((a, b) => 2 * (a.fname > b.fname) - 1);
+                    }).sort();
                 },
                 eco_mode () {
                     return eco_mode(this.bando);
                 },
                 eco_got_param: function() {
-                    let m = eco_mode(this.bando);
-                    for (let i in functions[this.bando.funzione_economica][m].params)
-                        return true;
-                    return false;
+                    let m = eco_mode(this.bando),
+                        o = functions[this.bando.funzione_economica][m];
+                    return o.params && Object.keys(o.params).length;
                 }
             },
             filters: common_filters,
@@ -809,8 +822,8 @@ function refresh_gui() {
         env_name_show: 'hide',
         env_frozen: {},
     };
-    if (!window.vm_data) {
-        window.vm_data = new Vue({
+    if (!vm_data) {
+        vm_data = new Vue({
             el: '#data-container',
             data: {
                 env_data_mode: vm_data_defaults.env_data_mode,
@@ -819,6 +832,8 @@ function refresh_gui() {
                 bando: current,
             },
             methods: {
+                amin: amin,
+                amax: amax,
                 // For DATA:
                 remove (index) {
                     Vue.delete(this.bando.offerte, index);
@@ -967,8 +982,8 @@ function refresh_gui() {
 
 
     const vm_rank_defaults = {env_data_orderby: 'agg_desc'}
-    if (!window.vm_rank) {
-        window.vm_rank = new Vue({
+    if (!vm_rank) {
+        vm_rank = new Vue({
             el: '#rank',
             data: {
                 env_data_orderby: vm_rank_defaults.env_data_orderby,
@@ -987,7 +1002,7 @@ function refresh_gui() {
 
                     let offerte = apply_functions(this.bando);
                     offerte = apply_thresholds(this.bando, this.bando.offerte, offerte);
-                    excluded = offerte.filter(o => o.excluded).map(o => o.nome).join(', ');
+                    const excluded = offerte.filter(o => o.excluded).map(o => o.nome).join(', ');
                     offerte = offerte.filter(o => !o.excluded);
 
                     let agg = aggregativo_compensatore(this.bando, offerte)
@@ -1013,11 +1028,11 @@ function refresh_gui() {
                         field = x[0], order = x[1];
 
                     return {
-                        rank: Object.values(board).sort((a,b) =>
-                            (-1)**(order == 'desc') *
-                            (field == 'nome' ?
-                                2 * (a[field] > b[field]) - 1 :
-                                a[field] - b[field])),
+                        rank: Object.values(board).sort((a, b) =>
+                            (-1)**(+(order === 'desc')) *    // asc - desc
+                            (+(field === 'nome' ?
+                                2 * (+(a[field] > b[field])) - 1 : // stringhe
+                                a[field] - b[field]))),  // num
                         excluded: excluded,
                     }
                 }
@@ -1027,8 +1042,8 @@ function refresh_gui() {
     }
 
 
-    if (!window.vm_errors) {
-        window.vm_errors = new Vue({
+    if (!vm_errors) {
+        vm_errors = new Vue({
             el: '#errors',
             data: {
                 bando: current,
@@ -1048,9 +1063,9 @@ function refresh_gui() {
         env_new_criteria: '-1',
         env_show_eco: false,
     };
-    if (!window.vm_lab) {
+    if (!vm_lab) {
         // Init
-        window.vm_lab = new Vue({
+        vm_lab = new Vue({
             el: '#lab',
             data: {
                 env_frozen: copy(vm_lab_defaults.env_frozen),
@@ -1076,7 +1091,7 @@ function refresh_gui() {
                             fname: fname,
                             o: functions[fname],
                         }
-                    }).sort((a, b) => 2 * (a.fname > b.fname) - 1);
+                    }).sort();
                 },
                 funcs () {
                     return functions;
@@ -1086,13 +1101,16 @@ function refresh_gui() {
                         return '0';
                     if (!current.env_depth)
                         current.env_depth = max_bando_depth(current);
-                    let label = ((mx * 2 - 1) * char_width);
+                    let mx = current.env_depth,
+                        label = ((mx * 2 - 1) * char_width);
                     if (!pad_structure)
                         return label + 'px';
                     return (mx - this.depth - 1) * indent + label  + 'px';
                 },
             },
             methods: {
+                amin: amin,
+                amax: amax,
                 done (i) {
                     if (i === -1) {
                         if (this.env_frozen['eco'])
@@ -1134,7 +1152,7 @@ function refresh_gui() {
                     else this.freeze(model);
                 },
                 freeze (c) {
-                    window.vm_data.freeze(c.env_name);
+                    vm_data.freeze(c.env_name);
 
                     // Build str
                     let str = [];
@@ -1142,8 +1160,7 @@ function refresh_gui() {
                     str.push('con');
 
                     for (let pname in this.funcs[c.funzione].up.params) {
-                        let p = this.funcs[c.funzione].up.params[pname];
-                        pname_clean =  common_filters.csub(common_filters.undash(pname));
+                        const pname_clean =  common_filters.csub(common_filters.undash(pname));
                         str.push(pname_clean + '=' + c.parametri[pname]);
                         str.push('e');
                     }
@@ -1157,7 +1174,7 @@ function refresh_gui() {
                     Vue.set(this.env_frozen, c.env_name, str.join(' '));
                 },
                 unfreeze (name) {
-                    window.vm_data.unfreeze(name);
+                    vm_data.unfreeze(name);
                     Vue.delete(this.env_frozen, name);
                 },
                 release_by_prefix (prefix) {
@@ -1193,11 +1210,11 @@ function refresh_gui() {
 
                     Vue.set(this.env_frozen, actual, this.env_frozen[old])
                     Vue.delete(this.env_frozen, old);
-                    window.vm_data.update_frozen_name(old, actual);
+                    vm_data.update_frozen_name(old, actual);
                 },
                 toggle_eco_freeze () {
                     if (!this.env_frozen['eco']) {
-                        window.vm_data.freeze_eco();
+                        vm_data.freeze_eco();
 
                         let str = [];
                         str.push(common_filters.capitalize(common_filters.undash(this.bando.funzione_economica)));
@@ -1205,8 +1222,7 @@ function refresh_gui() {
 
                         let params = this.funcs[this.bando.funzione_economica][eco_mode(this.bando)].params;
                         for (let pname in params) {
-                            let p = params[pname];
-                            pname_clean =  common_filters.csub(common_filters.undash(pname));
+                            const pname_clean =  common_filters.csub(common_filters.undash(pname));
                             str.push(pname_clean + '=' + this.bando.parametri_economica[pname]);
                             str.push('e');
                         }
@@ -1215,7 +1231,7 @@ function refresh_gui() {
 
                         Vue.set(this.env_frozen, 'eco', str.join(' '));
                     } else {
-                        window.vm_data.unfreeze_eco();
+                        vm_data.unfreeze_eco();
                         Vue.delete(this.env_frozen, 'eco');
                     }
                 }
@@ -1225,20 +1241,20 @@ function refresh_gui() {
     }
 
     // Refresh
-    Vue.set(window.vm_structure, 'bando', current);
-    Vue.set(window.vm_data, 'bando', current);
-    Vue.set(window.vm_rank, 'bando', current);
-    Vue.set(window.vm_errors, 'bando', current);
-    Vue.set(window.vm_lab, 'bando', current);
+    Vue.set(vm_structure, 'bando', current);
+    Vue.set(vm_data, 'bando', current);
+    Vue.set(vm_rank, 'bando', current);
+    Vue.set(vm_errors, 'bando', current);
+    Vue.set(vm_lab, 'bando', current);
 
     // Reset defaults
     // data, lab, rank
-    for (k in vm_data_defaults)
-        Vue.set(window.vm_data, k, copy(vm_data_defaults[k]));
-    for (k in vm_rank_defaults)
-        Vue.set(window.vm_rank, k, copy(vm_rank_defaults[k]));
-    for (k in vm_lab_defaults)
-        Vue.set(window.vm_lab, k, copy(vm_lab_defaults[k]));
+    for (let k in vm_data_defaults)
+        Vue.set(vm_data, k, copy(vm_data_defaults[k]));
+    for (let k in vm_rank_defaults)
+        Vue.set(vm_rank, k, copy(vm_rank_defaults[k]));
+    for (let k in vm_lab_defaults)
+        Vue.set(vm_lab, k, copy(vm_lab_defaults[k]));
 
     Vue.nextTick(refresh_popover);
 }
@@ -1260,9 +1276,13 @@ function apply_functions(bando) {
 
     return bando.offerte.map((o, oi) => {
         // Compute economic bid.
-        let res = {nome:o.nome},
-            eco_f = functions[bando.funzione_economica][eco_mode(bando)];
+        let res = {
+            nome: o.nome,
+            economica: 0,
+            tecnica: <number[]>[]
+        }
 
+        let eco_f = functions[bando.funzione_economica][eco_mode(bando)]
         res.economica = eco_f.f(
             o.economica,             // Economic bid
             bando.parametri_economica,  // Economic function parameters
@@ -1341,9 +1361,9 @@ function apply_scale(bando, offerte) {
 
 
 function aggregativo_compensatore(bando, offerte) {
-   let ll       = leafs_lst(bando.criteri);
-       tweights = tech_weights(ll);
-       eweight  = economic_weight(bando);
+   let ll       = leafs_lst(bando.criteri),
+       w_techs = tech_weights(ll),
+       w_eco  = economic_weight(bando);
 
     if (bando.riparametrizzazione1)
         offerte = apply_scale(bando, offerte);
@@ -1352,7 +1372,7 @@ function aggregativo_compensatore(bando, offerte) {
         // Rescale tecnica and economica to give 1 to the best.
         let tech = offerte.map(o =>
             o.tecnica
-                .map((v, vi) => tweights[vi] * v)
+                .map((v, vi) => w_techs[vi] * v)
                 .reduce(sum, 0)
         );
 
@@ -1361,12 +1381,12 @@ function aggregativo_compensatore(bando, offerte) {
         return offerte.map((o, i) => {
             return {
                 nome: o.nome,
-                agg: o.economica / meco * eweight + tech[i] / mtech * (100-eweight) ,
+                agg: o.economica / meco * w_eco + tech[i] / mtech * (100-w_eco) ,
             }
         })
     }
 
-    let weights = [eweight].concat(tweights);
+    let weights = [w_eco].concat(w_techs);
     return offerte.map(o => {
         return {
             nome: o.nome,
@@ -1418,11 +1438,11 @@ function electre_iteration(w, bids) {
         return [bids[0].nome];
 
     // Step B
-    let f = nmatrix([n,r,r]);
-    let g = nmatrix([n,r,r]);
+    let f = nmatrix([n,r,r]),
+        g = nmatrix([n,r,r]);
 
     // Abstract internal structure and match paper algorithm.
-    a = (k, i) => bids[i].v[k];
+    const a = (k, i) => bids[i].v[k];
 
     for (let k=0; k < n; k++) {
         for (let i=0; i < r; i++) {
@@ -1518,7 +1538,7 @@ function topsis(bando, offerte) {
         r = bids.length; // number of offers
 
     // Abstract internal structure and match paper algorithm.
-    m = (i, k) => bids[i].v[k];
+    const m = (i, k) => bids[i].v[k];
 
     // Normalization
     let x = nmatrix([r,n]);
@@ -1592,30 +1612,29 @@ function topsis(bando, offerte) {
 // Consistency checks & export functions
 
 function clean_criterion(c) {
-    let n = {
-        // NOTE: optional and not actually exploited.
-        nome: c.nome !== undefined? c.nome : '',
-    }
+    let name:string = c.nome !== undefined? c.nome : '';
     if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
-        n.subcriteri = c.subcriteri.map(clean_criterion);
-        return n;
+        return {
+            nome: name,
+            subcriteri: c.subcriteri.map(clean_criterion),
+        };
     }
 
-    n.tipo = c.tipo;
-    n.funzione = c.funzione;
+    let n = {
+        tipo:       <string>c.tipo,
+        funzione:   <string>c.funzione,
+        soglia:     <number>c.soglia || 0,
+        mod_soglia: <string>c.mod_soglia || 'punti',
+    };
+
     if (n.tipo === 'Q') {
-        n.parametri = {};
+        n['parametri'] = {};
         Object.keys(functions[n.funzione]['up'].params)
-            .forEach(p => n.parametri[p] = c.parametri[p]);
+            .forEach(p => n['parametri'][p] = <number>c.parametri[p]);
     }
 
-    n.soglia = c.soglia || 0;
-    n.mod_soglia = c.mod_soglia || 'punti';
-
-    if (n.tipo === 'T')
-        n.voci = c.voci
-    else
-        n.peso = c.peso;
+    if (n.tipo === 'T') n['voci'] = <number[]> c.voci
+    else n['peso'] = <number> c.peso;
     return n;
 }
 
@@ -1637,16 +1656,16 @@ function clean_bando(bando) {
     fstOrderAttributes.forEach(f => cleaned[f] = bando[f]);
 
     // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
-    cleaned.parametri_economica = {};
+    cleaned['parametri_economica'] = {};
     let m = eco_mode(bando);
-    Object.keys(functions[cleaned.funzione_economica][m].params)
-        .forEach(p => cleaned.parametri_economica[p] = bando.parametri_economica[p]);
+    Object.keys(functions[cleaned['funzione_economica']][m].params)
+        .forEach(p => cleaned['parametri_economica'][p] = bando.parametri_economica[p]);
 
     // Criteri must be recursive
-    cleaned.criteri = bando.criteri.map(clean_criterion);
+    cleaned['criteri'] = bando.criteri.map(clean_criterion);
 
     // Data, just copy
-    cleaned.offerte = copy(bando.offerte);
+    cleaned['offerte'] = copy(bando.offerte);
 
     return cleaned;
 }
@@ -1738,7 +1757,7 @@ function check_parameter(field, func, m, params, p) {
 
 
 // TODO: PUT this as precontion for rendering "rank" and maybe also "points"
-function check_bando(bando, fix) {
+function check_bando(bando, fix?:boolean):[boolean,string[]] {
     /* Check the bando consistency and returns
      * [fatal:boolean, [...error_messages:string]]
      *
@@ -1875,9 +1894,9 @@ function refresh_popover() {
       '#data [data-toggle="popover"]:not([data-original-title])').each((i, o) => {
 
         let content = $(o).next('.popper-content');
-        $(o).popover({
+          $(o).popover({
             html:true,
-            content: content,
+              content: content[0],
             template: '' +
                 '<div class="popover" role="tooltip">'+
                 '<div class="arrow"></div>' +
@@ -1917,7 +1936,7 @@ function bootstrap_popover() {
 /* ========================================================================== */
 // Import - Export
 let import_export = {
-    open: (path, force) => {
+    open: (path, force: boolean=false) => {
         if(!deepEqual(clean_bando(current), current_org) && force !== true) {
             if (dialog.showMessageBox({
                 type: 'question',
@@ -1972,8 +1991,8 @@ let import_export = {
             let cleaned = clean_bando(current);
             fs.writeFileSync(path, JSON.stringify(cleaned), {mode: 0o664, flag:'w+'});
             current_org = cleaned;
-            Vue.set(window.vm_app_status, 'org', cleaned);
-            Vue.set(window.vm_app_status, 'fpath', path);
+            Vue.set(vm_app_status, 'org', cleaned);
+            Vue.set(vm_app_status, 'fpath', path);
         } catch(err) {
             dialog.showErrorBox('Errore nel salvataggio',
                 'Si e\' verificatio un errore salvando ' + path + ' .\n' +
@@ -1981,7 +2000,7 @@ let import_export = {
         }
     },
     clear (force) {
-        import_export.open(__dirname + '/examples/Empty.json', force === true);
+        import_export.open(F_EMPTY_BANDO, force === true);
     }
 }
 
@@ -2025,6 +2044,6 @@ $(function () {
     bootstrap_popover();
 
     // TODO: only for dev
-    import_export.open('examples/Esempio_Pulizie.json')
+    import_export.open(path.join(EXAMPLES_DIR, 'Pulizie.json'));
 
 });

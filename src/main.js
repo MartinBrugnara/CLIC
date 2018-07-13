@@ -45,8 +45,10 @@ function createWindow () {
         win.focus();
     });
 
+    win.toggleDevTools();
+
     // and load the index.html of the app.
-    win.loadFile('index.html')
+    win.loadFile(path.join(__dirname, 'index.html'));
 
     // Emitted when the window is closed.
     win.on('closed', () => {
@@ -58,12 +60,12 @@ function createWindow () {
 }
 
 function lsExamples() {
-    const examples_dir = __dirname + '/examples/';
+    const examples_dir = path.join(__dirname, 'assets/examples');
     return fs.readdirSync(examples_dir).map((fname) => {
         return {
             label: fname.replace(/\.json$/g, ''),
             click: () => {
-                const fpath = examples_dir + fname;
+                const fpath = path.join(examples_dir, fname);
                 win.webContents.send('load_bando', {fpath: fpath});
             },
         };

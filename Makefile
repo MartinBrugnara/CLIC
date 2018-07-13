@@ -1,7 +1,14 @@
-help:
-	@echo "Build releases."
+# @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-BUILD_CMD=electron-packager ./ --prune=true --overwrite --out release-builds/
+help:
+	@echo "Available commands:"
+	@tail -n+7 $(MAKEFILE_LIST) | grep ':' | cut -d ':' -f 1 | sort
+
+all: compile osx linux-64 linux-32 win-64 win-32
+	@echo "Bulding and packaging for all architectures"
+
+all-64: compile osx linux-64 win-64
+	@echo "Bulding and packaging for all x64"
 
 clean:
 	rm -rf release-builds/*
@@ -9,25 +16,20 @@ clean:
 release-builds:
 	mkdir -p release-builds
 
-all: bin clean linux-32 linux-64 osx windows-32 windows-64
+compile:
+	npm run compile
 
-linux-32:
-	${BUILD_CMD} --platform=linux --arch=ia32 --icon=assets/icons/png/1024x1024.png
+osx: release-builds
+	npm run package-mac
 
-linux-64:
-	${BUILD_CMD} --platform=linux --arch=x64 --icon=assets/icons/png/1024x1024.png
+linux-64: release-builds
+	npm run package-linux-64
 
-osx:
-	${BUILD_CMD} --platform=darwin --arch=x64 --icon=assets/icons/mac/clic.icns
+linux-32: release-builds
+	npm run package-linux-32
 
-windows-32:
-	${BUILD_CMD} --platform=win32 --arch=ia32 --icon=assets/icons/win/clic.ico \
-		--version-string.CompanyName="University of Trento" \
-		--version-string.FileDescription="" \
-		--version-string.ProductName="CLIC what if?"
+win-64: release-builds
+	npm run package-win-64 
 
-windows-64:
-	${BUILD_CMD} --platform=win32 --arch=x64 --icon=assets/icons/win/clic.ico \
-		--version-string.CompanyName="University of Trento" \
-		--version-string.FileDescription="" \
-		--version-string.ProductName="CLIC what if?"
+win-32: release-builds
+	npm run package-win-32 

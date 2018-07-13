@@ -24,11 +24,13 @@
     <meta charset="UTF-8">
     <title>CLIC: What if?</title>
 
-    <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="node_modules/\@fortawesome/fontawesome-free-webfonts/css/fontawesome.css">
-    <link rel="stylesheet" href="node_modules/\@fortawesome/fontawesome-free-webfonts/css/fa-regular.css">
-    <link rel="stylesheet" href="node_modules/\@fortawesome/fontawesome-free-webfonts/css/fa-solid.css">
-    <link rel="stylesheet" href="static/css/index.css">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data:">
+
+    <link rel="stylesheet" href="../node_modules/bootstrap/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../node_modules/\@fortawesome/fontawesome-free-webfonts/css/fontawesome.css">
+    <link rel="stylesheet" href="../node_modules/\@fortawesome/fontawesome-free-webfonts/css/fa-regular.css">
+    <link rel="stylesheet" href="../node_modules/\@fortawesome/fontawesome-free-webfonts/css/fa-solid.css">
+    <link rel="stylesheet" href="resources/index.css">
 </head>
 <body class="pb-5 hide">
 
@@ -37,8 +39,8 @@
         <a class="navbar-brand" href="#">CLIC</a>
         <span class="navbar-text text-white"><strong>Bando:</strong> {{ rpath }}</span>
         <div class="nav-item active flex-column">
-            <div><span v-bind:class="{invisible: !read_only}" style="width:100%" class="badge badge-danger">Sola lettura</span></div>
-            <div><span v-bind:class="{invisible: !modified}" style="width:100%" class="badge badge-warning">Modificato</span></div>
+            <div><span :class="{invisible: !read_only}" style="width:100%" class="badge badge-danger">Sola lettura</span></div>
+            <div><span :class="{invisible: !modified}" style="width:100%" class="badge badge-warning">Modificato</span></div>
         </div>
     </nav>
 
@@ -67,14 +69,14 @@
 
                 <div class="form-group col-auto no-expand">
                     <label class="font-weight-bold">Peso</label>
-                    <h3><span v-bind:class="['badge', 'mb-0', {'badge-light': economic_weight === 30}, {'badge-danger': economic_weight < 0}, {'badge-warning': economic_weight !== 30 && economic_weight >= 0 }]">{{ economic_weight | prec_up_1 }}</span></h3>
+                    <h3><span :class="['badge', 'mb-0', {'badge-light': economic_weight === 30}, {'badge-danger': economic_weight < 0}, {'badge-warning': economic_weight !== 30 && economic_weight >= 0 }]">{{ economic_weight | prec_up_1 }}</span></h3>
                 </div>
 
                 <div class="form-group col-auto" v-if="bando.mod_economica == 'prezzo'">
                     <label for="eco_base_asta" class="font-weight-bold">Base d'asta</label>
                     <input type="number" class="form-control" name="base_asta" id="base_asta"
                         min="0.01" step="0.01" v-model.number="bando.base_asta"
-                        v-bind:required="base_required">
+                        :required="base_required">
                     <!-- <small id="eco_base_asta_help" class="form-text text-muted">Decimale positivo con due cifre</small> -->
                 </div>
 
@@ -85,8 +87,8 @@
                         class="form-control"
                         id="eco_func"
                         v-model="bando.funzione_economica">
-                        <template v-for="f in funcs_lst" :key="f.fname">
-                            <option v-if="f.o[eco_mode] !== undefined" v-bind:value="f.fname">{{ f.fname  | undash | capitalize }}</option>
+                        <template v-for="f in funcs_lst">
+                            <option :key="f.name" v-if="f.o[eco_mode] !== undefined" :value="f.fname">{{ f.fname  | undash | capitalize }}</option>
                         </template>
                     </select>
                 </div>
@@ -104,11 +106,11 @@
 
                             <input
                                 type="number"
-                                v-bind:min=     "funcs[bando.funzione_economica][eco_mode].params[pname].domain.start"
-                                v-bind:max=     "funcs[bando.funzione_economica][eco_mode].params[pname].domain.end"
-                                v-bind:step=    "funcs[bando.funzione_economica][eco_mode].params[pname].domain.step"
-                                v-bind:required="funcs[bando.funzione_economica][eco_mode].params[pname].required"
-                                v-bind:name="pname"
+                                :min=     "funcs[bando.funzione_economica][eco_mode].params[pname].domain.start"
+                                :max=     "funcs[bando.funzione_economica][eco_mode].params[pname].domain.end"
+                                :step=    "funcs[bando.funzione_economica][eco_mode].params[pname].domain.step"
+                                :required="funcs[bando.funzione_economica][eco_mode].params[pname].required"
+                                :name="pname"
                                 class="form-control no-expand"
                                 v-model.number="bando.parametri_economica[pname]"
                             />
@@ -136,10 +138,11 @@
         <ul id="ctree" class="nols">
             <criterion
                 v-for="(model, index) in bando.criteri"
-                v-bind:index="index"
-                v-bind:model="model"
-                v-bind:name="index+1"
-                v-bind:depth="1"></criterion>
+                :key="index"
+                :index="index"
+                :model="model"
+                :name="'' + (index+1)"
+                :depth="1"></criterion>
 
             <span>
                 <i @click="add_root_criterion" class="fas fa-plus action"></i>
@@ -153,23 +156,23 @@
     <div class="d-flex flex-wrap">
         <form class="form-inline flex-shrink-0 mb-2">
             <div class="mr-3">
-                <label v-bind:style="{'min-width': padding, 'display': 'inline-flex'}" class="my-1 mr-1">{{name}}</label>
+                <label :style="{'min-width': padding, 'display': 'inline-flex'}" class="my-1 mr-1">{{name}}</label>
 
                 <a role="button" data-toggle="popover" data-placement="right">
                     <i class="fas fa-info action ml-1"></i>
                 </a>
                 <div class="popper-content hide">
                     <input type="text" class="form-control form-control-sm text-monospace" placeholder="Nome del criterio"
-                        v-bind:size="amax([amin([78, (model.nome||'').trim().length + 3]), 18])"
+                        :size="amax([amin([78, (model.nome||'').trim().length + 3]), 18])"
                         v-model.trim="model.nome" />
                 </div>
 
-                <a role="button" data-toggle="popover" data-placement="right" v-bind:style="{'visibility': is_leaf ? 'inherit' : 'hidden' }">
+                <a role="button" data-toggle="popover" data-placement="right" :style="{'visibility': is_leaf ? 'inherit' : 'hidden' }">
                     <div class="ico8 action">
                         <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="2 10 44 28" xml:space="preserve">
                             <g>
                                 <path class="" d="M21.2,34.7c-0.1,0-0.1,0-0.2,0c-1.3-0.1-2.5-0.8-3.2-2L9.1,18.4l-4.4,1.5l-1.3-3.8l4.5-1.5   c1.8-0.6,3.8,0.2,4.7,1.8l8.6,14.2l2.3-2.8c1.1-1.3,2.9-1.8,4.4-1.2l2.9,1c0,0,0,0,0.1,0l4.3-10c0.5-1.2,1.5-2,2.7-2.3   c1.1-0.3,2.3-0.1,3.2,0.5l4,2.7l-2.2,3.3l-3.9-2.6l-4.3,10.1c-0.8,1.8-3,2.8-4.9,2.2l-3.1-1l-2.3,2.7   C23.5,34.1,22.4,34.7,21.2,34.7z M38.8,19.1C38.8,19.1,38.8,19.1,38.8,19.1L38.8,19.1z"></path>
-                                <path v-bind:class="{'active': model.soglia > 0}" d="M3,23h42v2H3V23z"></path>
+                                <path :class="{'active': model.soglia > 0}" d="M3,23h42v2H3V23z"></path>
                             </g>
                         </svg>
                     </div>
@@ -177,25 +180,25 @@
                 <div class="popper-content hide">
                     <div class="form-check-inline">
                         <input style="margin-top:0.05rem" class="form-check-input"
-                        type="radio" v-bind:id="name + '_threshold_points'" value="punti"
+                        type="radio" :id="name + '_threshold_points'" value="punti"
                         v-model="model.mod_soglia">
-                        <label class="form-check-label" v-bind:for="name + '_threshold_points'">Punti</label>
+                        <label class="form-check-label" :for="name + '_threshold_points'">Punti</label>
                     </div>
                     <div class="form-check-inline">
                         <input style="margin-top:0.05rem" class="form-check-input"
-                            type="radio" v-bind:id="name + '_threshold_raw'"
+                            type="radio" :id="name + '_threshold_raw'"
                             value="valore"
                             v-model="model.mod_soglia">
-                        <label class="form-check-label" v-bind:for="name + '_threshold_raw'">Valore</label>
+                        <label class="form-check-label" :for="name + '_threshold_raw'">Valore</label>
                     </div>
 
                     <input type="number" min="0" step="0.01" class="form-control form-control-sm "
-                        v-bind:max="model.mod_soglia === 'punti' ? 1 : ''"
+                        :max="model.mod_soglia === 'punti' ? 1 : ''"
                         v-model.number="model.soglia" />
                 </div>
 
 
-                <i @click="sub()" v-bind:style="{'visibility': is_leaf ? 'inherit' : 'hidden' }" class="fas fa-sitemap action ml-1"></i>
+                <i @click="sub()" :style="{'visibility': is_leaf ? 'inherit' : 'hidden' }" class="fas fa-sitemap action ml-1"></i>
                 <i @click="remove()" class="far fa-trash-alt action"></i>
             </div>
 
@@ -223,8 +226,8 @@
 
                 <select class="custom-select" v-if="model.tipo === 'Q'"
                         v-model="model.funzione" @change="function_change">
-                    <template v-for="f in funcs_lst" :key="f.fname">
-                        <option v-if="f.o['up'] !== undefined" v-bind:value="f.fname">{{ f.fname | undash | capitalize }}</option>
+                    <template v-for="f in funcs_lst">
+                        <option :key="f.fname" v-if="f.o['up'] !== undefined" :value="f.fname">{{ f.fname | undash | capitalize }}</option>
                     </template>
                 </select>
 
@@ -245,11 +248,11 @@
 
                     <input
                         type="number"
-                        v-bind:min="funcs[model.funzione].up.params[pname].domain.start"
-                        v-bind:max="funcs[model.funzione].up.params[pname].domain.end"
-                        v-bind:step="funcs[model.funzione].up.params[pname].domain.step"
-                        v-bind:required="funcs[model.funzione].up.params[pname].required"
-                        v-bind:name="pname"
+                        :min="funcs[model.funzione].up.params[pname].domain.start"
+                        :max="funcs[model.funzione].up.params[pname].domain.end"
+                        :step="funcs[model.funzione].up.params[pname].domain.step"
+                        :required="funcs[model.funzione].up.params[pname].required"
+                        :name="pname"
                         class="form-control no-expand"
                         v-model.number="model.parametri[pname]" />
                 </template>
@@ -279,9 +282,10 @@
     <ul v-if="!is_leaf">
         <criterion
             v-for="(model, index) in model.subcriteri"
-            v-bind:model="model"
-            v-bind:name="name + '.' + (index + 1)"
-            v-bind:depth="depth + 1">
+            :model="model"
+            :key="index"
+            :name="name + '.' + (index + 1)"
+            :depth="depth + 1">
         </criterion>
         <span>
             <i @click="add()" class="fas fa-plus action"></i>
@@ -341,18 +345,18 @@
                     <thead>
                         <tr class="names" v-if="enable_names">
                             <th></th>
-                            <th v-bind:colspan="env_frozen['eco'] ? 2 : 1"><small>ECONOMICA</small></th>
-                            <th v-for="c in fst_lvl_names" v-bind:colspan="c.size"><small>{{ (c.nome||'').trim() }}</small></th>
+                            <th :colspan="env_frozen['eco'] ? 2 : 1"><small>ECONOMICA</small></th>
+                            <th v-for="c in fst_lvl_names" :colspan="c.size"><small>{{ (c.nome||'').trim() }}</small></th>
                             <th></th>
                         </tr>
                         <tr class="env_names">
                             <th><span>#</span></th>
-                            <th v-bind:colspan="env_frozen['eco'] ? 2 : 1"><span v-if="!enable_names">Economica</span><span v-else>0</span></th>
+                            <th :colspan="env_frozen['eco'] ? 2 : 1"><span v-if="!enable_names">Economica</span><span v-else>0</span></th>
 
                             <th scope="col" v-for="c in cols"
-                                v-bind:colspan="(c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1) * (env_frozen[c.env_name] ? 2 : 1)">
+                                :colspan="(c.tipo == 'T' && env_data_mode != 'points' ? c.voci.length : 1) * (env_frozen[c.env_name] ? 2 : 1)">
                                 <a data-toggle="popover" data-placement="bottom"
-                                    data-trigger="hover" v-bind:data-force_status="env_name_show"><span v-bind:title="c.nome">{{c.env_name}}</span></a>
+                                    data-trigger="hover" :data-force_status="env_name_show"><span :title="c.nome">{{c.env_name}}</span></a>
                                 <div class="popper-content hide">
                                     {{ c.nome || 'Non specificato' }}
                                 </div>
@@ -363,20 +367,20 @@
                         </tr>
                         <tr class="weights">
                             <th><small>Peso</small></th>
-                            <th v-bind:colspan="env_frozen['eco'] ? 2 : 1">
+                            <th :colspan="env_frozen['eco'] ? 2 : 1">
                                 <small>{{ economic_weight }}</small>
                             </th>
 
                             <template v-for="(c, ci) in cols">
                                 <template v-if="c.tipo == 'T'">
-                                    <th v-if="env_data_mode == 'points'" v-bind:colspan="env_frozen[c.env_name] ? 2 : 1"><small>{{ weights[ci] }}</small></th>
-                                    <th v-else v-for="(v, vi) in c.voci" v-bind:colspan="env_frozen[c.env_name] ? 2 : 1">
+                                    <th v-if="env_data_mode == 'points'" :colspan="env_frozen[c.env_name] ? 2 : 1"><small>{{ weights[ci] }}</small></th>
+                                    <th v-else v-for="(v, vi) in c.voci" :colspan="env_frozen[c.env_name] ? 2 : 1">
                                         <input v-if="env_data_mode == 'edit'" v-model.number="c.voci[vi]" type="number" min="0" max="100" step="0.1" required>
                                         <small v-else>{{ c.voci[vi] }}</small>
                                     </th>
                                 </template>
                                 <template v-else>
-                                    <th v-bind:colspan="env_frozen[c.env_name] ? 2 : 1">
+                                    <th :colspan="env_frozen[c.env_name] ? 2 : 1">
                                         <input v-if="env_data_mode == 'edit'" v-model.number="c.peso" type="number" min="0" max="100" step="0.1" required>
                                         <small v-else>{{ c.peso }}</small>
                                     </th>
@@ -385,8 +389,8 @@
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody v-bind:class="{'text-center': env_data_mode === 'edit', edit: env_data_mode === 'edit'}">
-                        <tr v-for="(o, i) in bando.offerte" :key="o.nome" v-bind:class="{excluded: points[i].excluded}">
+                    <tbody :class="{'text-center': env_data_mode === 'edit', edit: env_data_mode === 'edit'}">
+                        <tr v-for="(o, i) in bando.offerte" :key="o.nome" :class="{excluded: points[i].excluded}">
                             <template v-if="env_data_mode == 'edit'">
                                 <td class="text-left"><input type="text" v-model.tirm.lazy="o.nome" required></td>
 
@@ -400,7 +404,7 @@
                                     <template v-if="env_frozen[cols[ti].env_name]">
                                         <template v-if="cols[ti].tipo == 'T'">
                                             <td v-for="(v, vi) in cols[ti].voci"
-                                                v-bind:class="['text-center', 'frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]">
+                                                :class="['text-center', 'frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]">
                                                 <template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">
                                                     <span v-if="env_frozen[cols[ti].env_name][i].raw[vi]">&#x2714;</span>
                                                     <span v-else>&#x2718;</span>
@@ -408,21 +412,21 @@
                                             </td>
                                         </template>
                                         <template v-else>
-                                            <td v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]"><template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">{{ env_frozen[cols[ti].env_name][i].raw | precn(2) }}</template></td>
+                                            <td :class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]"><template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">{{ env_frozen[cols[ti].env_name][i].raw | precn(2) }}</template></td>
                                         </template>
                                     </template>
 
                                     <!-- Editor -->
                                     <template v-if="cols[ti].tipo == 'T'">
-                                        <td v-for="(v, vi) in cols[ti].voci" v-bind:class="['text-center', {issue: points[i].excluded_for[ti]}]">
+                                        <td v-for="(v, vi) in cols[ti].voci" :class="['text-center', {issue: points[i].excluded_for[ti]}]">
                                             <input type="checkbox" v-model="t[vi]">
                                         </td>
                                     </template>
                                     <template v-else-if="cols[ti].tipo == 'D'">
-                                        <td v-bind:class="{issue: points[i].excluded_for[ti]}"><input type="number" min="0" step="0.01" max="1" required v-model.number="o.tecnica[ti]"></td>
+                                        <td :class="{issue: points[i].excluded_for[ti]}"><input type="number" min="0" step="0.01" max="1" required v-model.number="o.tecnica[ti]"></td>
                                     </template>
                                     <template v-else>
-                                        <td v-bind:class="{issue: points[i].excluded_for[ti]}"><input type="number" min="0" step="0.01" required v-model.number="o.tecnica[ti]"></td>
+                                        <td :class="{issue: points[i].excluded_for[ti]}"><input type="number" min="0" step="0.01" required v-model.number="o.tecnica[ti]"></td>
                                     </template>
                                 </template>
                                 <td class="text-center">
@@ -448,12 +452,12 @@
                                     <template v-if="env_frozen[cols[ti].env_name]">
                                         <template v-if="cols[ti].tipo == 'T'">
                                             <td v-if="env_data_mode == 'points'"
-                                                v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issues}]">
+                                                :class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issues}]">
                                                 <template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">
                                                     {{ env_frozen[cols[ti].env_name][i].points * cols[ti].peso | precn(2) }}
                                                 </template>
                                             </td>
-                                            <td v-else v-for="(v, vi) in cols[ti].voci" v-bind:class="['text-center', 'frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]">
+                                            <td v-else v-for="(v, vi) in cols[ti].voci" :class="['text-center', 'frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]">
                                                 <template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">
                                                     <span v-if="env_frozen[cols[ti].env_name][i].raw[vi]">&#x2714;</span>
                                                     <span v-else>&#x2718;</span>
@@ -461,27 +465,27 @@
                                             </td>
                                         </template>
                                         <template v-else-if="env_data_mode == 'points'">
-                                            <td v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]"><template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">{{ env_frozen[cols[ti].env_name][i].points * cols[ti].peso | precn(2) }}</template></td>
+                                            <td :class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]"><template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">{{ env_frozen[cols[ti].env_name][i].points * cols[ti].peso | precn(2) }}</template></td>
                                         </template>
                                         <template v-else>
-                                            <td v-bind:class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]"><template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">{{ env_frozen[cols[ti].env_name][i].raw | precn(2) }}</template></td>
+                                            <td :class="['frozen', {issue: env_frozen[cols[ti].env_name][i].was_issue}]"><template v-if="!env_frozen[cols[ti].env_name][i].did_not_exists">{{ env_frozen[cols[ti].env_name][i].raw | precn(2) }}</template></td>
                                         </template>
                                     </template>
 
                                     <template v-if="cols[ti].tipo == 'T'">
-                                        <td v-if="env_data_mode == 'points'" v-bind:class="{issue: points[i].excluded_for[ti]}">
+                                        <td v-if="env_data_mode == 'points'" :class="{issue: points[i].excluded_for[ti]}">
                                             {{ points[i].tecnica[ti] * weights[ti] | precn(2) }}
                                         </td>
-                                        <td v-else v-for="(v, vi) in cols[ti].voci" v-bind:class="['text-center', {issue: points[i].excluded_for[ti]}]">
+                                        <td v-else v-for="(v, vi) in cols[ti].voci" :class="['text-center', {issue: points[i].excluded_for[ti]}]">
                                             <span v-if="t[vi]">&#x2714;</span>
                                             <span v-else>&#x2718;</span>
                                         </td>
                                     </template>
                                     <template v-else-if="env_data_mode == 'points'">
-                                        <td v-bind:class="{issue: points[i].excluded_for[ti]}">{{ points[i].tecnica[ti] * cols[ti].peso | precn(2) }}</td>
+                                        <td :class="{issue: points[i].excluded_for[ti]}">{{ points[i].tecnica[ti] * cols[ti].peso | precn(2) }}</td>
                                     </template>
                                     <template v-else>
-                                        <td v-bind:class="{issue: points[i].excluded_for[ti]}">{{ t | precn(2) }}</td>
+                                        <td :class="{issue: points[i].excluded_for[ti]}">{{ t | precn(2) }}</td>
                                     </template>
                                 </template>
                                 <td class="text-center">
@@ -509,7 +513,7 @@
                             <div class="col-sm-10 input-group">
                                 <select class="custom-select" v-model="env_new_criteria">
                                     <option v-if="!env_show_eco" value="-1">Economica</option>
-                                    <option v-for="(c, i) in criteria" v-bind:key="c.env_name" v-bind:value="i">{{ c.env_name }}</option>
+                                    <option v-for="(c, i) in criteria" :key="c.env_name" :value="i">{{ c.env_name }}</option>
                                 </select>
                                 <div class="input-group-append">
                                     <label class="input-group-text" for="">
@@ -527,7 +531,7 @@
                                     <div class="mr-3 d-flex">
                                         <label style="{'display': 'inline-flex'}" class="mr-1">Economica</label>
 
-                                        <a @click="toggle_eco_freeze" v-bind:class="{'ml-auto': true, hold: env_frozen['eco']}">
+                                        <a @click="toggle_eco_freeze" :class="{'ml-auto': true, hold: env_frozen['eco']}">
                                             <i class="fas fa-snowflake action ml-1"></i>
                                         </a>
                                         <a @click="done(-1)">
@@ -540,8 +544,8 @@
                                             class="custom-select"
                                             id="eco_func"
                                             v-model="bando.funzione_economica">
-                                            <template v-for="f in funcs_lst" :key="f.fname">
-                                                <option v-if="f.o[eco_mode] !== undefined" v-bind:value="f.fname">{{ f.fname  | undash | capitalize }}</option>
+                                            <template v-for="f in funcs_lst">
+                                                <option :key="f.fname" v-if="f.o[eco_mode] !== undefined" :value="f.fname">{{ f.fname  | undash | capitalize }}</option>
                                             </template>
                                         </select>
                                     </div>
@@ -561,11 +565,11 @@
 
                                             <input
                                                 type="number"
-                                                v-bind:min=     "funcs[bando.funzione_economica][eco_mode].params[pname].domain.start"
-                                                v-bind:max=     "funcs[bando.funzione_economica][eco_mode].params[pname].domain.end"
-                                                v-bind:step=    "funcs[bando.funzione_economica][eco_mode].params[pname].domain.step"
-                                                v-bind:required="funcs[bando.funzione_economica][eco_mode].params[pname].required"
-                                                v-bind:name="pname"
+                                                :min=     "funcs[bando.funzione_economica][eco_mode].params[pname].domain.start"
+                                                :max=     "funcs[bando.funzione_economica][eco_mode].params[pname].domain.end"
+                                                :step=    "funcs[bando.funzione_economica][eco_mode].params[pname].domain.step"
+                                                :required="funcs[bando.funzione_economica][eco_mode].params[pname].required"
+                                                :name="pname"
                                                 class="form-control no-expand"
                                                 v-model.number="bando.parametri_economica[pname]"
                                             />
@@ -594,14 +598,14 @@
                             <div class="d-flex flex-wrap">
                                 <form class="form-inline mb-2 flex-shrink-0">
                                     <div class="mr-3">
-                                        <label v-bind:style="{'min-width': padding, 'display': 'inline-flex'}" class="my-1 mr-1">{{model.env_name}}</label>
+                                        <label :style="{'min-width': padding, 'display': 'inline-flex'}" class="my-1 mr-1">{{model.env_name}}</label>
 
                                         <a role="button" data-toggle="popover" data-placement="right">
                                             <i class="fas fa-info action ml-1"></i>
                                         </a>
                                         <div class="popper-content hide">
                                             <input type="text" class="form-control form-control-sm text-monospace" placeholder="Nome del criterio"
-                                                v-bind:size="amax([amin([78, (model.nome||'').trim().length + 3]), 18])"
+                                                :size="amax([amin([78, (model.nome||'').trim().length + 3]), 18])"
                                                 v-model.trim="model.nome" />
                                         </div>
 
@@ -610,7 +614,7 @@
                                                 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="2 10 44 28" xml:space="preserve">
                                                     <g>
                                                         <path class="" d="M21.2,34.7c-0.1,0-0.1,0-0.2,0c-1.3-0.1-2.5-0.8-3.2-2L9.1,18.4l-4.4,1.5l-1.3-3.8l4.5-1.5   c1.8-0.6,3.8,0.2,4.7,1.8l8.6,14.2l2.3-2.8c1.1-1.3,2.9-1.8,4.4-1.2l2.9,1c0,0,0,0,0.1,0l4.3-10c0.5-1.2,1.5-2,2.7-2.3   c1.1-0.3,2.3-0.1,3.2,0.5l4,2.7l-2.2,3.3l-3.9-2.6l-4.3,10.1c-0.8,1.8-3,2.8-4.9,2.2l-3.1-1l-2.3,2.7   C23.5,34.1,22.4,34.7,21.2,34.7z M38.8,19.1C38.8,19.1,38.8,19.1,38.8,19.1L38.8,19.1z"></path>
-                                                        <path v-bind:class="{'active': model.soglia > 0}" d="M3,23h42v2H3V23z"></path>
+                                                        <path :class="{'active': model.soglia > 0}" d="M3,23h42v2H3V23z"></path>
                                                     </g>
                                                 </svg>
                                             </div>
@@ -618,23 +622,23 @@
                                         <div class="popper-content hide">
                                             <div class="form-check-inline">
                                                 <input style="margin-top:0.05rem" class="form-check-input"
-                                                type="radio" v-bind:id="model.env_name + '_threshold_points'" value="punti"
+                                                type="radio" :id="model.env_name + '_threshold_points'" value="punti"
                                                 v-model="model.mod_soglia">
-                                                <label class="form-check-label" v-bind:for="model.env_name + '_threshold_points'">Punti</label>
+                                                <label class="form-check-label" :for="model.env_name + '_threshold_points'">Punti</label>
                                             </div>
                                             <div class="form-check-inline">
                                                 <input style="margin-top:0.05rem" class="form-check-input"
-                                                    type="radio" v-bind:id="model.env_name + '_threshold_raw'" value="valore"
+                                                    type="radio" :id="model.env_name + '_threshold_raw'" value="valore"
                                                     v-model="model.mod_soglia">
-                                                <label class="form-check-label" v-bind:for="model.env_name + '_threshold_raw'">Valore</label>
+                                                <label class="form-check-label" :for="model.env_name + '_threshold_raw'">Valore</label>
                                             </div>
 
                                             <input type="number" min="0" step="0.01" class="form-control form-control-sm "
-                                                v-bind:max="model.mod_soglia === 'punti' ? 1 : ''"
+                                                :max="model.mod_soglia === 'punti' ? 1 : ''"
                                                 v-model.number="model.soglia" />
                                         </div>
 
-                                        <a @click="toggle_freeze(i)" v-bind:class="{'ml-auto': true, hold: env_frozen[model.env_name]}">
+                                        <a @click="toggle_freeze(i)" :class="{'ml-auto': true, hold: env_frozen[model.env_name]}">
                                             <i class="fas fa-snowflake action ml-1"></i>
                                         </a>
 
@@ -655,8 +659,8 @@
                                     <div class="input-group">
                                         <select class="custom-select" v-if="model.tipo === 'Q'"
                                                 v-model="model.funzione" @change="function_change(i)">
-                                            <template v-for="f in funcs_lst" :key="f.fname">
-                                                <option v-if="f.o.up !== undefined" v-bind:value="f.fname">{{ f.fname | undash | capitalize }}</option>
+                                            <template v-for="f in funcs_lst">
+                                                <option :key="f.fname" v-if="f.o.up !== undefined" :value="f.fname">{{ f.fname | undash | capitalize }}</option>
                                             </template>
                                         </select>
                                     </div>
@@ -671,11 +675,11 @@
 
                                             <input
                                                 type="number"
-                                                v-bind:min="funcs[model.funzione].up.params[pname].domain.start"
-                                                v-bind:max="funcs[model.funzione].up.params[pname].domain.end"
-                                                v-bind:step="funcs[model.funzione].up.params[pname].domain.step"
-                                                v-bind:required="funcs[model.funzione].up.params[pname].required"
-                                                v-bind:name="pname"
+                                                :min="funcs[model.funzione].up.params[pname].domain.start"
+                                                :max="funcs[model.funzione].up.params[pname].domain.end"
+                                                :step="funcs[model.funzione].up.params[pname].domain.step"
+                                                :required="funcs[model.funzione].up.params[pname].required"
+                                                :name="pname"
                                                 class="form-control no-expand"
                                                 v-model.number="model.parametri[pname]" />
                                         </div>
@@ -734,9 +738,9 @@
                         <tbody v-if="!fatal_errors">
                             <tr v-for="(o, oi) in scoreboard.rank">
                                 <td>{{ o.nome }}</td>
-                                <td v-bind:data-rank="o.agg_rank">{{ o.agg | precn(2) }}</td>
-                                <td v-bind:data-rank="o.electre">{{ o.electre }}</td>
-                                <td v-bind:data-rank="o.topsis_rank">{{ o.topsis | precn(2) }}</td>
+                                <td :data-rank="o.agg_rank">{{ o.agg | precn(2) }}</td>
+                                <td :data-rank="o.electre">{{ o.electre }}</td>
+                                <td :data-rank="o.topsis_rank">{{ o.topsis | precn(2) }}</td>
                             </tr>
                         </tbody>
                         <caption v-if="!fatal_errors && scoreboard.excluded">
@@ -750,7 +754,7 @@
             </div>
         </div>
     </div>
-    <script src="node_modules/vue/dist/vue.min.js"></script>
-    <script src="static/js/index.js"></script>
+    <script src="../node_modules/vue/dist/vue.min.js"></script>
+    <script src="resources/index.js"></script>
 </body>
 </html>

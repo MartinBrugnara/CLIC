@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "sourceMap": true,
+        "module": "es6",
+        "moduleResolution": "Node",
+        "target": "es2017",
+        "lib": [
+            "dom",
+            "es2017"
+        ],
+        "noUnusedLocals": true,
+        "noUnusedParameters": false,
+        "strict": false,
+        "newLine": "lf",
+        "allowJs": true
+    },
+    "files": [
+        "src/resources/index.ts"
+    ],
+    "compileOnSave": false,
+    "allowSyntheticDefaultImports": true
+}

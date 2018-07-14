@@ -20,9 +20,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 const {app, BrowserWindow, Menu, MenuItem, globalShortcut} = require('electron')
 const fs = require('fs')
 var path = require('path')
+var i18n = new(require('./i18n'))
+i18n.set_locale('it');
 
 const NotImplementedError = () => {console.error('Not yet implemented')};
-
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let win
@@ -32,8 +33,8 @@ function createWindow () {
 
     // Create the browser window.
     win = new BrowserWindow({
-        width: 800,
-        height: 600,
+        width: 1280, // TODO: consider 1280x768 (check if it looks good =))
+        height: 720,
         // title: 'CLIC - Contest simulator', // What would be that for?
         show: false,
         icon: path.join(__dirname, 'assets/icons/png/64x64.png'),
@@ -80,77 +81,79 @@ function buildMenuBar() {
     const template = [{
         label: 'File',
         submenu: [{
-            label: 'Apri...',
+            label: i18n.__('Apri...'),
             accelerator: 'CmdOrCtrl+O',
             click: () => win.webContents.send('cmd', 'open'),
         }, {
-            label: 'Esempi',
+            label: i18n.__('Esempi'),
             accelerator: 'Shift+CmdOrCtrl+O',
             submenu: lsExamples(),
         }, {
-            label: 'Nuovo',
+            label: i18n.__('Nuovo'),
             accelerator: 'CmdOrCtrl+N',
             click: () => win.webContents.send('cmd', 'clear'),
         }, {
             type: 'separator'
         }, {
-            label: 'Salva',
+            label: i18n.__('Salva'),
             accelerator: 'CmdOrCtrl+S',
             click: () => win.webContents.send('cmd', 'save'),
             // TODO: disable when current file is RO (e.g. examples).
             // menuItem.enabled = false;
         }, {
-            label: 'Salva come...',
+            label: i18n.__('Salva come...'),
             accelerator: 'Shift+CmdOrCtrl+S',
             click: () => win.webContents.send('cmd', 'save_as'),
         }]
     }, {
-        label: 'Edit',
+        label: i18n.__('Edit'),
         submenu: [
-            { role: 'undo' },
-            { role: 'redo' },
+            { role: 'undo', label: i18n.__('Undo')},
+            { role: 'redo', label: i18n.__('Redo') },
             { type: 'separator' },
-            { role: 'cut' },
-            { role: 'copy' },
-            { role: 'paste' },
-            { role: 'pasteandmatchstyle' },
-            { role: 'delete' },
-            { role: 'selectall' }
+            { role: 'cut', label: i18n.__('Cut') },
+            { role: 'copy', label: i18n.__('Copy') },
+            { role: 'paste', label: i18n.__('Paste') },
+            { role: 'delete', label: i18n.__('Delete') },
+            { role: 'selectall', label: i18n.__('Select all') }
         ]
     }, {
-        label: 'View',
+        label: i18n.__('View'),
         submenu: [
-            { role: 'reload' },
-            { role: 'forcereload' },
-            { role: 'toggledevtools' },
+            { role: 'reload', label: i18n.__('Reload') },
+            { role: 'forcereload', label: i18n.__('Force reload') },
+            // TODO: hide on production
+            { role: 'toggledevtools', label: i18n.__('Toggle devtools') },
             { type: 'separator' },
-            { role: 'resetzoom' },
-            { role: 'zoomin' },
-            { role: 'zoomout' },
+            { role: 'resetzoom', label: i18n.__('Actual size') },
+            { role: 'zoomin', label: i18n.__('Zoom in') },
+            { role: 'zoomout', label: i18n.__('Zoom out') },
             { type: 'separator' },
-            { role: 'togglefullscreen' }
+            { role: 'togglefullscreen', label: i18n.__('Toggle fullscreen') }
         ]
     }, {
-        label: 'Mode',
+        label: i18n.__('Mode'),
         // TODO: Find better names to provide meningfull accelerators.
         submenu: [{
-                label: 'Design',
+                label: i18n.__('Design'),
                 accelerator: 'CmdOrCtrl+D',
                 click: () => win.webContents.send('view', 'structure'),
             }, {
-                label: 'Simulazione',
+                label: i18n.__('Simulazione'),
                 accelerator: 'CmdOrCtrl+K',
                 click: () => win.webContents.send('view', 'simulation'),
             }
         ]
     }, {
         role: 'window',
-            submenu: [
-                { role: 'minimize' },
-                { role: 'close' }
-            ]
+        label: i18n.__('Window'),
+        submenu: [
+            { role: 'minimize', label: i18n.__('Minimize') },
+            { role: 'close', label: i18n.__('Close') }
+        ]
     }, {
         role: 'help',
+        label: i18n.__('Help'),
         submenu: []
     }];
 
@@ -158,39 +161,46 @@ function buildMenuBar() {
         template.unshift({
             label: 'CLIC',
             submenu: [
-                { role: 'about' },
+                { role: 'about', label: i18n.__('About') + ' CLIC' },
                 { type: 'separator' },
-                { role: 'services', submenu: [] },
+                { role: 'services', label: i18n.__('Services'), submenu: [] },
                 { type: 'separator' },
-                { role: 'hide' },
-                { role: 'hideothers' },
-                { role: 'unhide' },
+                { role: 'hide', label: i18n.__('Hide') },
+                { role: 'hideothers', label: i18n.__('Hide others') },
+                { role: 'unhide', label: i18n.__('Unhide') },
                 { type: 'separator' },
-                { role: 'quit' }
+                { role: 'quit', label: i18n.__('Quit') }
             ]
         })
         template[2].submenu.push({ // Edit
             type: 'separator'
         }, {
-            label: 'Speech',
+            label: i18n.__('Speech'),
             submenu: [
-                { role: 'startspeaking' },
-                { role: 'stopspeaking' }
+                { role: 'startspeaking', label: i18n.__('Start speaking') },
+                { role: 'stopspeaking', label: i18n.__('Stop speaking') }
             ]
         })
+        // TODO: this should exists only if we go multi window
         template[5].submenu = [ // Window
-            { role: 'close' },
-            { role: 'minimize' },
-            { role: 'zoom' },
+            { role: 'close', label: i18n.__('Close') },
+            { role: 'minimize', label: i18n.__('Minimize') },
+            { role: 'zoom', label: i18n.__('Zoom') },
             { type: 'separator' },
-            { role: 'front' }
+            { role: 'front', label: i18n.__('Front') }
         ]
     } else {
-        template.unshift({
-            label: 'File',
-            submenu: [{ role: 'quit' }]
-        })
+        // Add "exit" option to File
+        template[0].submenu.push({
+            type: 'separator',
+        }, {
+            role: 'quit', label: i18n.__('Quit'),
+        });
     }
+
+    // NOTE: deleting 5 since we are not multi window yet
+    template.splice(5, 1);
+
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
 }

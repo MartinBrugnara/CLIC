@@ -1737,7 +1737,7 @@ let import_export = {
             }
 
             let cleaned = clean_bando(current);
-            fs.writeFileSync(path, JSON.stringify(cleaned), {mode: 0o664, flag:'w+'});
+            fs.writeFileSync(path, JSON.stringify(cleaned), {encoding:'utf8', mode: 0o664, flag:'w+'});
             current_org = cleaned;
             Vue.set(vm_app_status, 'org', cleaned);
             Vue.set(vm_app_status, 'fpath', path);

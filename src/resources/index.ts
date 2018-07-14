@@ -7,7 +7,7 @@ This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
-e
+
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -1785,13 +1785,11 @@ $(function () {
     switch_view('structure');
     // switch_view('simulation');
 
-
     // TODO: wrap into div, and show loading icon instead.
     $('body').removeClass('hide');
 
     bootstrap_popover();
 
     // TODO: only for dev
-    import_export.open(path.join(EXAMPLES_DIR, 'Pulizie.json'));
-
+    // import_export.open(path.join(EXAMPLES_DIR, 'Pulizie.json'));
 });

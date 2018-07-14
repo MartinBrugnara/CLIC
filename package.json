@@ -1,17 +1,13 @@
 {
   "private": true,
   "name": "clic-what-if",
+  "productName": "clic",
   "version": "0.0.1",
-  "description": "CLIC what if? esplora i metodi di aggiudicazione dell'offerta economicamente piu' vantaggiosa",
+  "description": "Esplora i metodi di aggiudicazione dell'offerta economicamente piu' vantaggiosa",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "compile": "webpack --config webpack.config.js",
-    "package-mac":		"electron-packager . --prune=true --ignore=extra --overwrite --out release-builds/ --platform=darwin --arch=x64  --icon=src/assets/icons/mac/clic.icns",
-    "package-linux-64": "electron-packager . --prune=true --ignore=extra --overwrite --out release-builds/ --platform=linux  --arch=x64  --icon=src/assets/icons/png/1024x1024.png",
-    "package-linux-32": "electron-packager . --prune=true --ignore=extra --overwrite --out release-builds/ --platform=linux  --arch=ia32 --icon=src/assets/icons/png/1024x1024.png",
-    "package-win-64":	"electron-packager . --prune=true --ignore=extra --overwrite --out release-builds/ --platform=win32  --arch=x64  --icon=src/assets/icons/win/clic.ico --version-string.CompanyName=\"University of Trento\" --version-string.FileDescription=\"\" --version-string.ProductName=\"CLIC what if?\"",
-    "package-win-32":	"electron-packager . --prune=true --ignore=extra --overwrite --out release-builds/ --platform=win32  --arch=ia32 --icon=src/assets/icons/win/clic.ico --version-string.CompanyName=\"University of Trento\" --version-string.FileDescription=\"\" --version-string.ProductName=\"CLIC what if?\""
+    "compile": "webpack --config webpack.config.js"
   },
   "author": {
     "name": "Martin Brugnara",
@@ -23,11 +19,11 @@
   "dependencies": {
     "@fortawesome/fontawesome-free-webfonts": "^1.0.9",
     "@types/bootstrap": "^4.1.2",
+    "about-window": "^1.12.1",
     "bootstrap": "^4.1.1",
     "deep-equal": "^1.0.1",
     "jquery": "^3.3.1",
     "npm": "^6.1.0",
-    "remove": "^0.1.5",
     "vue": "^2.5.16"
   },
   "devDependencies": {

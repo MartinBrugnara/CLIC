@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 const {app, BrowserWindow, Menu, MenuItem, globalShortcut} = require('electron')
 const fs = require('fs')
 var path = require('path')
+const openAboutWindow = require('about-window').default;
 var i18n = new(require('./i18n'))
 i18n.set_locale('it');
 
@@ -46,7 +47,7 @@ function createWindow () {
         win.focus();
     });
 
-    win.toggleDevTools();
+    // win.toggleDevTools();
 
     // and load the index.html of the app.
     win.loadFile(path.join(__dirname, 'index.html'));
@@ -151,17 +152,30 @@ function buildMenuBar() {
             { role: 'minimize', label: i18n.__('Minimize') },
             { role: 'close', label: i18n.__('Close') }
         ]
-    }, {
+    }, /*{
         role: 'help',
         label: i18n.__('Help'),
         submenu: []
-    }];
+    } */];
 
     if (process.platform === 'darwin') {
         template.unshift({
             label: 'CLIC',
             submenu: [
-                { role: 'about', label: i18n.__('About') + ' CLIC' },
+                // { role: 'about', label: i18n.__('About') + ' CLIC' },
+                {
+                    label: i18n.__('About') + ' CLIC',
+                    click: () => openAboutWindow({
+                        product_name: 'CLIC what if?',
+                        icon_path: path.join(__dirname, 'assets/icons/png/1024x1024.png'),
+                        use_inner_html: true,
+                        copyright: fs.readFileSync(path.join(__dirname, '../COPYRIGHT.html'), "utf8"),
+                        css_path: path.join(__dirname, 'assets/about.css'),
+                        use_version_info: false,
+                        open_devtools: false,
+                        adjust_window_size: false,
+                    }),
+                },
                 { type: 'separator' },
                 { role: 'services', label: i18n.__('Services'), submenu: [] },
                 { type: 'separator' },
@@ -193,6 +207,17 @@ function buildMenuBar() {
         // Add "exit" option to File
         template[0].submenu.push({
             type: 'separator',
+        }, {
+            label: i18n.__('About') + ' CLIC',
+            click: () => openAboutWindow({
+                icon_path: path.join(__dirname, 'assets/icons/png/1024x1024.png'),
+                use_inner_html: true,
+                copyright: fs.readFileSync(path.join(__dirname, '../COPYRIGHT.html'), "utf8"),
+                css_path: path.join(__dirname, 'assets/about.css'),
+                use_version_info: false,
+                open_devtools: true,
+                adjust_window_size: false,
+            }),
         }, {
             role: 'quit', label: i18n.__('Quit'),
         });

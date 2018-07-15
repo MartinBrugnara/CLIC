@@ -136,7 +136,7 @@ const common_filters = {
 // Support functions
 let amax = (x:number[]):number => Math.max.apply(Math, x);
 let amin = (x:number[]):number => Math.min.apply(Math, x);
-let sum = (a:number, b:number):number => a + b;
+let sum = (a: number, b: number):number => a + b;
 let concat = (a:string, b:string): string => a + b;
 let copy = (o) => JSON.parse(JSON.stringify(o));
 let rnd = (min:number, max:number): number => Math.floor((Math.random() * (max - min) + min) * 100)/100;
@@ -731,8 +731,8 @@ function refresh_gui() {
                     if (this.fatalErrors)
                         return [];
 
-                    let offerte = apply_functions(this.bando);
-                    offerte = apply_thresholds(this.bando, this.bando.offerte, offerte);
+                    let offerte = apply_thresholds(this.bando, this.bando.offerte,
+                                                   apply_functions(this.bando));
                     const excluded = offerte.filter(o => o.excluded).map(o => o.nome).join(', ');
                     offerte = offerte.filter(o => !o.excluded);
 
@@ -995,7 +995,11 @@ function refresh_gui() {
 // ============================================================================
 // SIMULATION functions
 
-function apply_functions(bando) {
+type tBids = {nome:string, economica:number, tecnica: (number | boolean[])[]}[];
+type tPoints = {nome:string, economica:number, tecnica: number[]}[];
+type tFilteredBids = {nome:string, economica:number, tecnica:number[], excluded_for:{[id: number]:boolean}, excluded:boolean}[];
+
+function apply_functions(bando):tPoints{
     /* Given a bando, applies functions to the bids values and, if required,
         * scales the results. Produces a list of bids to be used with ranking
         * algorithms.
@@ -1042,8 +1046,26 @@ function apply_functions(bando) {
     });
 }
 
-function apply_thresholds(bando, raw, points) {
-    let ll   = leafs_lst(bando.criteri);
+function apply_scale(bando, offerte: tPoints): tPoints{
+    // RIPARAMETRAZIONE 1
+
+    // Scale each leaf
+    let ll   = leafs_lst(bando.criteri),
+        maxs = ll.map((_, i) => amax(offerte.map(o => o.tecnica[i])));
+
+    return  offerte.map(o => {
+        return {
+            nome: o.nome,
+            economica: o.economica / amax(offerte.map(o => o.economica)),
+            tecnica: o.tecnica
+                // this guarnatees [0-1]
+                .map((t, i) => maxs[i] ? t/maxs[i] : 0),
+        }
+    });
+}
+
+function apply_thresholds(bando, raw: tBids, points: tPoints): tFilteredBids {
+    let ll = leafs_lst(bando.criteri);
     return points.map((o, i) => {
         let issues = {};
         raw[i].tecnica
@@ -1051,7 +1073,7 @@ function apply_thresholds(bando, raw, points) {
                 if (ll[ti].mod_soglia !== 'valore')
                     return '';
                 if (ll[ti].tipo === 'T')
-                    t = t.reduce(sum, 0);
+                    t = (<boolean[]>t).map(v => +v).reduce(sum, 0);
                 return t < ll[ti].soglia ? ti : '';
             }).concat(o.tecnica
                 .map((t, ti) => {
@@ -1072,35 +1094,17 @@ function apply_thresholds(bando, raw, points) {
     });
 }
 
-function apply_scale(bando, offerte) {
-    // RIPARAMETRAZIONE 1
-
-    // Scale each leaf
-    let ll   = leafs_lst(bando.criteri),
-        maxs = ll.map((_, i) => amax(offerte.map(o => o.tecnica[i])));
-
-    return  offerte.map(o => {
-        return {
-            nome: o.nome,
-            economica: o.economica / amax(offerte.map(o => o.economica)),
-            tecnica: o.tecnica
-                // this guarnatees [0-1]
-                .map((t, i) => maxs[i] ? t/maxs[i] : 0),
-        }
-    });
-}
-
-
-function aggregativo_compensatore(bando, offerte) {
-   let ll       = leafs_lst(bando.criteri),
+// Checked *
+function aggregativo_compensatore(bando, offerte:tPoints) {
+   let ll      = leafs_lst(bando.criteri),
        w_techs = tech_weights(ll),
-       w_eco  = economic_weight(bando);
+       w_eco   = economic_weight(bando);
 
     if (bando.riparametrizzazione1)
         offerte = apply_scale(bando, offerte);
 
+    // Compute and then rescale tecnica and economica to give 1 to the best.
     if (bando.riparametrizzazione2) {
-        // Rescale tecnica and economica to give 1 to the best.
         let tech = offerte.map(o =>
             o.tecnica
                 .map((v, vi) => w_techs[vi] * v)
@@ -1128,6 +1132,7 @@ function aggregativo_compensatore(bando, offerte) {
     });
 };
 
+// Checked *
 function electre(bando, offerte) {
     // ANAC Linee Guida 2.pdf
     // http://www.bosettiegatti.eu/info/norme/statali/2010_0207.htm#ALLEGATO_G
@@ -1156,7 +1161,8 @@ function electre(bando, offerte) {
     });
 }
 
-function electre_iteration(w, bids) {
+// Checked *
+function electre_iteration(w: number[], bids:{nome:string, v:number[]}[]): string[] {
     /* w: weights
      * bids: flat `offerte` to be considered in this iteration.
      * returns: `nome` of the winner.
@@ -1213,8 +1219,8 @@ function electre_iteration(w, bids) {
                 if (s[k] === 0)
                     continue;
 
-                csum += f[k][i][j] * 1.0 / s[k] * w[k];
-                dsum += g[k][i][j] * 1.0 / s[k] * w[k];
+                csum += f[k][i][j] / s[k] * w[k];
+                dsum += g[k][i][j] / s[k] * w[k];
             }
             c[i][j] = csum;
             d[i][j] = dsum;
@@ -1249,10 +1255,11 @@ function electre_iteration(w, bids) {
 
     // Look for winner[s]
     let Pa_max = amax(Pa);
-    return bids.filter((_, idx) => Pa[idx] == Pa_max).map(b => b.nome);
+    return bids.filter((_, idx) => Pa[idx] === Pa_max).map(b => b.nome);
 }
 
 
+// Checked *
 function topsis(bando, offerte) {
     // ANAC Linee Guida 2.pdf
     // https://en.wikipedia.org/wiki/TOPSIS
@@ -1271,14 +1278,13 @@ function topsis(bando, offerte) {
     // Abstract internal structure and match paper algorithm.
     const m = (i, k) => bids[i].v[k];
 
-    // Normalization
+    // Normalization {i, k}[]
     let x = nmatrix([r,n]);
     for (let k=0; k < n; k++) {
         // Compute geometric mean for this K
         let gm = 0;
-        for (let i=0; i < r; i++) {
-            gm += m(i, k) ** 2;
-        }
+        for (let i=0; i < r; i++)
+            gm += Math.pow(m(i, k), 2);
         gm = Math.sqrt(gm);
 
         // Nomralize values
@@ -1290,9 +1296,9 @@ function topsis(bando, offerte) {
     }
 
     // NOTE: wikipedia dictate to normalize the weight between [0-1]
-    //       ANAC says nothig. Looks like nothis changes... anyway we do.
+    //       ANAC says nothig. Looks like nothing changes... so, we do.
     let wtot = w.reduce(sum, 0),
-        wn = w.map(x => x * 1.0 / wtot);
+        wn = w.map(x => x / wtot);
 
     // Inject weights
     let v = nmatrix([r,n]);

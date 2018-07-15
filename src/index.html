@@ -56,7 +56,7 @@
         <div class="container mb-2">
             <div class="form-row">
                 <div class="form-group col-auto">
-                    <label for="mod_economica" class="font-weight-bold">Modalit&agrave;</label>
+                    <label for="mod_economica" class="font-weight-bold">Modalità</label>
                     <div class="form-check">
                         <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="ribasso" value="ribasso" v-model="bando.mod_economica">
                         <label class="form-check-label" for="ribasso">Ribasso</label>
@@ -88,7 +88,7 @@
                         id="eco_func"
                         v-model="bando.funzione_economica">
                         <template v-for="f in funcs_lst">
-                            <option :key="f.name" v-if="f.o[eco_mode] !== undefined" :value="f.fname">{{ f.fname  | undash | capitalize }}</option>
+                            <option :key="f.name" v-if="f.o[eco_mode] !== undefined" :value="f.fname">{{ f.fname  | undash | csub | capitalize }}</option>
                         </template>
                     </select>
                 </div>
@@ -227,7 +227,7 @@
                 <select class="custom-select" v-if="model.tipo === 'Q'"
                         v-model="model.funzione" @change="function_change">
                     <template v-for="f in funcs_lst">
-                        <option :key="f.fname" v-if="f.o['up'] !== undefined" :value="f.fname">{{ f.fname | undash | capitalize }}</option>
+                        <option :key="f.fname" v-if="f.o['up'] !== undefined" :value="f.fname">{{ f.fname | undash | csub | capitalize }}</option>
                     </template>
                 </select>
 
@@ -545,7 +545,7 @@
                                             id="eco_func"
                                             v-model="bando.funzione_economica">
                                             <template v-for="f in funcs_lst">
-                                                <option :key="f.fname" v-if="f.o[eco_mode] !== undefined" :value="f.fname">{{ f.fname  | undash | capitalize }}</option>
+                                                <option :key="f.fname" v-if="f.o[eco_mode] !== undefined" :value="f.fname">{{ f.fname  | undash | csub | capitalize }}</option>
                                             </template>
                                         </select>
                                     </div>
@@ -660,7 +660,7 @@
                                         <select class="custom-select" v-if="model.tipo === 'Q'"
                                                 v-model="model.funzione" @change="function_change(i)">
                                             <template v-for="f in funcs_lst">
-                                                <option :key="f.fname" v-if="f.o.up !== undefined" :value="f.fname">{{ f.fname | undash | capitalize }}</option>
+                                                <option :key="f.fname" v-if="f.o.up !== undefined" :value="f.fname">{{ f.fname | undash | csub | capitalize }}</option>
                                             </template>
                                         </select>
                                     </div>
@@ -692,7 +692,7 @@
                 </div>
 
                 <div class="col-md text-center">
-                    <h3>Ranking</h3>
+                    <h3>Classifica</h3>
 
                     <table id="rank" class="table text-right tbl">
                         <thead>
@@ -716,7 +716,7 @@
                                     </div>
                                 </th>
                                 <th>
-                                    <span class="x-middle">Electre</span>
+                                    <span class="x-middle">ELECTRE</span>
                                     <div class="d-inline-flex flex-column ml-2">
                                         <input id="electre_asc" type="radio" v-model="env_data_orderby" value="electre_asc">
                                         <label for="electre_asc" class="mb-0">&#x25B2;</label>
@@ -725,7 +725,7 @@
                                     </div>
                                 </th>
                                 <th>
-                                    <span class="x-middle">Topsis</span>
+                                    <span class="x-middle">TOPSIS</span>
                                     <div class="d-inline-flex flex-column ml-2">
                                         <input id="topsis_asc" type="radio" v-model="env_data_orderby" value="topsis_asc">
                                         <label for="topsis_asc" class="mb-0">&#x25B2;</label>
@@ -747,7 +747,7 @@
                             <label><strong>Escluse:</strong></label> {{ scoreboard.excluded }}.
                         </caption>
                         <caption v-if="fatal_errors">
-                            <p class="text-danger">Corregi gli errori per poter calcolare le classifiche.</p>
+                            <p class="text-danger">Correggi gli errori per poter calcolare le classifiche.</p>
                         </caption>
                     </table>
                 </div>

@@ -36,8 +36,8 @@ import * as deepEqual from 'deep-equal'
 
 import functions from './functions.ts'
 
-const EXAMPLES_DIR = path.join(app.getAppPath(), 'src/assets/examples'),
-      F_EMPTY_BANDO = path.join(EXAMPLES_DIR, 'Nuovo.json');
+const EXAMPLES_DIR = path.normalize(path.join(app.getAppPath(), 'src/assets/examples')),
+      F_EMPTY_BANDO = path.normalize(path.join(EXAMPLES_DIR, 'Nuovo.json'));
 
 let vm_app_status,
     vm_lab,
@@ -74,10 +74,13 @@ let app_status = {      // Applicatin status, used for info and save().
 vm_app_status = new Vue({
     el: '#app_status',
     data: app_status,
+    updated () {
+        document.title = 'CLIC: What if? ' + path.basename(this.fpath);
+    },
     computed: {
         rpath () {
             let abp_idx = this.fpath.indexOf(EXAMPLES_DIR),
-                rp      = this.fpath.replace(EXAMPLES_DIR + '/', '');
+                rp      = this.fpath.replace(EXAMPLES_DIR + path.sep, '');
             return abp_idx === 0 ? rp : this.fpath;
         },
         read_only () {
@@ -106,7 +109,10 @@ const common_filters = {
         let repl = {
             "alpha": "α",
             "alfa": "α",
+            "identita": "identità",
+            "proporzionalita inversa": "proporzionalità inversa",
         }
+
         if (repl[str])
             return repl[str];
         return str;
@@ -460,7 +466,7 @@ function load_bando(args) {
         current_org = clean_bando(bando_data);
         current = copy(current_org);
         let patch = {
-            fpath: args.fpath,
+            fpath: path.normalize(args.fpath),
             data: current,
             org: current_org,
         };

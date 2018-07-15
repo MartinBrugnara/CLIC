@@ -7,7 +7,7 @@ DIRTY := $(shell [ -z "$$(git status --porcelain)" ] && echo '' || echo "_dirty"
 VERSION := $(GIT_VERSION)$(DIRTY)
 
 # Bulding options
-PACKAGE_OPT = electron-packager . --prune=true --ignore=extra --overwrite --out builds/
+PACKAGE_OPT = electron-packager . --prune=true --ignore=extra --ignore=builds --ignore=releases --overwrite --out builds/
 WIN_OPT = --icon=src/assets/icons/win/clic.ico --version-string.CompanyName="University of Trento" --version-string.FileDescription="" --version-string.ProductName="CLIC what if?"
 
 help:

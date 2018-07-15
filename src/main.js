@@ -27,13 +27,25 @@ i18n.set_locale('it');
 const NotImplementedError = () => {console.error('Not yet implemented')};
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-let win
+let wins = [],
+    last_focused,
+    get_focused = () => {
+        let fs = wins.filter(w => w.isFocused());
+        if (fs.length === 0) {
+            if (last_focused) {
+                last_focused.focus();
+                return last_focused;
+            }
+            return undefined;
+        }
+        return fs[0];
+    };
 
 function createWindow () {
     buildMenuBar();
 
     // Create the browser window.
-    win = new BrowserWindow({
+    let win = new BrowserWindow({
         width: 1280, // TODO: consider 1280x768 (check if it looks good =))
         height: 720,
         // title: 'CLIC - Contest simulator', // What would be that for?
@@ -57,8 +69,36 @@ function createWindow () {
         // Dereference the window object, usually you would store windows
         // in an array if your app supports multi windows, this is the time
         // when you should delete the corresponding element.
+        wins = wins.filter(w => w !== win);
         win = null
     })
+
+    win.on('focus', () => last_focused = win);
+
+    wins.push(win);
+}
+
+
+var helpWindow = null;
+function openHelpWindow() {
+    if (helpWindow) {
+        helpWindow.focus();
+        return;
+    }
+
+    helpWindow= new BrowserWindow({
+        width: 800,
+        height: 600,
+        resizable: true,
+        title: i18n.__("Help"),
+        minimizable: true,
+        fullscreenable: false,
+    });
+
+    helpWindow.loadFile(path.join(__dirname, 'help.html'));
+    helpWindow.on('closed', function () {
+        helpWindow = null;
+    });
 }
 
 function lsExamples() {
@@ -68,7 +108,8 @@ function lsExamples() {
             label: fname.replace(/\.json$/g, ''),
             click: () => {
                 const fpath = path.join(examples_dir, fname);
-                win.webContents.send('load_bando', {fpath: fpath});
+                let w = get_focused();
+                if (w) w.webContents.send('load_bando', {fpath: fpath});
             },
         };
     });
@@ -79,32 +120,58 @@ function buildMenuBar() {
     // https://github.com/electron/electron/blob/85ef1ee21fb665e669551a608d365239ef106196/default_app/main.js
     // NOTE: Menu.getApplicationMenu() in dev mode returns the defualt_app's menu,
     //       while when packaged returns null.
+
+    let aboutConfig = {
+        product_name: 'CLIC what if?',
+        icon_path: path.join(__dirname, 'assets/icons/png/1024x1024.png'),
+        use_inner_html: true,
+        copyright: fs.readFileSync(path.join(__dirname, '../COPYRIGHT.html'), "utf8"),
+        css_path: path.join(__dirname, 'assets/about.css'),
+        use_version_info: false,
+        open_devtools: false,
+        adjust_window_size: false,
+    }
+
+
     const template = [{
         label: 'File',
         submenu: [{
-            label: i18n.__('Apri...'),
+            label: i18n.__('Open...'),
             accelerator: 'CmdOrCtrl+O',
-            click: () => win.webContents.send('cmd', 'open'),
+            click: () => {
+                let w = get_focused();
+                if (w) w.webContents.send('cmd', 'open');
+            }
         }, {
-            label: i18n.__('Esempi'),
+            label: i18n.__('Examples'),
             accelerator: 'Shift+CmdOrCtrl+O',
             submenu: lsExamples(),
         }, {
-            label: i18n.__('Nuovo'),
+            label: i18n.__('New'),
             accelerator: 'CmdOrCtrl+N',
-            click: () => win.webContents.send('cmd', 'clear'),
+            click: () => {
+                let w = get_focused();
+                if (w) w.webContents.send('cmd', 'clear');
+            }
+        }, {
+            label: i18n.__('New window'),
+            click: createWindow,
         }, {
             type: 'separator'
         }, {
-            label: i18n.__('Salva'),
+            label: i18n.__('Save'),
             accelerator: 'CmdOrCtrl+S',
-            click: () => win.webContents.send('cmd', 'save'),
-            // TODO: disable when current file is RO (e.g. examples).
-            // menuItem.enabled = false;
+            click: () => {
+                let w = get_focused();
+                if (w) w.webContents.send('cmd', 'save');
+            }
         }, {
-            label: i18n.__('Salva come...'),
+            label: i18n.__('Save as...'),
             accelerator: 'Shift+CmdOrCtrl+S',
-            click: () => win.webContents.send('cmd', 'save_as'),
+            click: () => {
+                let w = get_focused();
+                if (w) w.webContents.send('cmd', 'save_as');
+            }
         }]
     }, {
         label: i18n.__('Edit'),
@@ -138,11 +205,17 @@ function buildMenuBar() {
         submenu: [{
                 label: i18n.__('Design'),
                 accelerator: 'CmdOrCtrl+D',
-                click: () => win.webContents.send('view', 'structure'),
+                click: () => {
+                    let w = get_focused();
+                    if (w) w.webContents.send('view', 'structure');
+                }
             }, {
                 label: i18n.__('Simulazione'),
                 accelerator: 'CmdOrCtrl+K',
-                click: () => win.webContents.send('view', 'simulation'),
+                click: () => {
+                    let w = get_focused();
+                    if (w) w.webContents.send('view', 'simulation');
+                }
             }
         ]
     }, {
@@ -152,11 +225,11 @@ function buildMenuBar() {
             { role: 'minimize', label: i18n.__('Minimize') },
             { role: 'close', label: i18n.__('Close') }
         ]
-    }, /*{
+    }, {
         role: 'help',
         label: i18n.__('Help'),
-        submenu: []
-    } */];
+        submenu: [{ label: i18n.__('Help'), click: openHelpWindow}],
+    }];
 
     if (process.platform === 'darwin') {
         template.unshift({
@@ -165,16 +238,7 @@ function buildMenuBar() {
                 // { role: 'about', label: i18n.__('About') + ' CLIC' },
                 {
                     label: i18n.__('About') + ' CLIC',
-                    click: () => openAboutWindow({
-                        product_name: 'CLIC what if?',
-                        icon_path: path.join(__dirname, 'assets/icons/png/1024x1024.png'),
-                        use_inner_html: true,
-                        copyright: fs.readFileSync(path.join(__dirname, '../COPYRIGHT.html'), "utf8"),
-                        css_path: path.join(__dirname, 'assets/about.css'),
-                        use_version_info: false,
-                        open_devtools: false,
-                        adjust_window_size: false,
-                    }),
+                    click: () => openAboutWindow(aboutConfig),
                 },
                 { type: 'separator' },
                 { role: 'services', label: i18n.__('Services'), submenu: [] },
@@ -209,15 +273,7 @@ function buildMenuBar() {
             type: 'separator',
         }, {
             label: i18n.__('About') + ' CLIC',
-            click: () => openAboutWindow({
-                icon_path: path.join(__dirname, 'assets/icons/png/1024x1024.png'),
-                use_inner_html: true,
-                copyright: fs.readFileSync(path.join(__dirname, '../COPYRIGHT.html'), "utf8"),
-                css_path: path.join(__dirname, 'assets/about.css'),
-                use_version_info: false,
-                open_devtools: true,
-                adjust_window_size: false,
-            }),
+            click: () => openAboutWindow(aboutConfig),
         }, {
             role: 'quit', label: i18n.__('Quit'),
         });

@@ -35,6 +35,10 @@ let amax = (x:number[]):number => Math.max.apply(Math, x);
 let amin = (x:number[]):number => Math.min.apply(Math, x);
 let sum = (a:number, b:number):number => a + b;
 
+// Score to be assigned when all the offers are winning/losing.
+// Used in handling corner cases, like divisions by 0.
+const ALL_WIN_SCORE = 1;
+
 // NOTE: each * means "checked +1 times"
 // up => ribasso | tecnica, down => prezzo
 // Remember that js works only with float (ain't no int division =));
@@ -52,20 +56,23 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         }
     },
     "proporzionalita_inversa": {
-        // *
+        // **
         // Bozen 1
         // This covers 92.49% of Bozen runs.
         up: {
             f: (P, x, bando, all_bids) => {
-                if (P === 0) return 0;
-                return P * 1.0 / amax(all_bids);
+                let M = amax(all_bids);
+                if (M === 0) return ALL_WIN_SCORE;
+                return P / M;
             },
             params: {}
         },
         down: {
             f: (P, x, bando, all_bids) => {
+                let m = amin(all_bids);
+                if (m === 0) return ALL_WIN_SCORE;
                 if (P === 0) return 0;
-                return amin(all_bids) * 1.0 / P;
+                return m / P;
             },
             params: {}
         }
@@ -85,7 +92,7 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
     },
      */
     "spezzata_gausiana": {
-        // *
+        // **
         // Bozen 4
         down: {
             f: (P, x, bando, all_bids) => {
@@ -93,6 +100,9 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
                     a = mean * 0.5, b = mean * 0.7,
                     d = mean * 1.3, e = mean * 1.5,
                     s = b/d * 1;
+
+                if (mean === 0)
+                    return ALL_WIN_SCORE;
 
                 if (a <= P && P < b)
                     return (P-a)/(b-a);
@@ -106,53 +116,74 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         }
     },
     "retta_base_valore_fisso": {
-        // *
+        // **
         // Bozen 5
         down: {
-            f: (P, x, bando, all_bids) => 1 - ((1-x.c)/(amin(all_bids) - bando.base_asta)*(amin(all_bids) - P)),
+            f: (P, x, bando, all_bids) => {
+                let m = amin(all_bids);
+                if (m === bando.base_asta) return ALL_WIN_SCORE;
+                return 1 - ((1-x.c)/(m - bando.base_asta)*(m - P))
+            },
             params:{c: {domain:{start:0.00, end:1, step:0.01}, required: true}},
             base_asta: true,
         }
     },
     "retta_base_prezzo_minimo": {
         // May merge up with retta_base_valore_fisso (with c=0)
-        // *
+        // **
         // Bozen 6
         down:{
-            f: (P, x, bando, all_bids) => (P-bando.base_asta) / (amin(all_bids) - bando.base_asta),
+            f: (P, x, bando, all_bids) => {
+                let m = amin(all_bids);
+                if (m === bando.base_asta) return ALL_WIN_SCORE;
+                return (P-bando.base_asta) / (m - bando.base_asta)}
+            ,
             params:{},
             base_asta: true,
         }
     },
     "retta_base_zero": {
-        // *
+        // **
         // Bozen 7
         down:{
-            f: (P, x, bando, all_bids) => (bando.base_asta - P) / bando.base_asta,
+            f: (P, x, bando, all_bids) => {
+                if (bando.base_asta === 0) // WAT ??
+                    return ALL_WIN_SCORE;
+                return (bando.base_asta - P) / bando.base_asta;
+            },
             params:{},
             base_asta: true,
         }
     },
     "retta_prezzo_minimo": {
-        // *
+        // **
         // Bozen 8
         down:{
-            f: (P, x, bando, all_bids) => (amax(all_bids) + amin(all_bids) - P) / amax(all_bids),
+            f: (P, x, bando, all_bids) => {
+                let M = amax(all_bids);
+                if (M === 0) return ALL_WIN_SCORE;
+                return (M + amin(all_bids) - P) / M;
+            },
             params:{},
         }
     },
     "allegato_g": {
-        // *
+        // **
         // Bozen 9 - 0.64%
         // Allegato G, Contratti relativi a lavori
+        // !!! There is an error in the documentation Omax -> Omin.
         down:{
-            f: (P, x, bando, all_bids) => (bando.base_asta - P)/(bando.base_asta - amax(all_bids)),
+            f: (P, x, bando, all_bids) => {
+                let div = bando.base_asta - amin(all_bids);
+                if (div === 0) return ALL_WIN_SCORE;
+                return (bando.base_asta - P)/div;
+            },
             params:{},
             base_asta: true,
         }
     },
     "allegato_m": {
-        // *
+        // **
         // Bozen 10 - 0.79%
         // Allegato M, Contratti relativi a servizi attinenti all'archiettura e all'ingegneria
         // Consip: "lineare_spezzata_sulla media"
@@ -164,7 +195,7 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
                 //  -> everyone made same offer
                 //  => this explode, same score for all (1).
                 if (amax(all_bids) === mean)
-                    return 1;
+                    return ALL_WIN_SCORE;
 
                 if (P <= mean)
                     return x.x * P / mean;
@@ -175,7 +206,7 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         }
     },
     "allegato_p": {
-        // *
+        // **
         // Bozen 11 - 2.53%
         // TODO: consider merge up
         // Allegato P, Contratti relativi a forniture e altri servizi
@@ -187,7 +218,7 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
                 //  -> everyone made same offer
                 //  => this explode, same score for all (1).
                 if (amax(all_bids) === mean)
-                    return 1;
+                    return ALL_WIN_SCORE;
 
                 if (P <= mean)
                     return x.x * P / mean;
@@ -198,20 +229,20 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         }
     },
     "alleagato_p_lineare_semplice": {
-        // *
+        // **
         // Bozen 11b - 1.77%
         // TODO: consider merge_down (soglia = undefined)
         up: {
             f: (P, x, bando, all_bids) => {
                 if (amax(all_bids) === 0)
-                    return 1;
+                    return ALL_WIN_SCORE;
                 return P / amax(all_bids);
             },
             params: {}
         },
     },
     "consip_lineare_semplice": {
-        // *
+        // **
         up: {
             f: (P, x, bando, all_bids) => {
                 // NOTE: we consider soglia === 0 and '' as not defined.
@@ -235,6 +266,8 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         down: {
             f: (P, x, bando, all_bids) => {
                 if (P <= x.soglia) return 1;
+                if (bando.base_asta === x.soglia) // WAT?
+                    return ALL_WIN_SCORE;
                 return (bando.base_asta - P)/(bando.base_asta - x.soglia)
             },
             params: {soglia: {domain:{start:0, end:null, step:0.01}, required: true}},
@@ -253,6 +286,7 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         // * Lineare alla migliore offerta (alpha = 1)
         up: {
             f: (P, x, bando, all_bids) => {
+                if (amax(all_bids) === 0) return ALL_WIN_SCORE;
                 return Math.pow(P / amax(all_bids), x.alfa)
             },
             params: {alfa: {domain:{start:0, end:null, step:0.05}, required: true}}
@@ -261,6 +295,7 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         down: {
             f: (P, x, bando, all_bids) => {
                 let BA = bando.base_asta;
+                if (BA === amin(all_bids)) return ALL_WIN_SCORE;
                 return Math.pow((BA - P) / (BA - amin(all_bids)), x.alfa)
             },
             params: {alfa: {domain:{start:0, end:null, step:0.05}, required: true}},
@@ -288,6 +323,7 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
             // Allegato M, Contratti relativi a servizi attinenti all'archiettura e all'ingegneria
             f: (P, x, bando, all_bids) => {
                 let mean = all_bids.reduce(sum, 0) / all_bids.length;
+                if (amax(all_bids) === mean) return ALL_WIN_SCORE;
                 if (P <= mean)
                     return x.x * P / mean;
                 else
@@ -298,6 +334,9 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         down: {
             f: (P, x, bando, all_bids) => {
                 let mean = all_bids.reduce(sum, 0) / all_bids.length;
+                if (bando.base_asta === mean || mean === amin(all_bids))
+                    return ALL_WIN_SCORE;
+
                 if (P >= mean)
                     return x.x * (bando.base_asta - P) * (bando.base_asta - mean);
                 else
@@ -314,11 +353,17 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         // Bozen 3 (incremento_lineare)
         // This covers 0.45% of Bozen runs.
         up: {
-            f: (P, x, bando, all_bids) => 1 - (amax(all_bids) - P) / (amax(all_bids) - amin(all_bids)),
+            f: (P, x, bando, all_bids) => {
+                if (amax(all_bids) === amin(all_bids)) return ALL_WIN_SCORE;
+                return 1 - (amax(all_bids) - P) / (amax(all_bids) - amin(all_bids));
+            },
             params:{}
         },
         down: {
-            f: (P, x, bando, all_bids) => 1 - (P - amin(all_bids)) / (amax(all_bids) - amin(all_bids)),
+            f: (P, x, bando, all_bids) => {
+                if (amax(all_bids) === amin(all_bids)) return ALL_WIN_SCORE;
+                return 1 - (P - amin(all_bids)) / (amax(all_bids) - amin(all_bids));
+            },
             params:{}
         },
     }

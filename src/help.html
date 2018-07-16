@@ -1,3 +1,348 @@
-<body>
-Ciaooo
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!--
+    CLIC what if?
+    Esplora i metodi di aggiudicazione dell'offerta economicamente piu' vantaggiosa
+    Copyright (C) 2018 Martin Brugnara - Università degli Studi di Trento
+
+    This program is free software: you can redistribute it and/or modsey
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  se not, see <https://www.gnu.org/licenses/>.
+    -->
+
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>CLIC: What if?</title>
+
+
+    <link rel="stylesheet" href="../node_modules/bootstrap/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../node_modules/\@fortawesome/fontawesome-free-webfonts/css/fontawesome.css">
+    <link rel="stylesheet" href="../node_modules/\@fortawesome/fontawesome-free-webfonts/css/fa-regular.css">
+    <link rel="stylesheet" href="../node_modules/\@fortawesome/fontawesome-free-webfonts/css/fa-solid.css">
+    <link rel="stylesheet" href="resources/index.css">
+</head>
+<body id="help">
+
+    <div class="container">
+        <h1>Guida a CLIC what if?</h1>
+
+        <section>
+            <h3>Icone</h3>
+            <ul>
+                <li>
+                    <div class="talign"><i class="fas fa-info action"></i></div>
+                    <span class="desc">Visualizza e/o modifica nome del criterio.
+                </li>
+
+                <li>
+                    <div class="talign"><i class="fas fa-plus action"></i></div>
+                    <span class="desc">Aggiungi criterio/offerta.</span>
+                </li>
+
+                <li>
+                    <div class="talign"><i class="fas fa-check action"></i></div>
+                    <span class="desc">La voce del criterio tabellare è selezionata.</span>
+                </li>
+
+                <li>
+                    <div class="talign"><i class="far fa-eye action"></i></div>
+                    <span class="desc">Esplora criterio in <emph>lab</emph>.</span>
+                </li>
+
+                <li>
+                    <div class="talign"><i class="far fa-eye-slash action"></i></div>
+                    <span class="desc">Rimuovi criterio dal <emph>lab</emph>.</span>
+                </li>
+
+                <li>
+                    <div class="talign"><i class="fas fa-sitemap action"></i></div>
+                    <span class="desc">Dividi criterio in sub-criteri.</span>
+                </li>
+
+                <li>
+                    <div class="talign"><i class="far fa-trash-alt action"></i></div>
+                    <span class="desc">Elimina criterio/offerta.</span>
+                </li>
+
+                <li>
+                    <div class="talign"><i class="fas fa-snowflake action"></i></div>
+                    <span class="desc">Congela/Scongela configurazione criterio per il confronto.</span>
+
+                    <ul>
+                        <li>
+                            <div class="talign"><span class="hold"><i class="fas fa-snowflake action"></i></div>
+                                <span class="desc">Una configurazione del criterio è stata congelata per il confronto.</span>
+                        </li>
+                    </ul>
+                </li>
+
+
+                <li>
+                    <div class="talign"><i class="fas fa-times action"></i></div>
+                    <span class="desc">La voce del criterio tabellare non è selezionata.</span>
+                </li>
+
+
+                <li>
+                    <div class="talign">
+                        <div class="ico8 action">
+                            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="2 10 44 28" xml:space="preserve">
+                                <g>
+                                    <path class="" d="M21.2,34.7c-0.1,0-0.1,0-0.2,0c-1.3-0.1-2.5-0.8-3.2-2L9.1,18.4l-4.4,1.5l-1.3-3.8l4.5-1.5   c1.8-0.6,3.8,0.2,4.7,1.8l8.6,14.2l2.3-2.8c1.1-1.3,2.9-1.8,4.4-1.2l2.9,1c0,0,0,0,0.1,0l4.3-10c0.5-1.2,1.5-2,2.7-2.3   c1.1-0.3,2.3-0.1,3.2,0.5l4,2.7l-2.2,3.3l-3.9-2.6l-4.3,10.1c-0.8,1.8-3,2.8-4.9,2.2l-3.1-1l-2.3,2.7   C23.5,34.1,22.4,34.7,21.2,34.7z M38.8,19.1C38.8,19.1,38.8,19.1,38.8,19.1L38.8,19.1z"></path>
+                                    <path d="M3,23h42v2H3V23z"></path>
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="desc">Visualizza/Modifica soglia del criterio.</span>
+
+                    <ul>
+                        <li>
+                            <div class="talign">
+                                <div class="ico8 action">
+                                    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="2 10 44 28" xml:space="preserve">
+                                        <g>
+                                            <path d="M21.2,34.7c-0.1,0-0.1,0-0.2,0c-1.3-0.1-2.5-0.8-3.2-2L9.1,18.4l-4.4,1.5l-1.3-3.8l4.5-1.5   c1.8-0.6,3.8,0.2,4.7,1.8l8.6,14.2l2.3-2.8c1.1-1.3,2.9-1.8,4.4-1.2l2.9,1c0,0,0,0,0.1,0l4.3-10c0.5-1.2,1.5-2,2.7-2.3   c1.1-0.3,2.3-0.1,3.2,0.5l4,2.7l-2.2,3.3l-3.9-2.6l-4.3,10.1c-0.8,1.8-3,2.8-4.9,2.2l-3.1-1l-2.3,2.7   C23.5,34.1,22.4,34.7,21.2,34.7z M38.8,19.1C38.8,19.1,38.8,19.1,38.8,19.1L38.8,19.1z"></path>
+                                            <path class="active" d="M3,23h42v2H3V23z"></path>
+                                        </g>
+                                    </svg>
+                                </div>
+                            </div>
+                            <span class="desc">Il valore di soglia è impostato.</li>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </section>
+
+        <section id="func-doc">
+            <h3>Funzioni matematiche</h3>
+            <p>
+                La seguente lista descrive le funzioni che sono messe a disposizione dal sistema e,
+                quando possibile, come configurarle per emularne ulteriori.<br>
+                Tutte le formule riportate restituiscono un valore tra $0$ e $1$,
+                per calcolare i punti corrispondenti ad una valutazione
+                è sufficiente moltiplicare il risultato della funzione per il peso.
+            </p>
+
+            <p class="math-left">
+            $$
+                \begin{align}
+                    O   &:= \text{Set delle offerte.} \\
+                    O_i &:= \text{Offerta i-esima.} \\
+                    P_i &:= \text{punteggio offerta i-esima.} \\
+                    BA  &:= \text{base d'asta.} \\
+                    \mathbb{E}[O] &:= \text{media aritmetica delle offerte.} \\
+                \end{align}
+            $$
+            <p>
+
+            <ul id="func-desc">
+
+                <li>
+                    <span class="func-name">Allegato G <small>DPR 207/2010 - Contratti relativi ai lavori</small></span>
+
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">$$ P_i = {BA - O_i \over BA - min(O)} $$</p>
+                </li>
+
+
+                <li>
+                    <span class="func-name">Concava alla migliore offerta</span>
+                    <div class="mode">Rialzo</div>
+                    <p class="eq">$$P_i=\big({O_i \over max(O)}\big)^\alpha$$</p>
+                    <p class="param">$\alpha$: parametro che determina il grado di concavità della curva.</p>
+
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">$$P_i=\big({BA - O_i \over BA - min(O)}\big)^\alpha$$</p>
+                    <p class="param">$\alpha$: parametro che determina il grado di concavità della curva.</p>
+
+                    <div class="aka border-info">
+                        <span>
+                            Quando $\alpha$ è impostato a $0$ si comporta come una
+                            "<strong>Lineare alla migliore offerta</strong>".
+                        </span>
+                    </div>
+                </li>
+
+                <li>
+                    <span class="func-name">Identità</span>
+                    <p class="eq">$$ P_i = O_i $$</p>
+                </li>
+
+                <li>
+                    <span class="func-name">Lineare min max</span>
+                    <div class="mode">Rialzo</div>
+                    <p class="eq">$$P_i = 1 - {max(O) - O_i \over max(o) - min(o)}$$</p>
+
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">$$P_i=1 - {O_i - min(O) \over max(O) - min(O)}$$</p>
+                </li>
+
+                <li>
+                    <span class="func-name">Lineare semplice</span>
+                    <div class="mode">Rialzo</div>
+                    <p class="eq">
+                        $$
+                            P_i=\cases{
+                                1 & se $O_i \ge soglia$, \\
+                                0 & se $O_i \le soglia_{min}$, \\
+                                {P - soglia_{min} \over soglia - soglia_{min}} & altrimenti.\\
+                            }
+                        $$
+                    </p>
+                    <p class="param">
+                        $soglia$: limite superiore, sopra il quale il punteggio è $1$.<br>
+                        $soglia_{min}$: limite inferiore, sotto il quale il punteggio è $0$.
+                    </p>
+
+
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">
+                        $$
+                            P_i=\cases{
+                                1 & se $O_i \le soglia$, \\
+                                {BA - P \over BA - soglia} & altrimenti.\\
+                            }
+                        $$
+                    </p>
+                    <p class="param">
+                        $soglia$: limite inferiore, sotto il quale il punteggio è $1$.
+                    </p>
+
+                    <div class="aka border-info">
+                        <p>
+                            Con $soglia_{min}$ uguale a $0$ e $soglia$ a $max(O)$, questa funzione corrisponde a quella descritta nell'
+                            <strong>Allegato P criteri quantitativi</strong> del DPR 207/2010 - Contratti relativi a forniture e altri servizi.
+                        </p>
+                        <p>
+                            Se il parametro $soglia$ è $0$ o non definito,
+                            il programma vi assegna <em>automaticamente</em> $max(O)$;
+                            è quindi sufficiente assegnare $0$ ad entrambi i parametri
+                            per avere la funzione dell'Allegato P.
+                        </p>
+                    </div>
+                </li>
+
+
+                <li>
+                    <span class="func-name">Lineare spezzata sulla media</span>
+                    <div class="mode">Rialzo</div>
+                    <p class="eq">
+                        $$
+                        P_i=\cases{
+                            x \cdot {P \over \mathbb{E}(O)}  & se $O_i \le \mathbb{E}(O)$, \cr
+                            x + (1-x) \cdot { P - \mathbb{E}(O) \over max(O) - \mathbb{E}(O) }  & se $O_i \gt \mathbb{E}(O)$.\cr
+                        }
+                        $$
+                    </p>
+                    <p class="param">$x$: valore arbitrario tra $(0.80, 0.85, 0.90)$.</p>
+
+
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">
+                        $$
+                        P_i=\cases{
+                            x \cdot {BA - P \over BA - \mathbb{E}(O)}  & se $O_i \ge \mathbb{E}(O)$, \cr
+                            x + (1-x) \cdot { \mathbb{E}(O) - P \over \mathbb{E}(O) - min(O) }  & se $O_i \lt \mathbb{E}(O)$.\cr
+                        }
+                        $$
+                    </p>
+                    <p class="param">$x$: valore arbitrario tra $(0.80, 0.85, 0.90)$.</p>
+
+                    <div class="aka border-info">
+                        <span>Questa funzione è nota anche come
+                            "<strong>Allegato M</strong>" del DPR 207/2010 - Contratti relativi a servizi attinenti all'architettura e all'ingegneria,
+                            e come "<strong>Allegato P</strong>" del DPR 207/2010 - Contratti relativi a forniture e altri servizi.
+                        </span>
+                    </div>
+                </li>
+
+                <li>
+                    <span class="func-name">Non lineare concava</span>
+                    <div class="mode">Rialzo</div>
+                    <p class="eq">$$P_i=1-(1-p)^n$$</p>
+
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">$$P_i = 1-\big(P \over BA\big)^n$$</p>
+
+                    <p class="param">$n$: parametro che determina il grado di concavità della curva.</p>
+                </li>
+
+                <li>
+                    <span class="func-name">Proporzionalità inversa</span>
+
+                    <div class="mode">Rialzo</div>
+                    <p class="eq">$$ P_i = {O_i \over max(O)} $$</p>
+
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">$$ P_i = {min(O) \over O_i} $$</p>
+                </li>
+
+
+                <li>
+                    <span class="func-name">Retta base valore fisso</span>
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">$$ P_i = 1 - (1 - c) \cdot {min(O) - O_i \over min(O) - BA}$$</p>
+                    <p class="param">$c$: punteggio che prende un offerta che coincide con la base d'asta.</p>
+                    <div class="aka border-info">
+                        <span>Quando il parametro $c$ è $0$, si comporta come la funzione "<strong>Retta base prezzo minimo</strong>".</span>
+                    </div>
+                </li>
+
+                <li>
+                    <span class="func-name">Retta base zero</span>
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">$$ P_i = {BA - O_i \over BA} $$</p>
+                </li>
+
+                <li>
+                    <span class="func-name">Retta prezzo minimo</span>
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">$$ P_i = {max(O) + min(O) - O_i \over max(O)}$$</p>
+                </li>
+
+                <li>
+                    <span class="func-name">Spezzata gaussiana</span>
+                    <div class="mode">Ribasso</div>
+                    <p class="eq">
+                        $$
+                            a := \mathbb{E}[0] \cdot 0.5, \hspace{10pt} b := \mathbb{E}[0] \cdot 0.7, \\
+                            c := \mathbb{E}[0] \cdot 1.3, \hspace{10pt} d := \mathbb{E}[0] \cdot 1.5, \\
+                            s := {b \over d} \\
+                        $$
+
+                        $$
+                            P_i=\cases{
+                                {O_i - a \over b - a}                                       & se $O_i \in [a, b)$,\cr
+                                \big( 1 - {O_i - b \over d - b} \big) \cdot (1 - s) + s     & se $O_i \in [b, d)$,\cr
+                                s \cdot {s  (O_i - e) \over (d-e)}                          & se $O_i \in [d, e]$,\cr
+                                0                                                           & altrimenti.         \cr
+                            }
+                        $$
+                    </p>
+                </li>
+            </ul>
+        </section>
+    </div>
+
+    <script type="text/javascript" src="../node_modules/mathjax/MathJax.js?config=TeX-AMS_HTML-full"></script>
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({
+            tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]}
+        });
+    </script>
 </body>
+</html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <!--
     CLIC what if?
@@ -22,9 +22,9 @@
 
 
     <meta charset="UTF-8">
-    <title>CLIC: What if?</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data:">
+    <title>CLIC: What if?</title>
 
     <link rel="stylesheet" href="../node_modules/bootstrap/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="../node_modules/\@fortawesome/fontawesome-free-webfonts/css/fontawesome.css">
@@ -397,7 +397,7 @@
                                 <!-- inject origianl frozen (if exists): RO -> like "raw" mode -->
                                 <td v-if="env_frozen['eco']" class="frozen"><template v-if="!env_frozen['eco'][i].did_not_exists">{{ env_frozen['eco'][i].raw | precn(2) }}</template></td>
 
-                                <td><input type="number" min="0.01" step="0.01" v-model.number="o.economica" required></td>
+                                <td><input type="number" min="0" step="0.01" v-model.number="o.economica" required></td>
                                 <template v-for="(t, ti) in o.tecnica">
 
                                     <!-- inject origianl frozen (if exists): RO -> like "raw" mode -->
@@ -496,7 +496,18 @@
                         </tr>
                     </tbody>
                     <caption class="text-center">
-                        <i @click="add" class="fas fa-plus action"></i>
+
+                        <strong>Valori casuali</strong>
+                        <div class="form-check-inline ml-2">
+                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="rnd_yes" value=1 v-model.number="env_rnd">
+                            <label class="form-check-label" for="rnd_yes">Si</label>
+                        </div>
+                        <div class="form-check-inline mr-0">
+                            <input style="margin-top:0.05rem" class="form-check-input" type="radio" id="rnd_no" value=0 v-model.number="env_rnd">
+                            <label class="form-check-label" for="rnd_no">No</label>
+                        </div>
+                        &nbsp;|&nbsp;
+                        <i @click="add(false)" class="fas fa-plus action" label="Nuova offerta"></i>
                     </caption>
                 </table>
             </div>
@@ -517,7 +528,7 @@
                                 </select>
                                 <div class="input-group-append">
                                     <label class="input-group-text" for="">
-                                        <i @click="manage" class="fas fa-plus action"></i>
+                                        <i @click="manage" class="far fa-eye action"></i>
                                     </label>
                                 </div>
                             </div>
@@ -535,7 +546,7 @@
                                             <i class="fas fa-snowflake action ml-1"></i>
                                         </a>
                                         <a @click="done(-1)">
-                                            <i class="fas fa-check action ml-1"></i>
+                                            <i class="far fa-eye-slash action ml-1"></i>
                                         </a>
                                     </div>
 
@@ -642,7 +653,7 @@
                                             <i class="fas fa-snowflake action ml-1"></i>
                                         </a>
 
-                                        <a @click="done(i)"><i class="fas fa-check action"></i></a>
+                                        <a @click="done(i)"><i class="far fa-eye-slash action"></i></a>
                                     </div>
 
                                     <div class="input-group mr-2">

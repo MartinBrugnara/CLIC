@@ -558,6 +558,7 @@ function refresh_gui() {
         env_data_mode: 'raw',
         env_name_show: 'hide',
         env_frozen: {},
+        env_rnd: 1,
     };
     if (!vm_data) {
         vm_data = new Vue({
@@ -566,6 +567,7 @@ function refresh_gui() {
                 env_data_mode: vm_data_defaults.env_data_mode,
                 env_name_show: vm_data_defaults.env_name_show,
                 env_frozen: copy(vm_data_defaults.env_frozen),
+                env_rnd: vm_data_defaults.env_rnd,
                 bando: current,
             },
             methods: {
@@ -606,24 +608,35 @@ function refresh_gui() {
 
                     // Build
                     let c = leafs_lst(this.bando.criteri);
-                    let offerta = {
-                        nome: nome,
-                        // NOTE: economica must be > 0;
-                        economica: this.bando.offerte.length < 2 ? rnd(0,1) : rnd(
-                            amin(this.bando.offerte.map(o => o.economica)),
-                            amax(this.bando.offerte.map(o => o.economica))
-                        ),
-                        tecnica:  c.map((c, i) => {
-                            if (c.tipo === 'T')
-                                return c.voci.map(_ => rnd(0,1) >= 0.5)
-                            else if (c.tipo == 'D')
-                                return rnd(0,1);
-                            else
-                                return this.bando.offerte.length < 2 ? rnd(0,1) : rnd(
-                                    amin(this.bando.offerte.map(o => o.tecnica[i])),
-                                    amax(this.bando.offerte.map(o => o.tecnica[i]))
-                                );
-                        })
+                    let offerta;
+                    if (this.env_rnd) {
+                        offerta = {
+                            nome: nome,
+                            economica: this.bando.offerte.length < 2 ? rnd(0,1) : rnd(
+                                amin(this.bando.offerte.map(o => o.economica)),
+                                amax(this.bando.offerte.map(o => o.economica))
+                            ),
+                            tecnica:  c.map((c, i) => {
+                                if (c.tipo === 'T')
+                                    return c.voci.map(_ => rnd(0,1) >= 0.5)
+                                else if (c.tipo == 'D')
+                                    return rnd(0,1);
+                                else
+                                    return this.bando.offerte.length < 2 ? rnd(0,1) : rnd(
+                                        amin(this.bando.offerte.map(o => o.tecnica[i])),
+                                        amax(this.bando.offerte.map(o => o.tecnica[i]))
+                                    );
+                            })
+                        }
+                    } else {
+                        offerta = {
+                            nome: nome,
+                            economica:
+                                this.bando.mod_economica === 'prezzo' ?
+                                    this.bando.base_asta || 0: 0,
+                            tecnica:  c.map((c) =>
+                                c.tipo === 'T' ?  c.voci.map(_ => false) : 0),
+                        }
                     }
 
                     // Add to current list
@@ -749,15 +762,24 @@ function refresh_gui() {
                         .sort((a, b) => b.topsis - a.topsis);
 
                     let board = {};
-                    offerte.forEach((o) => board[o.nome] = {nome: o.nome});
-                    agg.forEach((e, r) => {
+                    offerte.forEach(o => board[o.nome] = {nome: o.nome});
+
+                    agg.sort((a, b) => b.agg - a.agg).forEach((e, i, arr) => {
                         board[e.nome].agg = e.agg;
-                        board[e.nome].agg_rank = r + 1;
+                        if (i === 0 || arr[i-1].agg > e.agg)
+                            board[e.nome].agg_rank = i+1;
+                        else
+                            board[e.nome].agg_rank = board[arr[i-1].nome].agg_rank;
                     });
+
                     ele.forEach((e) => board[e.nome].electre = e.electre);
-                    tops.forEach((e, r) => {
+
+                    tops.forEach((e, i, arr) => {
                         board[e.nome].topsis = e.topsis;
-                        board[e.nome].topsis_rank = r + 1;
+                        if (i === 0 || arr[i-1].topsis > e.topsis)
+                            board[e.nome].topsis_rank = i + 1;
+                        else
+                            board[e.nome].topsis_rank = board[arr[i-1].nome].topsis_rank;
                     });
 
                     // Offerta, Agg, Electre, Electre100 Tops
@@ -1177,8 +1199,9 @@ function electre_iteration(w: number[], bids:{nome:string, v:number[]}[]): strin
     let n = w.length,    // 'criteri' to evaluate.
         r = bids.length; // number of offers
 
-    if (r === 1)
+    if (r === 1) {
         return [bids[0].nome];
+    }
 
     // Step B
     let f = nmatrix([n,r,r]),
@@ -1233,8 +1256,12 @@ function electre_iteration(w: number[], bids:{nome:string, v:number[]}[]): strin
 
             if (dsum == 0) { // Then j is dominated by i. Re-run without j.
                 let rec = electre_iteration(w, bids.filter((_, idx) => idx != j));
-                if (csum === 0) // was tied -> assign same score.
+
+                // was tied -> assign same score.
+                // ONLY if `i` wins obviously
+                if (csum === 0 && rec.indexOf(bids[i].nome) !== -1)
                     rec = rec.concat([bids[j].nome]);
+
                 return rec;
             }
         }
@@ -1597,9 +1624,9 @@ function check_bando(bando, fix?:boolean):[boolean,string[]] {
             errors.push('[O ' + (i+1) + '] il campo nome e\' mancante.')
         }
 
-        if (isNaN(parseFloat(o.economica))) {
+        if (isNaN(parseFloat(o.economica)) || o.economica < 0) {
             fatal = true;
-            errors.push('[O ' + (i+1) + '] il campo economica deve essere un numero.');
+            errors.push('[O ' + (i+1) + '] il campo economica deve essere un numero maggiore o uguale a 0.');
         }
 
         if (o.tecnica === undefined || !Array.isArray(o.tecnica) ||

@@ -149,3 +149,24 @@ tbody.edit tr.excluded td.issue {background: #f8d7da}
 #rank td[data-rank="1"] {background-color:#33691e; color: #fff}
 #rank td[data-rank="2"] {background-color:#558b2f; color: #fff}
 #rank td[data-rank="3"] {background-color:#7cb342; color: #fff}
+
+#help ul { -webkit-padding-start: 0 }
+#help ul ul { -webkit-padding-start: 40px }
+#help ul li {list-style: none; margin-bottom: .50rem}
+ul#func-desc li {list-style: none; margin-bottom: 2.25rem}
+
+#help .talign {display: inline-block; height 20px; width: 26px; text-align:center; margin-right: 1rem;}
+
+#help .mode {margin-left: 20px}
+#help .param, #help .aka {margin-left: 20px;padding-left: 20px}
+
+#help .aka {
+  padding-top: .75rem;
+  padding-bottom: .75rem;
+  border-left: 3px solid;
+}
+#help .aka p:last-child {margin-bottom:0}
+
+#help .func-name  {display: block; font-weight: bold}
+
+.math-left > .MathJax_Display {text-align: left !important}

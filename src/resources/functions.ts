@@ -91,7 +91,7 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         },
     },
      */
-    "spezzata_gausiana": {
+    "spezzata_gaussiana": {
         // **
         // Bozen 4
         down: {
@@ -125,20 +125,6 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
                 return 1 - ((1-x.c)/(m - bando.base_asta)*(m - P))
             },
             params:{c: {domain:{start:0.00, end:1, step:0.01}, required: true}},
-            base_asta: true,
-        }
-    },
-    "retta_base_prezzo_minimo": {
-        // May merge up with retta_base_valore_fisso (with c=0)
-        // **
-        // Bozen 6
-        down:{
-            f: (P, x, bando, all_bids) => {
-                let m = amin(all_bids);
-                if (m === bando.base_asta) return ALL_WIN_SCORE;
-                return (P-bando.base_asta) / (m - bando.base_asta)}
-            ,
-            params:{},
             base_asta: true,
         }
     },
@@ -182,20 +168,16 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
             base_asta: true,
         }
     },
-    "allegato_m": {
+    "lineare_spezzata_sulla_media": {
         // **
-        // Bozen 10 - 0.79%
-        // Allegato M, Contratti relativi a servizi attinenti all'archiettura e all'ingegneria
-        // Consip: "lineare_spezzata_sulla media"
+        // Consip: lineare_spezzata_sulla media
+        // Bozen 10-11:
+        // Allegato P (2.53%), Contratti relativi a forniture e altri servizi
+        // Allegato M (0.79%), Contratti relativi a servizi attinenti all'architettura e all'ingegneria
         up: {
             f: (P, x, bando, all_bids) => {
                 let mean = all_bids.reduce(sum, 0) / all_bids.length;
-
-                // NOTE: if max == mean || max == 0
-                //  -> everyone made same offer
-                //  => this explode, same score for all (1).
-                if (amax(all_bids) === mean)
-                    return ALL_WIN_SCORE;
+                if (amax(all_bids) === mean) return ALL_WIN_SCORE;
 
                 if (P <= mean)
                     return x.x * P / mean;
@@ -203,46 +185,27 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
                     return x.x + (1-x.x) * (P - mean) / (amax(all_bids) - mean);
             },
             params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
-        }
-    },
-    "allegato_p": {
-        // **
-        // Bozen 11 - 2.53%
-        // TODO: consider merge up
-        // Allegato P, Contratti relativi a forniture e altri servizi
-        up: {
-            f: (P, x, bando, all_bids) => {
-                let mean = all_bids.reduce(sum, 0) / all_bids.length;
-
-                // NOTE: if max == mean || max == 0
-                //  -> everyone made same offer
-                //  => this explode, same score for all (1).
-                if (amax(all_bids) === mean)
-                    return ALL_WIN_SCORE;
-
-                if (P <= mean)
-                    return x.x * P / mean;
-                else
-                    return x.x + (1-x.x) * (P - mean) / (amax(all_bids) - mean);
-            },
-            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
-        }
-    },
-    "alleagato_p_lineare_semplice": {
-        // **
-        // Bozen 11b - 1.77%
-        // TODO: consider merge_down (soglia = undefined)
-        up: {
-            f: (P, x, bando, all_bids) => {
-                if (amax(all_bids) === 0)
-                    return ALL_WIN_SCORE;
-                return P / amax(all_bids);
-            },
-            params: {}
         },
+        down: {
+            f: (P, x, bando, all_bids) => {
+                let mean = all_bids.reduce(sum, 0) / all_bids.length;
+                if (bando.base_asta === mean || amin(all_bids) === mean)
+                    return ALL_WIN_SCORE;
+
+                if (P >= mean)
+                    return x.x * (bando.base_asta - P) / (bando.base_asta - mean);
+                else
+                    return x.x + (1-x.x) * (mean - P) / (mean - amin(all_bids));
+            },
+            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
+            base_asta: true,
+        }
+        /* TODO: where is down ? consip has it !!*/
     },
-    "consip_lineare_semplice": {
+    "lineare_semplice": {
         // **
+        // Consip: lineare semplice
+        // allegato_p_lineare_semplice (soglia = undefined) 11b, 1.77%
         up: {
             f: (P, x, bando, all_bids) => {
                 // NOTE: we consider soglia === 0 and '' as not defined.
@@ -312,38 +275,6 @@ let functions: {[funcName:string]:{up?:FuncObj, down?:FuncObj}} = {
         down: {
             f: (P, x, bando, all_bids) => 1 - Math.pow((P/bando.base_asta), x.n),
             params: {n: {domain:{start:0, end:null, step:0.01}, required: true}},
-            base_asta: true,
-        }
-    },
-    "lineare_spezzata_sulla_media": {
-        // *
-        // Bozen 10 - 0.79%
-        // Consip: "lineare_spezzata_sulla media"
-        up: {
-            // Allegato M, Contratti relativi a servizi attinenti all'archiettura e all'ingegneria
-            f: (P, x, bando, all_bids) => {
-                let mean = all_bids.reduce(sum, 0) / all_bids.length;
-                if (amax(all_bids) === mean) return ALL_WIN_SCORE;
-                if (P <= mean)
-                    return x.x * P / mean;
-                else
-                    return x.x + (1-x.x) * (P - mean) / (amax(all_bids) - mean);
-            },
-            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
-        },
-        down: {
-            f: (P, x, bando, all_bids) => {
-                let mean = all_bids.reduce(sum, 0) / all_bids.length;
-                if (bando.base_asta === mean || mean === amin(all_bids))
-                    return ALL_WIN_SCORE;
-
-                if (P >= mean)
-                    return x.x * (bando.base_asta - P) * (bando.base_asta - mean);
-                else
-                    return x.x + (1-x.x) * (mean-P) * (mean-amin(all_bids));
-
-            },
-            params:{x: {domain:{start:0.80, end:0.90, step:0.05}, required: true}},
             base_asta: true,
         }
     },

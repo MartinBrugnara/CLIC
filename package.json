@@ -2,7 +2,7 @@
   "private": true,
   "name": "clic-what-if",
   "productName": "clic",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Esplora i metodi di aggiudicazione dell'offerta economicamente piu' vantaggiosa",
   "main": "src/main.js",
   "scripts": {

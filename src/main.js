@@ -193,15 +193,15 @@ function buildMenuBar() {
             // TODO: hide on production
             { role: 'toggledevtools', label: i18n.__('Toggle devtools') },
             { type: 'separator' },
-            { role: 'resetzoom', label: i18n.__('Actual size') },
-            { role: 'zoomin', label: i18n.__('Zoom in') },
-            { role: 'zoomout', label: i18n.__('Zoom out') },
+            { role: 'resetzoom', label: i18n.__('Reset font size') },
+            { role: 'zoomin', label: i18n.__('Bigger font size') },
+            { role: 'zoomout', label: i18n.__('Smaller font size') },
             { type: 'separator' },
             { role: 'togglefullscreen', label: i18n.__('Toggle fullscreen') }
         ]
     }, {
         label: i18n.__('Mode'),
-        // TODO: Find better names to provide meningfull accelerators.
+        // TODO: Find better names to provide meaningful accelerators.
         submenu: [{
                 label: i18n.__('Design'),
                 accelerator: 'CmdOrCtrl+D',
@@ -259,7 +259,7 @@ function buildMenuBar() {
                 { role: 'stopspeaking', label: i18n.__('Stop speaking') }
             ]
         })
-        // TODO: this should exists only if we go multi window
+
         template[5].submenu = [ // Window
             { role: 'close', label: i18n.__('Close') },
             { role: 'minimize', label: i18n.__('Minimize') },
@@ -278,9 +278,6 @@ function buildMenuBar() {
             role: 'quit', label: i18n.__('Quit'),
         });
     }
-
-    // NOTE: deleting 5 since we are not multi window yet
-    template.splice(5, 1);
 
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);

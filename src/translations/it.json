@@ -34,9 +34,12 @@
  "Mode": "Modalità",
  "Front": "Porta in primo piano",
  "Open...": "Apri...",
- "Esempi": "Examples",
+ "Examples": "Esempi",
  "New": "Nuovo",
  "New window": "Nuova finestra",
  "Save": "Salva",
- "Save as...": "Salva come..."
+ "Save as...": "Salva come...",
+ "Reset font size" : "Dimensione font originale",
+ "Bigger font size" : "Ingrandisci dimensione font",
+ "Smaller font size" : "Riduci dimensione font"
 }

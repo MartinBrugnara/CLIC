@@ -2,7 +2,7 @@
   "private": true,
   "name": "clic-what-if",
   "productName": "clic",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Esplora i metodi di aggiudicazione dell'offerta economicamente piu' vantaggiosa",
   "main": "src/main.js",
   "scripts": {
@@ -24,7 +24,8 @@
     "deep-equal": "^1.0.1",
     "jquery": "^3.3.1",
     "mathjax": "^2.7.4",
-    "npm": "^6.1.0",
+    "npm": "^6.2.0",
+    "spinkit": "^1.2.5",
     "vue": "^2.5.16"
   },
   "devDependencies": {
@@ -42,6 +43,8 @@
     "tslint-config-standard": "^7.1.0",
     "tslint-loader": "^3.6.0",
     "typescript": "^2.9.2",
+    "uglify-js": "^3.4.5",
+    "uglifyjs-webpack-plugin": "^1.2.7",
     "webpack": "^4.16.0",
     "webpack-cli": "^3.0.8"
   }

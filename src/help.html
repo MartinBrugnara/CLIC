@@ -52,11 +52,6 @@
                 </li>
 
                 <li>
-                    <div class="talign"><i class="fas fa-check action"></i></div>
-                    <span class="desc">La voce del criterio tabellare è selezionata.</span>
-                </li>
-
-                <li>
                     <div class="talign"><i class="far fa-eye action"></i></div>
                     <span class="desc">Esplora criterio in <emph>lab</emph>.</span>
                 </li>
@@ -87,13 +82,6 @@
                         </li>
                     </ul>
                 </li>
-
-
-                <li>
-                    <div class="talign"><i class="fas fa-times action"></i></div>
-                    <span class="desc">La voce del criterio tabellare non è selezionata.</span>
-                </li>
-
 
                 <li>
                     <div class="talign">
@@ -199,7 +187,7 @@
                             P_i=\cases{
                                 1 & se $O_i \ge soglia$, \\
                                 0 & se $O_i \le soglia_{min}$, \\
-                                {P - soglia_{min} \over soglia - soglia_{min}} & altrimenti.\\
+                                \dfrac{P - soglia_{min}}{soglia - soglia_{min}} & altrimenti.\\
                             }
                         $$
                     </p>
@@ -214,7 +202,7 @@
                         $$
                             P_i=\cases{
                                 1 & se $O_i \le soglia$, \\
-                                {BA - P \over BA - soglia} & altrimenti.\\
+                                \dfrac{BA - P}{BA - soglia} & altrimenti.\\
                             }
                         $$
                     </p>
@@ -243,8 +231,8 @@
                     <p class="eq">
                         $$
                         P_i=\cases{
-                            x \cdot {P \over \mathbb{E}(O)}  & se $O_i \le \mathbb{E}(O)$, \cr
-                            x + (1-x) \cdot { P - \mathbb{E}(O) \over max(O) - \mathbb{E}(O) }  & se $O_i \gt \mathbb{E}(O)$.\cr
+                            x \cdot \dfrac{P}{\mathbb{E}(O)}  & se $O_i \le \mathbb{E}(O)$, \cr
+                            x + (1-x) \cdot \dfrac{ P - \mathbb{E}(O) }{ max(O) - \mathbb{E}(O) }  & se $O_i \gt \mathbb{E}(O)$.\cr
                         }
                         $$
                     </p>
@@ -255,8 +243,8 @@
                     <p class="eq">
                         $$
                         P_i=\cases{
-                            x \cdot {BA - P \over BA - \mathbb{E}(O)}  & se $O_i \ge \mathbb{E}(O)$, \cr
-                            x + (1-x) \cdot { \mathbb{E}(O) - P \over \mathbb{E}(O) - min(O) }  & se $O_i \lt \mathbb{E}(O)$.\cr
+                            x \cdot \dfrac{BA - P}{ BA - \mathbb{E}(O)}  & se $O_i \ge \mathbb{E}(O)$, \cr
+                            x + (1-x) \cdot \dfrac{ \mathbb{E}(O) - P}{ \mathbb{E}(O) - min(O) }  & se $O_i \lt \mathbb{E}(O)$.\cr
                         }
                         $$
                     </p>
@@ -276,7 +264,7 @@
                     <p class="eq">$$P_i=1-(1-p)^n$$</p>
 
                     <div class="mode">Ribasso</div>
-                    <p class="eq">$$P_i = 1-\big(P \over BA\big)^n$$</p>
+                    <p class="eq">$$P_i = 1-\big( \dfrac{P}{BA} \big)^n$$</p>
 
                     <p class="param">$n$: parametro che determina il grado di concavità della curva.</p>
                 </li>
@@ -326,10 +314,10 @@
 
                         $$
                             P_i=\cases{
-                                {O_i - a \over b - a}                                       & se $O_i \in [a, b)$,\cr
-                                \big( 1 - {O_i - b \over d - b} \big) \cdot (1 - s) + s     & se $O_i \in [b, d)$,\cr
-                                s \cdot {s  (O_i - e) \over (d-e)}                          & se $O_i \in [d, e]$,\cr
-                                0                                                           & altrimenti.         \cr
+                                \dfrac{O_i - a}{b - a}                                       & se $O_i \in [a, b)$,\cr
+                                \big( 1 - \dfrac{O_i - b}{d - b} \big) \cdot (1 - s) + s     & se $O_i \in [b, d)$,\cr
+                                s \cdot \dfrac{s \cdot (O_i - e)}{d-e}                       & se $O_i \in [d, e]$,\cr
+                                0                                                            & altrimenti.         \cr
                             }
                         $$
                     </p>

@@ -1,1 +1,267 @@
-{"mod_economica":"prezzo","funzione_economica":"proporzionalita_inversa","base_asta":"","riparametrizzazione1":false,"riparametrizzazione2":false,"parametri_economica":{},"criteri":[{"nome":"ORGANIZZAZIONE DEL SERVZIO","subcriteri":[{"nome":"","tipo":"D","peso":10},{"nome":"","tipo":"D","peso":5},{"nome":"","tipo":"D","peso":4},{"nome":"","tipo":"D","peso":4},{"nome":"","tipo":"D","peso":4},{"nome":"","tipo":"D","peso":3},{"nome":"","tipo":"D","peso":3}]},{"nome":"METODOLOGIE TECNICO OPERATIVE","subcriteri":[{"nome":"","tipo":"D","peso":6},{"nome":"","tipo":"D","peso":6},{"nome":"","tipo":"D","peso":4},{"nome":"","tipo":"D","peso":3}]},{"nome":"DOTAZIONI E ATTREZZATURE DEDICATE","subcriteri":[{"nome":"","tipo":"D","peso":3},{"nome":"","tipo":"D","peso":2}]},{"nome":"ASPETTI AMBIENTALI E SOCIALI","subcriteri":[{"nome":"","tipo":"T","voci":[1]},{"nome":"","tipo":"Q","funzione":"concava_alla_migliore_offerta","parametri":{"alfa":1},"peso":1},{"nome":"","tipo":"T","voci":[0.5,0.5]}]}],"offerte":[{"nome":"Offerta 1","economica":612707.99,"tecnica":[0.11,0,0.07,0.05,0.21,0.18,0,0.21,0.13,0,0.35,1,0,[false],80,[true,false]]},{"nome":"Offerta 2","economica":551651.96,"tecnica":[0.59,0.59,1,1,1,0.21,0.63,0.21,1,1,0.74,1,0.33,[false],24,[true,true]]},{"nome":"Offerta 3","economica":596608.2,"tecnica":[0.59,1,0.63,0.65,0.81,0.42,0.43,0.08,0.13,0.32,0.35,1,0.13,[true],40,[true,true]]},{"nome":"Offerta 4","economica":613524.82,"tecnica":[1,0.39,0.88,0.88,0.58,1,1,1,0.21,0.32,1,1,0.6,[false],0,[true,true]]},{"nome":"Offerta 5","economica":570900.97,"tecnica":[0,0.13,0.7,0.9,0,0,0.35,0.44,0.92,0.56,0,0,1,[false],120,[true,false]]}]}
+{
+    "riparametra_1_criteri": false,
+    "riparametra_2_parti": false,
+    "criteri": [
+        {
+            "nome": "Economica",
+            "mod_soglia": "punti",
+            "soglia": 0,
+            "criteri": [
+                {
+                    "nome": "Lotto 1",
+                    "peso": 20,
+                    "modo": "prezzo",
+                    "funzione": "proporzionalita_inversa",
+                    "parametri": {},
+                    "base_asta": 0
+                },
+                {
+                    "nome": "Lotto 2",
+                    "peso": 20,
+                    "modo": "prezzo",
+                    "funzione": "proporzionalita_inversa",
+                    "parametri": {},
+                    "base_asta": 0
+                }
+            ]
+        },
+        {
+            "nome": "Tecnica",
+            "mod_soglia": "punti",
+            "soglia": 0,
+            "criteri": [
+                {
+                    "nome": "ORGANIZZAZIONE DEL SERVZIO",
+                    "criteri": [
+                        {
+                            "nome": "",
+                            "peso": 10,
+                            "tipo": "D"
+                        },
+                        {
+                            "nome": "",
+                            "peso": 5,
+                            "tipo": "D"
+                        },
+                        {
+                            "nome": "",
+                            "peso": 4,
+                            "tipo": "D"
+                        },
+                        {
+                            "nome": "",
+                            "peso": 4,
+                            "tipo": "D"
+                        },
+                        {
+                            "nome": "",
+                            "peso": 4,
+                            "tipo": "D"
+                        },
+                        {
+                            "nome": "",
+                            "peso": 3,
+                            "tipo": "D"
+                        },
+                        {
+                            "nome": "",
+                            "peso": 3,
+                            "tipo": "D"
+                        }
+                    ]
+                },
+                {
+                    "nome": "METODOLOGIE TECNICO OPERATIVE",
+                    "criteri": [
+                        {
+                            "nome": "",
+                            "peso": 6,
+                            "tipo": "D"
+                        },
+                        {
+                            "nome": "",
+                            "peso": 6,
+                            "tipo": "D"
+                        },
+                        {
+                            "nome": "",
+                            "peso": 4,
+                            "tipo": "D"
+                        },
+                        {
+                            "nome": "",
+                            "peso": 3,
+                            "tipo": "D"
+                        }
+                    ]
+                },
+                {
+                    "nome": "DOTAZIONI E ATTREZZATURE DEDICATE",
+                    "criteri": [
+                        {
+                            "nome": "",
+                            "peso": 3,
+                            "tipo": "D"
+                        },
+                        {
+                            "nome": "",
+                            "peso": 2,
+                            "tipo": "D"
+                        }
+                    ]
+                },
+                {
+                    "nome": "ASPETTI AMBIENTALI E SOCIALI",
+                    "criteri": [
+                        {
+                            "nome": "Sociale",
+                            "tipo": "T",
+                            "voci": [{"nome":"No" ,"punti":0}, {"nome":"Si" ,"punti":1}]
+                        },
+                        {
+                            "funzione": "concava_alla_migliore_offerta",
+                            "nome": "",
+                            "parametri": {
+                                "alfa": 1
+                            },
+                            "peso": 1,
+                            "tipo": "Q"
+                        },
+                        {
+                            "nome": "Rispetto ambiente - servizi",
+                            "tipo": "T",
+                            "voci": [{"nome": "No", "punti": 0}, {"nome": "Si", "punti": 0.5}]
+                        },
+                        {
+                            "nome": "Rispetto ambiente - prodotti",
+                            "tipo": "T",
+                            "voci": [{"nome": "No", "punti": 0}, {"nome": "Si", "punti": 0.5}]
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "offerte": [
+        {
+            "nome": "Offerta 1",
+            "valori": [
+                289622.43,
+                323085.56,
+                0.11,
+                0,
+                0.07,
+                0.05,
+                0.21,
+                0.18,
+                0,
+                0.21,
+                0.13,
+                0,
+                0.35,
+                1,
+                0,
+                0,
+                80,
+                1,
+                0
+            ]
+        },
+        {
+            "nome": "Offerta 2",
+            "valori": [
+                260363.65,
+                291288.31,
+                0.59,
+                0.59,
+                1,
+                1,
+                1,
+                0.21,
+                0.63,
+                0.21,
+                1,
+                1,
+                0.74,
+                1,
+                0.33,
+                0,
+                24,
+                1,
+                1
+            ]
+        },
+        {
+            "nome": "Offerta 3",
+            "valori": [
+                282308.80,
+                314299.40,
+                0.59,
+                1,
+                0.63,
+                0.65,
+                0.81,
+                0.42,
+                0.43,
+                0.08,
+                0.13,
+                0.32,
+                0.35,
+                1,
+                0.13,
+                1,
+                40,
+                1,
+                1
+            ]
+        },
+        {
+            "nome": "Offerta 4",
+            "valori": [
+                290470.37,
+                323054.45,
+                1,
+                0.39,
+                0.88,
+                0.88,
+                0.58,
+                1,
+                1,
+                1,
+                0.21,
+                0.32,
+                1,
+                1,
+                0.6,
+                0,
+                0,
+                1,
+                1
+            ]
+        },
+        {
+            "nome": "Offerta 5",
+            "valori": [
+                265162.11,
+                305738.86,
+                0,
+                0.13,
+                0.7,
+                0.9,
+                0,
+                0,
+                0.35,
+                0.44,
+                0.92,
+                0.56,
+                0,
+                0,
+                1,
+                0,
+                120,
+                1,
+                0
+            ]
+        }
+    ]
+}

@@ -1,8 +1,10 @@
 const path = require('path')
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
 
 module.exports = {
     entry: './src/resources/index.ts',
-    mode: 'development', // production
+//    mode: 'development', // production
+    mode: 'production', // production
     devtool: 'inline-source-map',
     output: {
         path: path.resolve(__dirname, 'src/resources/'),
@@ -24,4 +26,9 @@ module.exports = {
         }
     },
     target:'electron-renderer',
+    optimization: {
+        minimizer: [
+            new UglifyJsPlugin()
+        ]
+    }
 };

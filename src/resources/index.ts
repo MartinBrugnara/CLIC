@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 /* Remember: JavaScript is call-by-sharing.  Like by value,
- *     but for complex types you can use only pointers (thus copy its address).
+ *     but for complex types you can use only ptrs (thus copy its address).
  * https://stackoverflow.com/questions/518000/is-javascript-a-pass-by-reference-or-pass-by-value-language#3638034
  */
 
@@ -34,17 +34,18 @@ import 'bootstrap'
 import Vue from 'vue'
 import * as deepEqual from 'deep-equal'
 
-import functions from './functions.ts'
+import {functions, FuncNames} from './functions.ts'
+import {ModSoglia, CNode, Leaf, EcoMode, Bid, Call, Criterion, Criterion_N, Eco, Tech, CriterionKind, TechCriterion_T, TechCriterion_Q,TechCriterion_D} from './call.ts';
 
 const EXAMPLES_DIR = path.normalize(path.join(app.getAppPath(), 'src/assets/examples')),
       F_EMPTY_BANDO = path.normalize(path.join(EXAMPLES_DIR, 'Nuovo.json'));
 
 let vm_app_status,
-    vm_lab,
+    vm_errors,
     vm_structure,
     vm_data,
     vm_rank,
-    vm_errors;
+    vm_lab;
 
 
 // ============================================================================
@@ -56,19 +57,16 @@ let pad = false,
     char_width = 8,
     indent = 20; // must be the same as padding-left for ul.
 
+
 // ============================================================================
 // Global objects
-
-// TODO: consider re-init all vm_* everytime a new file is loaded
-//      instead of reassigning the keys.
-
-let current,            // Reference to the `bando` currently dislpayed.
-    current_org;        // Reference to a copy of the bando as parsed from JSON.
+let current: Call,            // Reference to the `bando` currently dislpayed.
+    current_org: Call;        // Reference to a copy of the bando as parsed from JSON.
 
 let app_status = {      // Applicatin status, used for info and save().
     fpath: '',
-    data: current,
-    org: {},
+    data: <Call>current,
+    org: <Call>current_org,
 }
 
 vm_app_status = new Vue({
@@ -84,7 +82,6 @@ vm_app_status = new Vue({
             return abp_idx === 0 ? rp : this.fpath;
         },
         read_only () {
-            // TODO: consider also to check if can actually write there.
             return this.fpath.indexOf(EXAMPLES_DIR) === 0;
         },
         modified () {
@@ -144,59 +141,70 @@ let amax = (x:number[]):number => Math.max.apply(Math, x);
 let amin = (x:number[]):number => Math.min.apply(Math, x);
 let sum = (a: number, b: number):number => a + b;
 let concat = (a:string, b:string): string => a + b;
-let copy = (o) => JSON.parse(JSON.stringify(o));
+let copy = o => JSON.parse(JSON.stringify(o));
 let rnd = (min:number, max:number): number => Math.floor((Math.random() * (max - min) + min) * 100)/100;
 
-let eco_mode = (bando) => bando.mod_economica === 'prezzo' ? 'down' : 'up';
+let func_mode = (modo) => modo && modo === EcoMode.Price? 'down': 'up';
 
-let prefix_2_ids = function(prefix) {
-    let p = '' + prefix;
-    let ll = leafs_lst(current.criteri);
+let prefix_2_ids = function(bando: Call, prefix: string) {
+    let p = '' + prefix,
+        ll = leafs_lst(bando);
+
     // Search boundaries to delete
-    return ll.map((c, i) => [c.env_name, i])
-            .filter(x => (x[0].indexOf(p + '.') === 0) ||
-                         (x[0].indexOf(p) === 0 && p.length === x[0].length))
-            .map(x => x[1])
-            // Should be already sorted. But better safe than sorry.
-            // Btw, if not function is supplied id uses alphabetical asc order.
-            .sort((a,b) => a-b);
+    return ll.map((c, i) => <[string, number]>[c.env_name, i])
+        .filter(x => x[0].indexOf(p + '.') === 0 || x[0] === p)
+        .map(x => x[1])
+        // Should be already sorted. But better safe than sorry.
+        // Btw, if not function is supplied id uses alphabetical asc order.
+        .sort((a,b) => a-b);
 }
 
-let max_bando_depth = function(bando) {
+let env_depth = 0;
+let update_env_depth = function(bando) {
     let f = (b) => {
-        if (!b.subcriteri) return 1;
-        return Math.max.apply(Math, b.subcriteri.map(f)) + 1;
+        if (!b.criteri) return 1;
+        return Math.max.apply(Math, b.criteri.map(f)) + 1;
     }
-    return Math.max.apply(Math, bando.criteri.map(f));
+    env_depth = Math.max.apply(Math, bando.criteri.map(f));
+    return env_depth;
 }
 
-let criterion_weight = function(c) {
-    if (c.subcriteri && c.subcriteri.length)
-        return c.subcriteri.map(criterion_weight).reduce(sum, 0);
-    if (c.tipo === 'T')
-        return c.voci.reduce(sum, 0);
-    return c.peso;
+let do_pad = (depth:number) => {
+    if (!pad) return '0';
+    if (!env_depth) update_env_depth(current);
+    let label = ((env_depth * 2 - 1) * char_width);
+    if (!pad_structure) return label + 'px';
+    return (env_depth - depth - 1) * indent + label  + 'px';
 }
 
-let economic_weight = function(bando) {
-    return 100 - bando.criteri.map(criterion_weight).reduce(sum, 0);
+let criterion_weight = function(c: Criterion|{criteri: Criterion[]}): number {
+    if ('criteri' in c && c.criteri.length > 0)
+        return c.criteri.map(criterion_weight).reduce(sum, 0);
+    else if ((<Tech>c).tipo === CriterionKind.T)
+        return amax((<TechCriterion_T>c).voci.map(x => x.punti));
+    return (<TechCriterion_Q|TechCriterion_D|Eco>c).peso || 0;
 }
 
-let leafs_lst = function(criteri) {
+interface AnnotatedLeaf extends Leaf {env_name:string};
+let leafs_lst = function(bando: Call): AnnotatedLeaf[] {
     let rec_list = (prefix, clst) => {
         return clst.map((c, i) => {
             let name = prefix + (i + 1);
-            if (!(c.subcriteri && c.subcriteri.length)) {
+            if (!(c.criteri && c.criteri.length)) {
                 c.env_name = name; // Inject computed name
                 return [c];
             }
-            return [].concat(...rec_list(name + '.', c.subcriteri));
+            return [].concat(...rec_list(name + '.', c.criteri));
         });
     };
-    return [].concat(...rec_list('', criteri));
+
+    return [].concat(
+        ...rec_list('E.', bando.criteri[0].criteri),
+        ...(rec_list('C.', bando.criteri[1].criteri)));
 }
 
-let tech_weights = function(ll) {
+// EX tech_weights
+let weights = function(ll) {
     return ll.map(criterion_weight);
 }
 
@@ -223,9 +231,10 @@ let nmatrix = function (dim: number[], def_value?: any) {
 Vue.component('criterion', {
     template: '#tpl_criterion',
     props: {
-        model: Object,  // The actual criterion data.
-        name: String,   // The computed name, in the form '1.3.2'.
-        depth: Number,  // Depth in three of this criterion (use for padding).
+        model: Object,   // The actual criterion data.
+        name: String,    // The computed name, in the form '1.3.2'.
+        depth: Number,   // Depth in three of this criterion (use for padding).
+        is_eco: Boolean,
     },
     beforeUpdate: function() {
         if (!this.is_leaf) return;
@@ -242,6 +251,9 @@ Vue.component('criterion', {
             // Just a proxy for constant global objecet
             return functions;
         },
+        func_mode () {
+            return func_mode(this.model.modo);
+        },
         funcs_lst () {
             return Object.keys(functions).map(fname => {
                 return {
@@ -251,23 +263,12 @@ Vue.component('criterion', {
             }).sort();
         },
         isWeightEditable () {
-            return this.is_leaf && this.model.tipo !== 'T';
+            return this.is_leaf && this.model.tipo !== CriterionKind.T;
         },
         is_leaf () {
-            return !(this.model.subcriteri && this.model.subcriteri.length);
+            return !(this.model.criteri && this.model.criteri.length);
         },
-        padding () {
-            if (!pad)
-                return '0';
-            if (!current.env_depth)
-                current.env_depth = max_bando_depth(current);
-
-            let mx = current.env_depth,
-                label = ((mx * 2 - 1) * char_width);
-            if (!pad_structure)
-                return label + 'px';
-            return (mx - this.depth - 1) * indent + label  + 'px';
-        },
+        padding () {return do_pad(this.depth)},
         weight () {
             // Weight computed on the children.
             return criterion_weight(this.model);
@@ -278,14 +279,14 @@ Vue.component('criterion', {
         amax: amax,
         function_change () {
             // Structure
-            if (this.model.tipo === 'Q') {
+            if (this.model.tipo === CriterionKind.Q || this.is_eco) {
                 // Be sure at least one is selected and parameters are initialized
-                if (this.model.funzione === undefined)
+                if (!(this.model.funzione && functions[this.model.funzione][this.func_mode]))
                     Vue.set(this.model, 'funzione', 'identita');
 
                 // Be sure parameters are populated.
-                for (let pname in functions[this.model.funzione].up.params) {
-                    let p = functions[this.model.funzione].up.params[pname];
+                for (let pname in functions[this.model.funzione][this.func_mode].params) {
+                    let p = functions[this.model.funzione][this.func_mode].params[pname];
                     if (!this.model.parametri)
                         Vue.set(this.model, "parametri", {});
                     if (this.model.parametri[pname] === undefined) {
@@ -294,9 +295,9 @@ Vue.component('criterion', {
                         Vue.set(this.model.parametri, pname, v);
                     }
                 }
-            } else if (this.model.tipo  === 'T') {
-                if (this.model.voci === undefined)
-                    Vue.set(this.model, 'voci', [this.model.peso]);
+            } else if (this.model.tipo  === CriterionKind.T) {
+                if (this.model.voci === undefined || this.model.voci.length === 0)
+                    Vue.set(this.model, 'voci', [{nome:'v1', punti: this.model.peso || 0}]);
             }
 
             // Avoid messing with the data if the kind of function is not changed.
@@ -307,33 +308,38 @@ Vue.component('criterion', {
 
             // Data
             let r = current.offerte.length,
-                pi = prefix_2_ids(this.name)[0];
+                pi = prefix_2_ids(current, this.name)[0];
+
             if (r >0) {
-                let y = current.offerte[0].tecnica[pi];
-                if (this.model.tipo === 'T') {
-                    // Ensure [].
-                    // Must also guarantee # of entry. Scenario T2 -> Q -> T.
-                    // It's enought to check the first.
-                    if (!Array.isArray(y)) {
-                        let base = this.model.voci.map(_ => false);
+                if (vm_data.env_rnd) {
+                    if (this.model.tipo === CriterionKind.T) {
+                        // Scale current value to the new domain (#voice num)
+                        let M = amax(current.offerte.map(o => o.valori[pi])) || 1;
                         for (let i=0; i<current.offerte.length; i++)
-                            Vue.set(current.offerte[i].tecnica, pi, copy(base));
+                            Vue.set(current.offerte[i].valori, pi,
+                                Math.round(current.offerte[i].valori[pi] / M)
+                                    * (this.model.voci.length-1));
+                    } else if (!(this.model.tipo === CriterionKind.Q || this.is_eco)) {
+                        // Scale current values between 0-1
+                        let dom = amax(current.offerte.map(o => o.valori[pi])) || 1;
+                        for (let i=0; i<current.offerte.length; i++)
+                            Vue.set(current.offerte[i].valori, pi,
+                                current.offerte[i].valori[pi] / dom);
                     }
                 } else {
-                    if (Array.isArray(y)) {
-                        for (let i=0; i<current.offerte.length; i++)
-                            Vue.set(current.offerte[i].tecnica, pi, rnd(0,1));
-                    }
+                    // Put everything to 0
+                    for (let i=0; i<current.offerte.length; i++)
+                        Vue.set(current.offerte[i].valori, pi, 0);
                 }
             }
 
             // Update lab
-            if (old_type === 'Q')
+            if (old_type === CriterionKind.Q)
                 vm_lab.release_by_prefix(this.name);
         },
         remove () {
             // Prepare to adapt data
-            let x = prefix_2_ids(this.name),
+            let x = prefix_2_ids(current, this.name),
                 start = x[0],
                 cnt = x.length;
 
@@ -341,112 +347,130 @@ Vue.component('criterion', {
             let r = current.offerte.length;
             for (let i=0; i<r; i++)                                 // bids
                 for (let j=0; j<cnt; j++)                           // delete #cnt
-                    Vue.delete(current.offerte[i].tecnica, start);  // actually delete
+                    Vue.delete(current.offerte[i].valori, start);   // actually delete
 
-            let key = this.name.toString().split('.').map(i => parseInt(''+i)-1),
-                ptr = current.criteri;
+            // Actualli delete
+            let key = this.name.toString()
+                    .replace('E', '1').replace('C', '2')
+                    .split('.').map(i => parseInt(''+i)-1),
+                ptr:CNode[] = <CNode[]>(<CNode>current).criteri;
 
             // Visiting children
             let ptrs = [];
             for (let i=0; i < key.length; i++) {
                 ptrs.push(ptr);
-                ptr = ptr[key[i]].subcriteri;
+                ptr = ptr[key[i]]['criteri'];
             }
 
             // Finding the greates anchestor which has got
             // no other children other than us, and deleting it.
+            // K > 1 (preserve root)
             let k;
-            for (k=ptrs.length-1; k > 0 && ptrs[k].length === 1; k--);
+            for (k=ptrs.length-1; k > 1 && ptrs[k].length === 1; k--);
 
             // Actually delete sub-tree
             Vue.delete(ptrs[k], key[k]);
 
             // Update stats abouth depth
-            current.env_depth = max_bando_depth(current);
+            update_env_depth(current);
 
             // Clean up lab
             vm_lab.release_by_prefix(this.name);
         },
         sub () {
-            let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
-            let pointer = current.criteri;
-            for (let i=1; i<key.length; i++) {
-                pointer = pointer[key[i-1]].subcriteri;
-            }
+            let key = this.name.toString()
+                .replace('E', '1').replace('C', '2')
+                .split('.').map(i => parseInt(''+i)-1);
 
-            let raw = pointer;
-            pointer = copy(pointer[key[key.length-1]]);
-            pointer.subcriteri = [copy(pointer)];
-            pointer.peso = undefined;
-            pointer.soglia = undefined;
-            pointer.mod_soglia = undefined;
+            let ptr:CNode[] = <CNode[]>(<CNode>current).criteri;
+            for (let i=1; i<key.length; i++)
+                ptr = ptr[key[i-1]]['criteri'];
 
+            let raw = ptr;
+            ptr = (copy(ptr[key[key.length-1]]));
+            ptr['criteri'] = [copy(ptr)];
+            ptr['peso'] = undefined;
+            ptr['soglia'] = 0;
+            ptr['mod_soglia'] = 'punti';
 
-            Vue.set(raw, key[key.length-1], pointer)
+            ptr['criteri'][0]['nome'] = '';
+
+            Vue.set(raw, key[key.length-1], ptr)
 
             // There is no need to modify the data.
             // To add a sublevel we add column (1.1) but remove (1).
             // We may then reuse info from 1 to populare 1.1.
 
             // Update stats abouth depth
-            current.env_depth = max_bando_depth(current);
+            update_env_depth(current);
 
             // Update lab
-            if (pointer.subcriteri[0].tipo === 'Q')
+            if (ptr['criteri'][0].tipo === CriterionKind.Q || this.is_eco)
                 vm_lab.update_name(this.name, this.name + '.1');
 
             Vue.nextTick(refresh_popover);
         },
         add () {
-            let x = prefix_2_ids(this.name),
-                pi = x[0] + x.length;
-
-            // Get a pointer to subcriteri list
-            let key = this.name.toString().split('.').map(i => parseInt(''+i)-1);
-            let pointer = current.criteri;
-            for (let i=1; i<key.length; i++) {
-                pointer = pointer[key[i-1]].subcriteri;
-            }
-            pointer = pointer[key[key.length - 1]].subcriteri;
-
-            // Create a new one.
-            let newc = {peso:0, tipo:'D', soglia:0, mod_soglia:'punti', nome:''}
-            // if doesn not work, try with set() at pointer.length
-            pointer.push(newc);
-
-            // Adapt the data.
-            let r = current.offerte.length,
-                default_value = 0;
-            for (let i=0; i<r; i++)                                       // bids
-                current.offerte[i].tecnica.splice(pi, 0, default_value);  // actually delete
-
-            // Update stats abouth depth
-            current.env_depth = max_bando_depth(current);
-            Vue.nextTick(refresh_popover);
-
-            // Since we appending by the end, no need to update lab
+            add_criterion(this.name, this.is_eco);
         },
         add_voce () {
             // Add to the tree and add default entry in data (false)
-            this.model.voci.push(0);
-
-            // Update data
-            let pi = prefix_2_ids(this.name)[0];
-            for (let i=0; i<current.offerte.length; i++)
-                current.offerte[i].tecnica[pi].push(false);
+            this.model.voci.push({nome:'', punti:0});
+            // Non need to updata data.
         },
         remove_voce (vi) {
             // Add to the tree and delete proper value
             this.model.voci.splice(vi, 1);
 
-            // Update data
-            let pi = prefix_2_ids(this.name)[0];
-            for (let i=0; i<current.offerte.length; i++)
-                current.offerte[i].tecnica[pi].splice(vi, 1);
+            // Update data (if usign the one deleted or later)
+            let pi = prefix_2_ids(current, this.name)[0];
+            for (let i=0; i<current.offerte.length; i++) {
+                let s = current.offerte[i].valori[pi];
+                if (s >= vi)
+                    Vue.set(current.offerte[i].valori, pi, s - 1);
+            }
         },
     },
     filters: common_filters,
 });
+
+let add_criterion = function (name:string, is_eco:boolean) {
+    // Get a ptr to criteri list
+    let key = name
+        .replace('E', '1').replace('C', '2')
+        .split('.').map(i => parseInt(''+i)-1);
+    let ptr:CNode[] = <CNode[]>(<CNode>current).criteri;
+    for (let i=1; i<key.length; i++)
+        ptr = ptr[key[i-1]].criteri;
+    ptr = ptr[key[key.length - 1]].criteri;
+
+    // Create a new one.
+    let newc:(TechCriterion_D|Eco) = {peso:0, tipo:CriterionKind.D, soglia:0, mod_soglia: ModSoglia.Points, nome:''};
+    if (is_eco) {
+        newc = <Eco><any>newc;
+        newc.tipo = CriterionKind.Q;
+        newc.funzione = FuncNames.identita;
+        newc.parametri = {};
+        newc.modo = EcoMode.Price;
+    }
+
+    (<any[]>ptr).push(newc);
+
+    // Adapt the data.
+    let x = prefix_2_ids(current, name),
+        pi = x[0] + x.length,
+        r = current.offerte.length,
+        default_value = 0;
+    for (let i=0; i<r; i++)                                      // bids
+        current.offerte[i].valori.splice(pi, 0, default_value);  // actually delete
+
+    // Update stats abouth depth
+    env_depth = update_env_depth(current);
+    Vue.nextTick(refresh_popover);
+
+    // Since we appending by the end, no need to update lab
+}
+
 
 
 // ============================================================================
@@ -459,10 +483,6 @@ function load_bando(args) {
     try {
         let raw_content = fs.readFileSync(args.fpath, "utf8");
         let bando_data = JSON.parse(raw_content);
-
-        // TODO: add here check if the bando can not be loaded,
-        // if it is not fixable in the app raise exception.
-
         current_org = clean_bando(bando_data);
         current = copy(current_org);
         let patch = {
@@ -471,15 +491,12 @@ function load_bando(args) {
             org: current_org,
         };
 
-        // NOTE: we may also avoid the use of Vue.set
         Object.keys(patch).forEach((key) => {
             Vue.set(vm_app_status, key, patch[key]);
         });
 
         refresh_gui();
     } catch(err) {
-        // TODO: improve how we display this error message.
-        // & this should be only Fatal.
         console.error(err);
         dialog.showErrorBox('Errore di caricamento',
             'Si e\' verificatio un errore caricando ' + args.fpath + ' .\n' +
@@ -498,60 +515,30 @@ function refresh_gui() {
         return;
     }
 
-
-    if (!vm_structure) {
-        // Init
-        vm_structure = new Vue({
-            el: '#structure',
+    if (!vm_errors) {
+        vm_errors = new Vue({
+            el: '#errors',
             data: {
                 bando: current,
             },
-            methods: {
-                amin: amin,
-                amax: amax,
-                add_root_criterion () {
-                    let newc = {peso:0, tipo:'D', soglia:0, mod_soglia:'punti', nome:''}
-                    current.criteri.push(newc);
-
-                    // Adapt the data.
-                    let r = current.offerte.length, default_value = 0;
-                    for (let i=0; i<r; i++)                              // bids
-                        current.offerte[i].tecnica.push(default_value);  // actually delete
-
-                    Vue.nextTick(refresh_popover);
-                },
-            },
             computed: {
-                economic_weight () {
-                    return economic_weight(this.bando);
-                },
-                base_required () {
-                    return this.funcs[this.bando.funzione_economica][this.eco_mode].base_asta === true;
-                },
-                funcs () {
-                    // Just a proxy for constant global objecet
-                    return functions;
-                },
-                funcs_lst () {
-                    return Object.keys(functions).map(fname => {
-                        return {
-                            fname: fname,
-                            o: functions[fname],
-                        }
-                    }).sort();
-                },
-                eco_mode () {
-                    return eco_mode(this.bando);
-                },
-                eco_got_param: function() {
-                    let m = eco_mode(this.bando),
-                        o = functions[this.bando.funzione_economica][m];
-                    return o.params && Object.keys(o.params).length;
+                errors: function() {
+                    return check_bando(this.bando);
                 }
             },
+        });
+    }
+
+
+    if (!vm_structure) {
+        vm_structure = new Vue({
+            el: '#structure',
+            data: {bando: current},
+            methods: {add_criterion: add_criterion},
             filters: common_filters,
         });
     }
+
 
     // Uset to init and refresh
     const vm_data_defaults = {
@@ -607,35 +594,27 @@ function refresh_gui() {
                         nome += 'i';
 
                     // Build
-                    let c = leafs_lst(this.bando.criteri);
+                    let c = leafs_lst(this.bando);
                     let offerta;
                     if (this.env_rnd) {
                         offerta = {
                             nome: nome,
-                            economica: this.bando.offerte.length < 2 ? rnd(0,1) : rnd(
-                                amin(this.bando.offerte.map(o => o.economica)),
-                                amax(this.bando.offerte.map(o => o.economica))
-                            ),
-                            tecnica:  c.map((c, i) => {
-                                if (c.tipo === 'T')
-                                    return c.voci.map(_ => rnd(0,1) >= 0.5)
-                                else if (c.tipo == 'D')
+                            valori: c.map((c, i) => {
+                                if (c.tipo === CriterionKind.T)
+                                    return Math.round(rnd(0, 1) * ((<TechCriterion_T><any>c).voci.length-1));
+                                else if (c.tipo == CriterionKind.D)
                                     return rnd(0,1);
                                 else
                                     return this.bando.offerte.length < 2 ? rnd(0,1) : rnd(
-                                        amin(this.bando.offerte.map(o => o.tecnica[i])),
-                                        amax(this.bando.offerte.map(o => o.tecnica[i]))
+                                        amin(this.bando.offerte.map(o => o.valori[i])),
+                                        amax(this.bando.offerte.map(o => o.valori[i]))
                                     );
-                            })
+                            }),
                         }
                     } else {
                         offerta = {
                             nome: nome,
-                            economica:
-                                this.bando.mod_economica === 'prezzo' ?
-                                    this.bando.base_asta || 0: 0,
-                            tecnica:  c.map((c) =>
-                                c.tipo === 'T' ?  c.voci.map(_ => false) : 0),
+                            valori:  c.map(c => 0),
                         }
                     }
 
@@ -655,8 +634,8 @@ function refresh_gui() {
 
                     let frozen_col = this.bando.offerte.map((o, i) => ({
                         was_issue: this.points[i].excluded_for[col_id],
-                        points: this.points[i].tecnica[col_id],
-                        raw: this.bando.offerte[i].tecnica[col_id],
+                        points: this.points[i].points[col_id],
+                        raw: this.bando.offerte[i].valori[col_id],
                     }));
 
                     Vue.set(this.env_frozen, c_env_name, frozen_col);
@@ -664,66 +643,55 @@ function refresh_gui() {
                 unfreeze (c_env_name) {
                     Vue.delete(this.env_frozen, c_env_name);
                 },
-                freeze_eco () {
-                    let frozen_col = this.bando.offerte.map((o, i) => ({
-                        points: this.points[i].economica,
-                        raw: this.bando.offerte[i].economica,
-                    }));
-
-                    Vue.set(this.env_frozen, 'eco', frozen_col);
-                },
-                unfreeze_eco () {
-                    Vue.delete(this.env_frozen, 'eco');
-                },
                 update_frozen_name(old, actual) {
                     Vue.set(this.env_frozen, actual, this.env_frozen[old]);
                     Vue.delete(this.env_frozen, old);
                 }
             },
             computed: {
-                economic_weight () {
-                    return economic_weight(this.bando);
-                },
                 fatal_errors () {
-                    // FIXME: should return true, only when the errors are fatal,
+                    // OPT: should return true, only when the errors are fatal,
                     // i.e. when we can not compute the ranks.
                     // Now, it returns true if there is any error.
-                    return check_bando(this.bando)[1].length > 0;
+
+                    return check_bando(this.bando).length > 0;
                 },
                 enable_names () {
                     return this.env_name_show === 'show' &&
-                        this.bando.criteri.concat(leafs_lst(this.bando.criteri))
+                        this.bando.criteri.concat(leafs_lst(this.bando))
                         .map(c => c.nome || '')
                         .filter(n => n.length)
                         .length > 0;
                 },
                 fst_lvl_names () {
-                    let ll = leafs_lst(this.bando.criteri);
-                    return this.bando.criteri.map((c, i) => {
-                        let y = prefix_2_ids((i + 1) + '')
-                            .map(i =>
-                                (ll[i].tipo === 'T' && this.env_data_mode !== 'points' ?
-                                    ll[i].voci.length : 1) *
-                                (this.env_frozen[ll[i].env_name] ? 2 : 1))
-                            .reduce(sum, 0);
+                    let ll = leafs_lst(this.bando);
+                    let extractor = (prefix) => {
+                        return (c, i) => {
+                            let y = prefix_2_ids(this.bando, prefix + '.' + (i + 1))
+                                .map(i => this.env_frozen[ll[i].env_name] ? 2 : 1)
+                                .reduce(sum, 0);
 
-                        return {
-                            nome: c.nome,
-                            size: y,
+                            return {
+                                nome: c.nome,
+                                size: y,
+                            };
                         };
-                    })
+                    };
+                    return this.bando.criteri[0].criteri.map(extractor('E'))
+                        .concat(this.bando.criteri[1].criteri.map(extractor('C')));
                 },
                 weights () {
-                    return tech_weights(leafs_lst(this.bando.criteri));
+                    return weights(leafs_lst(this.bando));
                 },
                 cols () {
-                    return leafs_lst(this.bando.criteri);
+                    return leafs_lst(this.bando);
                 },
                 points () {
-                    let offerte = apply_functions(this.bando)
-                    if (this.bando.riparametrizzazione1)
-                        offerte = apply_scale(this.bando, offerte);
-                    return apply_thresholds(this.bando, this.bando.offerte, offerte);
+                    return compute_points(this.bando);
+                },
+                thresholds () {
+                    return enum_thresholds(this.bando)
+                        .map(s => [s[0], 'impostata a', s[1], s[2], '(' + s[3] + ')'].join(' '))
                 },
             },
             filters: common_filters,
@@ -741,18 +709,20 @@ function refresh_gui() {
             },
             computed: {
                 fatal_errors () {
-                    // FIXME: should return true, only when the errors are fatal,
+                    // OPT: should return true, only when the errors are fatal,
                     // i.e. when we can not compute the ranks.
                     // Now, it returns true if there is any error.
-                    return check_bando(this.bando)[1].length > 0;
+                    return check_bando(this.bando).length > 0;
                 },
                 scoreboard () {
                     if (this.fatalErrors)
                         return [];
 
-                    let offerte = apply_thresholds(this.bando, this.bando.offerte,
-                                                   apply_functions(this.bando));
-                    const excluded = offerte.filter(o => o.excluded).map(o => o.nome).join(', ');
+                    let offerte = compute_points(this.bando);
+
+                    let excluded = offerte
+                        .filter(o => o.excluded)
+                        .map(o => [o.nome, '(' + o.excluded_short.join(', ') + ')'].join(' '))
                     offerte = offerte.filter(o => !o.excluded);
 
                     let agg = aggregativo_compensatore(this.bando, offerte)
@@ -801,26 +771,10 @@ function refresh_gui() {
     }
 
 
-    if (!vm_errors) {
-        vm_errors = new Vue({
-            el: '#errors',
-            data: {
-                bando: current,
-            },
-            computed: {
-                errors: function() {
-                    return check_bando(this.bando)[1];
-                }
-            },
-        });
-    }
-
-
     let vm_lab_defaults = {
         env_frozen: {},
         env_selected_criteria: [],
         env_new_criteria: '-1',
-        env_show_eco: false,
     };
     if (!vm_lab) {
         // Init
@@ -830,19 +784,15 @@ function refresh_gui() {
                 env_frozen: copy(vm_lab_defaults.env_frozen),
                 env_selected_criteria: copy(vm_lab_defaults.env_selected_criteria),
                 env_new_criteria: vm_lab_defaults.env_new_criteria,
-                env_show_eco: vm_lab_defaults.env_show_eco,
                 bando: current,
             },
             computed: {
                 criteria () {
-                    return leafs_lst(this.bando.criteri)
-                        .filter(c => c.tipo === 'Q')
+                    return leafs_lst(this.bando)
+                        .filter(c => c.tipo === CriterionKind.Q || 'modo' in c)
                         .filter(c => this.env_selected_criteria
                             .filter(s => s.env_name === c.env_name)
                             .length === 0);
-                },
-                eco_mode () {
-                    return eco_mode(this.bando);
                 },
                 funcs_lst () {
                     return Object.keys(functions).map(fname => {
@@ -855,47 +805,28 @@ function refresh_gui() {
                 funcs () {
                     return functions;
                 },
-                padding () {
-                    if (!pad)
-                        return '0';
-                    if (!current.env_depth)
-                        current.env_depth = max_bando_depth(current);
-                    let mx = current.env_depth,
-                        label = ((mx * 2 - 1) * char_width);
-                    if (!pad_structure)
-                        return label + 'px';
-                    return (mx - this.depth - 1) * indent + label  + 'px';
-                },
+                padding () {return do_pad(this.depth)},
             },
             methods: {
                 amin: amin,
                 amax: amax,
                 done (i) {
-                    if (i === -1) {
-                        if (this.env_frozen['eco'])
-                            this.toggle_eco_freeze();
-                        this.env_show_eco = false;
-                    } else {
-                        this.unfreeze(this.env_selected_criteria[i].env_name);
-                        Vue.delete(this.env_selected_criteria, i);
-                    }
+                    this.unfreeze(this.env_selected_criteria[i].env_name);
+                    Vue.delete(this.env_selected_criteria, i);
                 },
                 manage () {
-                    if (this.env_new_criteria === "-1") {
-                        this.env_show_eco = true;
-                    } else {
-                        if (!this.criteria[this.env_new_criteria])
-                            return;
-                        this.env_selected_criteria.push(this.criteria[this.env_new_criteria]);
-                    }
+                    if (!this.criteria[this.env_new_criteria]) return;
+                    this.env_selected_criteria.push(this.criteria[this.env_new_criteria]);
                     Vue.nextTick(refresh_popover);
                 },
+                func_mode: func_mode,
                 function_change (i) {
-                    let model = this.env_selected_criteria[i];
+                    let model = this.env_selected_criteria[i],
+                        fm    = this.func_mode(model.modo);
 
                     // Be sure parameters are populated.
-                    for (let pname in functions[model.funzione].up.params) {
-                        let p = functions[model.funzione].up.params[pname];
+                    for (let pname in functions[model.funzione][fm].params) {
+                        let p = functions[model.funzione][fm].params[pname];
                         if (!model.parametri)
                             Vue.set(model, "parametri", {});
                         if (model.parametri[pname] === undefined) {
@@ -918,7 +849,7 @@ function refresh_gui() {
                     str.push(common_filters.capitalize(common_filters.undash(c.funzione)));
                     str.push('con');
 
-                    for (let pname in this.funcs[c.funzione].up.params) {
+                    for (let pname in this.funcs[c.funzione][this.func_mode(c.modo)].params) {
                         const pname_clean =  common_filters.csub(common_filters.undash(pname));
                         str.push(pname_clean + '=' + c.parametri[pname]);
                         str.push('e');
@@ -947,63 +878,45 @@ function refresh_gui() {
                     // === Substitue current element with new one from ll in env_selected,
 
                     // Find index of old
-                    let match = Object.keys(this.env_frozen)
-                        .map((k, i) => ({k:k, i:i}))
+                    let match = this.env_selected_criteria
+                        .map((c, i) => ({k:c.env_name, i:i}))
                         .filter(x => x.k === old)
 
-                    if (match.length !== 1) {
-                        console.error(old, "matched wrong # of records (1)", match);
+                    if (match.length === 0) {
+                        // Nothing to update.
+                        return
+                    } else if (match.length !== 1) {
+                        // More than one to update.. what???
+                        console.error(old, "matched wrong # of records (1)", old, actual, match);
+                        return
                     }
 
-                    let old_id = match[0].i;
-
-
-
                     // Replace reference
+                    let old_id = match[0].i;
                     Vue.set(this.env_selected_criteria, old_id,
                         this.criteria.filter(x => x.env_name === actual)[0]);
 
-                    // === update name in env_freezed (no data)
+
+                    // === update name in env_freezed (if), and propagate to vm_data
                     if (!this.env_frozen[old])
                         return;
-
                     Vue.set(this.env_frozen, actual, this.env_frozen[old])
                     Vue.delete(this.env_frozen, old);
                     vm_data.update_frozen_name(old, actual);
                 },
-                toggle_eco_freeze () {
-                    if (!this.env_frozen['eco']) {
-                        vm_data.freeze_eco();
-
-                        let str = [];
-                        str.push(common_filters.capitalize(common_filters.undash(this.bando.funzione_economica)));
-                        str.push('con');
-
-                        let params = this.funcs[this.bando.funzione_economica][eco_mode(this.bando)].params;
-                        for (let pname in params) {
-                            const pname_clean =  common_filters.csub(common_filters.undash(pname));
-                            str.push(pname_clean + '=' + this.bando.parametri_economica[pname]);
-                            str.push('e');
-                        }
-                        str.pop();
-                        str.push(str.pop() + '.');
-
-                        Vue.set(this.env_frozen, 'eco', str.join(' '));
-                    } else {
-                        vm_data.unfreeze_eco();
-                        Vue.delete(this.env_frozen, 'eco');
-                    }
-                }
+                is_leaf (c) {
+                    return !(c.criteri && c.criteri.length);
+                },
             },
             filters: common_filters,
         });
     }
 
     // Refresh
+    Vue.set(vm_errors, 'bando', current);
     Vue.set(vm_structure, 'bando', current);
     Vue.set(vm_data, 'bando', current);
     Vue.set(vm_rank, 'bando', current);
-    Vue.set(vm_errors, 'bando', current);
     Vue.set(vm_lab, 'bando', current);
 
     // Reset defaults
@@ -1023,48 +936,73 @@ function refresh_gui() {
 // ============================================================================
 // SIMULATION functions
 
-type tBids = {nome:string, economica:number, tecnica: (number | boolean[])[]}[];
-type tPoints = {nome:string, economica:number, tecnica: number[]}[];
-type tFilteredBids = {nome:string, economica:number, tecnica:number[], excluded_for:{[id: number]:boolean}, excluded:boolean}[];
+type BidPoints = {nome:string, points: number[]};
+interface FilteredBidPoints extends BidPoints {
+    excluded_short: string[];
+    excluded_for:{[id: number]:boolean};
+    excluded:boolean;
+};
 
-function apply_functions(bando):tPoints{
-    /* Given a bando, applies functions to the bids values and, if required,
-        * scales the results. Produces a list of bids to be used with ranking
-        * algorithms.
-        */
 
-    /* {nome, economica (0-1), tecnica [(0-1),...]} */
+// TODO: double check me
+function compute_points(bando:Call): FilteredBidPoints[] {
+    let ll = leafs_lst(bando),
+        eco_cnt = ll.filter(x => x.env_name[0] === 'E').length,
+        scale = bando.riparametra_1_criteri;
 
-    let ll = leafs_lst(bando.criteri);
+    // Compute T points
+    let points = apply_functions(ll, bando.offerte, scale);
 
-    return bando.offerte.map((o, oi) => {
-        // Compute economic bid.
+    // Apply T thresholds
+    let tech_fails_map = {};
+    apply_thresholds(bando, bando.offerte, points)
+        .filter(x => x.excluded && x.excluded_short.filter(x => x[0] === 'C').length)
+        .forEach(x => tech_fails_map[x.nome] = true)
+
+    // Update E points without tech_fails
+    let org_id = {};
+    bando.offerte.forEach((x, xi) => org_id[x.nome] = xi)
+    let points_delta = apply_functions(ll, bando.offerte.filter(x => !tech_fails_map[x.nome]), scale)
+
+    // Set all eco points to 0
+    for (let i=0; i<points.length; i++)
+        for (let j=0; j<eco_cnt; j++)
+            points[i].points[j] = 0;
+
+    // Inject actual points
+    points_delta.forEach(x => {
+        for (let j=0; j<eco_cnt; j++)
+            points[org_id[x.nome]].points[j] = x.points[j]
+    })
+
+    // Apply thresholds (E for first time and T again)
+    return apply_thresholds(bando, bando.offerte, points)
+}
+
+function apply_functions(ll: AnnotatedLeaf[], bids:Bid[], scale:boolean): BidPoints[] {
+    // Given a bando, applies functions to the bids values and, if required,
+    // scales the results. Produces a list of bids to be used with ranking
+    // algorithms.
+
+    let points = bids.map((o, oi) => {
         let res = {
             nome: o.nome,
-            economica: 0,
-            tecnica: <number[]>[]
+            points: [],
         }
 
-        let eco_f = functions[bando.funzione_economica][eco_mode(bando)]
-        res.economica = eco_f.f(
-            o.economica,             // Economic bid
-            bando.parametri_economica,  // Economic function parameters
-            bando,                      // Bando for global var (i.e. base_asta)
-            // All economic bids for interdependent functions
-            bando.offerte.map((o) => o.economica));
-
-        res.tecnica = o.tecnica.map((t, ti) => {
-            if (ll[ti].tipo === 'T') {          // Is tabular -> bool to int
-                return ll[ti].voci
-                    .map((v, vi) => v * t[vi])
-                    // NOTE: Dive by amax instead to guarantee 0-1 range cover.
-                    .reduce(sum, 0) / ll[ti].voci.reduce(sum, 0);
-            } else if (ll[ti].tipo === 'Q') {
-                return functions[ll[ti].funzione].up.f(
+        res.points = o.valori.map((t, ti) => {
+            if (ll[ti].tipo === CriterionKind.T) {          // Is tabular -> bool to int
+                // weight of selected one / max weight
+                // so then we can multiply safely for weight
+                let c = <TechCriterion_T><any>ll[ti];
+                return c.voci[t].punti / amax(c.voci.map(x => x.punti));
+            } else if (ll[ti].tipo === CriterionKind.Q || 'modo' in ll[ti]) {
+                let c = <Eco><any>ll[ti];
+                let mode = func_mode(c.modo);
+                return functions[c.funzione][mode].f(
                     t,                          // Current bid
-                    ll[ti].parametri,           // Parameters
-                    bando,                      // Bando for global param
-                    bando.offerte.map(o => o.tecnica[ti]));
+                    c.parametri,           // Parameters
+                    bids.map(o => o.valori[ti]));
             } else {
                 return t;
             }
@@ -1072,96 +1010,149 @@ function apply_functions(bando):tPoints{
 
         return res;
     });
+
+    if (scale) points = apply_scale(ll, points);
+    return points;
 }
 
-function apply_scale(bando, offerte: tPoints): tPoints{
+function apply_scale(ll: AnnotatedLeaf[], offerte: BidPoints[]): BidPoints[]{
     // RIPARAMETRAZIONE 1
-
     // Scale each leaf
-    let ll   = leafs_lst(bando.criteri),
-        maxs = ll.map((_, i) => amax(offerte.map(o => o.tecnica[i])));
-
+    let maxs = ll.map((_, i) => amax(offerte.map(o => o.points[i])));
     return  offerte.map(o => {
         return {
             nome: o.nome,
-            economica: o.economica / amax(offerte.map(o => o.economica)),
-            tecnica: o.tecnica
-                // this guarnatees [0-1]
-                .map((t, i) => maxs[i] ? t/maxs[i] : 0),
+            // this guarnatees [0-1]
+            points: o.points.map((t, i) => maxs[i] ? t/maxs[i] : 0),
         }
     });
 }
 
-function apply_thresholds(bando, raw: tBids, points: tPoints): tFilteredBids {
-    let ll = leafs_lst(bando.criteri);
-    return points.map((o, i) => {
-        let issues = {};
-        raw[i].tecnica
-            .map((t, ti) => {
-                if (ll[ti].mod_soglia !== 'valore')
-                    return '';
-                if (ll[ti].tipo === 'T')
-                    t = (<boolean[]>t).map(v => +v).reduce(sum, 0);
-                return t < ll[ti].soglia ? ti : '';
-            }).concat(o.tecnica
-                .map((t, ti) => {
-                    if (ll[ti].mod_soglia !== 'punti')
-                        return '';
-                    return t < ll[ti].soglia ? ti : '';
-                })
-            ).filter(x => typeof x === 'number')
-            .forEach(x => issues[x] = true);
+function enum_thresholds(bando:Call): [string,string,number, number][] {
+    let rec = (name: string, node: Criterion|Criterion_N<Criterion>): [string,string,number, number][] => {
+        if (!('criteri' in node && node.criteri.length)) {
+            if (node.soglia)
+                return [[name, node.mod_soglia, node.soglia, node.soglia * criterion_weight(node)]]
+            return []
+        }
 
+        let th = [];
+        if (node.soglia)
+            th.push([name, ModSoglia.Points, node.soglia, node.soglia * criterion_weight(node)])
+
+        node.criteri.forEach((node, i) => {
+            th = th.concat(rec(name + '.' + (i+1), node))
+        });
+
+        return th;
+    }
+    return rec('E', bando.criteri[0]).concat(rec('C', bando.criteri[1]));
+}
+
+function apply_thresholds(bando:Call, bids: Bid[], pts: BidPoints[]): FilteredBidPoints[] {
+    // Return prefixes for which it fails.
+    let rec_threshold = (
+        name: string, next_leaf_id: number, node: Criterion|Criterion_N<Criterion>,
+        raw: number[], points: number[]
+    ): [number, number, string[]] =>
+    {
+        // returns: [leafs_cnt, points, prefixes]
+        // Current criterion is leaf.
+        if (!('criteri' in node && node.criteri.length)) {
+            // THIS IS LEAF
+            // Check raw
+            let r = raw[next_leaf_id],
+                p = points[next_leaf_id];
+            if (node.soglia && (
+                    (node.mod_soglia === ModSoglia.Value && r < node.soglia) ||
+                    (node.mod_soglia === ModSoglia.Points && p < node.soglia)))
+                return [next_leaf_id + 1, p, [name]];
+            return [next_leaf_id + 1, p, []]
+        }
+
+        // Apply on children
+        let fails = [], tot_points = 0, tot_w = 0;
+        node.criteri.forEach((node, i) => {
+            let res = rec_threshold(name + '.' + (i+1), next_leaf_id, node, raw, points),
+                c_w = criterion_weight(node);
+
+            next_leaf_id = res[0];
+            tot_points += res[1] * c_w;
+            tot_w += c_w;
+            fails = fails.concat(res[2]);
+        });
+
+        // Always nomalize between 0 and 1
+        tot_points /= tot_w;
+
+        // Apply check on points for this node
+        if (node.soglia && tot_points < node.soglia)
+            return [next_leaf_id, tot_points, fails.concat([name])]
+
+        return [next_leaf_id, tot_points, fails]
+    }
+
+    let threshold = (node: Call, raw: number[], points: number[]): string[] => {
+        let res_e = rec_threshold('E', 0, bando.criteri[0], raw, points);
+        let res_t = rec_threshold('C', res_e[0], bando.criteri[1], raw, points);
+        return res_e[2].concat(res_t[2]);
+    }
+
+    // Apply to bids
+    return pts.map((b, i) => {
+        let smap = threshold(bando, bids[i].valori, b.points)
+            .sort()
+            .reduce((a, v) => a.length && v.indexOf(a[a.length-1] + '.') === 0 ? a: a.concat([v]), [])
+
+        let fmap = {};
+        smap.forEach(f => prefix_2_ids(bando, f).forEach(i => fmap[i] = true));
         return {
-            nome: o.nome,
-            economica: o.economica,
-            tecnica: o.tecnica,
-            excluded_for: issues,
-            excluded: Object.keys(issues).length > 0,
+            nome: b.nome,
+            points: b.points,
+            excluded_short: smap,
+            excluded_for: fmap,
+            excluded: Object.keys(fmap).length > 0,
         }
     });
 }
 
 // Checked *
-function aggregativo_compensatore(bando, offerte:tPoints) {
-   let ll      = leafs_lst(bando.criteri),
-       w_techs = tech_weights(ll),
-       w_eco   = economic_weight(bando);
+function aggregativo_compensatore(bando:Call, offerte:BidPoints[]) {
+   let ll     = leafs_lst(bando),
+       w      = weights(ll),
+       w_eco  = criterion_weight(bando.criteri[0]);
 
-    if (bando.riparametrizzazione1)
-        offerte = apply_scale(bando, offerte);
+    // OPT: we may remove this (double check).
+    if (bando.riparametra_1_criteri)
+        offerte = apply_scale(ll, offerte);
 
     // Compute and then rescale tecnica and economica to give 1 to the best.
-    if (bando.riparametrizzazione2) {
-        let tech = offerte.map(o =>
-            o.tecnica
-                .map((v, vi) => w_techs[vi] * v)
-                .reduce(sum, 0)
+    if (bando.riparametra_2_parti) {
+        let elimit = amax(prefix_2_ids(bando, 'E'));
+        let ev = offerte.map(o =>
+            o.points.map((v, vi) => w[vi] * v).reduce((acc, v, vi) =>
+                vi <= elimit ? [acc[0] + v, acc[1]] : [acc[0], acc[1] + v],
+                [0,0])
         );
 
-        let mtech = amax(tech),
-            meco  = amax(offerte.map(o => o.economica));
-        return offerte.map((o, i) => {
-            return {
-                nome: o.nome,
-                agg: o.economica / meco * w_eco + tech[i] / mtech * (100-w_eco) ,
-            }
-        })
+        let meco  = amax(ev.map(x => x[0])),
+            mtech = amax(ev.map(x => x[1]));
+        return offerte.map((o, i) => ({
+            nome: o.nome,
+            agg: ev[i][0] / meco * w_eco + ev[i][1] / mtech * (100-w_eco),
+        }));
     }
 
-    let weights = [w_eco].concat(w_techs);
-    return offerte.map(o => {
-        return {
-            nome: o.nome,
-            agg: [o.economica].concat(o.tecnica)
-                .map((v, vi) => weights[vi] * v)
-                .reduce(sum, 0)
-        };
-    });
+    return offerte.map(o => ({
+        nome: o.nome,
+        agg: o.points
+            .map((v, vi) => w[vi] * v)
+            .reduce(sum, 0)
+    }));
 };
 
 // Checked *
-function electre(bando, offerte) {
+function electre(bando:Call, bids:BidPoints[]) {
     // ANAC Linee Guida 2.pdf
     // http://www.bosettiegatti.eu/info/norme/statali/2010_0207.htm#ALLEGATO_G
     //
@@ -1169,16 +1160,13 @@ function electre(bando, offerte) {
     // Per definire una classifica, è necessario ripetere la procedura cancellando di volta in volta l’offerta risultata vincitrice nella tornata precedente.
 
     // Prepare set of real `offerte`
-    const bids = offerte.map(o => {
-        return {nome:o.nome, v:[o.economica].concat(o.tecnica)};
-    });
-    let ll = leafs_lst(bando.criteri);
-    const weights = [economic_weight(bando)].concat(tech_weights(ll));
+    let ll = leafs_lst(bando);
+    const w= weights(ll);
 
     let rank = {}, i = 1;
     while (i <= bids.length) {
         let iter_bids = bids.filter(o => rank[o.nome] === undefined);
-        let winners = electre_iteration(weights, iter_bids);
+        let winners = electre_iteration(w, iter_bids);
         for (let j in winners)
             rank[winners[j]] = i;
         i += winners.length;
@@ -1190,11 +1178,10 @@ function electre(bando, offerte) {
 }
 
 // Checked *
-function electre_iteration(w: number[], bids:{nome:string, v:number[]}[]): string[] {
-    /* w: weights
-     * bids: flat `offerte` to be considered in this iteration.
-     * returns: `nome` of the winner.
-     */
+function electre_iteration(w: number[], bids:BidPoints[]): string[] {
+    // w: weights
+    //  bids: flat `offerte` to be considered in this iteration.
+    //  returns: `nome` of the winner.
 
     let n = w.length,    // 'criteri' to evaluate.
         r = bids.length; // number of offers
@@ -1208,7 +1195,7 @@ function electre_iteration(w: number[], bids:{nome:string, v:number[]}[]): strin
         g = nmatrix([n,r,r]);
 
     // Abstract internal structure and match paper algorithm.
-    const a = (k, i) => bids[i].v[k];
+    const a = (k, i) => bids[i].points[k];
 
     for (let k=0; k < n; k++) {
         for (let i=0; i < r; i++) {
@@ -1293,23 +1280,20 @@ function electre_iteration(w: number[], bids:{nome:string, v:number[]}[]): strin
 
 
 // Checked *
-function topsis(bando, offerte) {
+function topsis(bando:Call, bids:BidPoints[]) {
     // ANAC Linee Guida 2.pdf
     // https://en.wikipedia.org/wiki/TOPSIS
 
     // Prepare set of real `offerte`
-    const bids = offerte.map(o => {
-        return {nome:o.nome, v:[o.economica].concat(o.tecnica)};
-    });
-    let ll = leafs_lst(bando.criteri);
-    const w = [economic_weight(bando)].concat(tech_weights(ll));
+    let ll = leafs_lst(bando);
+    const w = weights(ll);
 
 
     let n = w.length,    // 'criteri' to evaluate.
         r = bids.length; // number of offers
 
     // Abstract internal structure and match paper algorithm.
-    const m = (i, k) => bids[i].v[k];
+    const m = (i, k) => bids[i].points[k];
 
     // Normalization {i, k}[]
     let x = nmatrix([r,n]);
@@ -1376,141 +1360,190 @@ function topsis(bando, offerte) {
     });
 }
 
-
-
 // ============================================================================
 // Consistency checks & export functions
 
 function clean_criterion(c) {
     let name:string = c.nome !== undefined? c.nome : '';
-    if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
-        return {
-            nome: name,
-            subcriteri: c.subcriteri.map(clean_criterion),
-        };
-    }
 
     let n = {
-        tipo:       <string>c.tipo,
-        funzione:   <string>c.funzione,
-        soglia:     <number>c.soglia || 0,
-        mod_soglia: <string>c.mod_soglia || 'punti',
+            nome: name,
+            soglia: <number>c['soglia'] || 0,
+            mod_soglia: c['mod_soglia'] || 'punti',
     };
 
-    if (n.tipo === 'Q') {
-        n['parametri'] = {};
-        Object.keys(functions[n.funzione]['up'].params)
-            .forEach(p => n['parametri'][p] = <number>c.parametri[p]);
+    if (('criteri' in c && c.criteri.length > 0) || (this && this.force_node)) {
+        n['criteri'] = c.criteri.map(clean_criterion);
+        return n;
     }
 
-    if (n.tipo === 'T') n['voci'] = <number[]> c.voci
-    else n['peso'] = <number> c.peso;
+    n['tipo'] = <string>c.tipo || CriterionKind.Q;
+
+    if ('modo' in c)  // Economica
+        n['modo'] = c.modo;
+
+    if ((<Leaf>n).tipo === CriterionKind.Q || 'modo' in c) { // Q or Economica
+        n['funzione']  = <string>c.funzione;
+        n['parametri'] = {};
+        Object.keys(functions[n['funzione']][func_mode(n['modo'])].params)
+            .forEach(p => n['parametri'][p] = <number>c.parametri[p]);
+        // Try always to copy base_asta
+        if (c.parametri.base_asta)
+            n['parametri']['base_asta'] = c.parametri.base_asta;
+    }
+
+    if ((<Leaf>n).tipo === CriterionKind.T)
+        n['voci'] = <{nome:string, peso:number}[]> c.voci
+            .map(v => ({nome: v.nome, punti: v.punti}))
+    else
+        n['peso'] = <number> c.peso;
     return n;
 }
 
-function clean_bando(bando) {
-    let cleaned = {};
-
+function clean_bando(bando):Call {
+    let cleaned = {
+        riparametra_1_criteri: false,
+        riparametra_2_parti: false,
+        criteri: <[Criterion_N<Eco>, Criterion_N<Tech>]>[{
+            "nome": "Economica",
+            "mod_soglia": "punti",
+            "soglia": 0,
+            "criteri": []
+        }, {
+            "nome": "Tecnica",
+            "mod_soglia": "punti",
+            "soglia": 0,
+            "criteri": []
+        }],
+        offerte: <Bid[]>[],
+    }
     if (bando === undefined)
         return cleaned;
 
     let fstOrderAttributes = [
-        'mod_economica',
-        'funzione_economica',
-        // `base_asta` is mandatory only if mod_economica is prezzo.
-        // Since many sim. consist in switching modes, we keep it always.
-        'base_asta',
-        'riparametrizzazione1',
-        'riparametrizzazione2',
+        'riparametra_1_criteri',
+        'riparametra_2_parti',
     ];
     fstOrderAttributes.forEach(f => cleaned[f] = bando[f]);
-
-    // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
-    cleaned['parametri_economica'] = {};
-    let m = eco_mode(bando);
-    Object.keys(functions[cleaned['funzione_economica']][m].params)
-        .forEach(p => cleaned['parametri_economica'][p] = bando.parametri_economica[p]);
-
     // Criteri must be recursive
-    cleaned['criteri'] = bando.criteri.map(clean_criterion);
+    if (bando.criteri)
+        cleaned['criteri'] = bando.criteri.map(clean_criterion, {force_node:true});
 
     // Data, just copy
-    cleaned['offerte'] = copy(bando.offerte);
-
+    if (bando.offerte)
+        cleaned['offerte'] = copy(bando.offerte);
     return cleaned;
 }
 
 
-function check_criterion(c, prefix) {
+function check_criterion(c, prefix:string): string[] {
     let errors = [];
 
-    if (c.subcriteri !== undefined && c.subcriteri.length > 0) {
-        return errors.concat(...c.subcriteri.map((s, i) => check_criterion(s, prefix + '.' + (i+1))));
+    // check if it is points
+    if ([ModSoglia.Points, ModSoglia.Value].indexOf(c.mod_soglia) < 0) {
+        errors.push('[' + prefix + '] ' + c.mod_soglia +
+            ' non è un valore valido per `mod_soglia`. I valori ammessi sono ' +
+            ModSoglia.Points + ' e ' + ModSoglia.Value + '.');
+    } else if (c.mod_soglia !== ModSoglia.Points
+        && (c.criteri !== undefined && c.criteri.length > 0))
+    {
+        errors.push('[' + prefix + '] Criteri con sub-criteri ' +
+            'possono avere la soglia definita solo sui punti.');
+    } else if ((c.mod_soglia === ModSoglia.Points || c.tipo === CriterionKind.D) &&
+        (isNaN(parseFloat(c.soglia)) || c.soglia < 0 || c.soglia > 1))
+    {
+        errors.push('[' + prefix + '] ' + c.soglia + ' non e\' un valore ' +
+            'valido come soglia. Deve essere un numero tra 0 e 1.');
     }
 
-    if (['Q','D','T'].indexOf(c.tipo) < 0) {
-        errors.push('[C ' + prefix + '] ' + c.tipo +
+
+    // -- GOING RECURSIVE --
+
+    if (c.criteri !== undefined && c.criteri.length > 0) {
+        return errors.concat(...c.criteri.map((s, i) => check_criterion(s, prefix + '.' + (i+1))));
+    }
+
+
+    // -- ONLY FOR LEAFs --
+
+    if ([CriterionKind.Q,CriterionKind.D,CriterionKind.T].indexOf(c.tipo) < 0) {
+        errors.push('[' + prefix + '] ' + c.tipo +
             ' non e\' un valore valido per \'tipo\'. ' +
             'I vaolori possibili sono \'D\', \'T\' \'Q\'.');
     }
 
-    if (c.tipo !== 'T' && (typeof c.peso !== 'number' || c.peso < 0 || c.peso > 100)) {
-        errors.push('[C ' + prefix + '] ' + c.peso +
+    if (c.tipo !== CriterionKind.T && (isNaN(parseFloat(c.peso)) || c.peso < 0 || c.peso > 100)) {
+        errors.push('[' + prefix + '] ' + c.peso +
             ' non e\' un valore valido per il peso. ' +
-            'Deve essere un numero tra 0 e 100,');
+            'Deve essere un numero tra 0 e 100.');
     }
 
-    if (c.tipo === 'Q') {
+    let is_eco = prefix[0] === 'E';
+    if (c.modo && [EcoMode.Price, EcoMode.Discount].indexOf(c.modo) < 0) {
+        errors.push('[' + prefix + '] ' + c.modo +
+            ' non è un valore valido per `modo` funzione. ' +
+            'I valori validi sono ' + EcoMode.Price + ' e ' + EcoMode.Discount + '.');
+    }
+
+
+    if (!is_eco && c.modo && c.modo !== EcoMode.Price) {
+        errors.push('[' + prefix + '] I criteri tecnici possono essere valutati' +
+            ' solo al rialzo; `modo`, se specificato, deve quindi essere ' +
+            EcoMode.Price + '.');
+    }
+
+    if (c.tipo === CriterionKind.Q) {
         if (functions[c.funzione] === undefined) {
-            errors.push('[C ' + prefix + '] ' + c.funzione +
+            errors.push('[' + prefix + '] ' + c.funzione +
                 ' non e\' supportata. Le funzioni disponibili sono le seguenti: ' +
                 Object.keys(functions).join(',') + '.');
         } else {
-            Object.keys(functions[c.funzione]['up'].params).forEach(p => {
-                errors = errors.concat(check_parameter('C ' + prefix, c.funzione, 'up',
+
+            Object.keys(functions[c.funzione][func_mode(c.modo)].params).forEach(p => {
+                errors = errors.concat(check_parameter('C ' + prefix, c.funzione, func_mode(c.modo),
                     c.parametri, p));
             });
 
 
-            if (functions[c.funzione]['up'].validators) {
-                errors = errors.concat(functions[c.funzione]['up'].validators
+            if (functions[c.funzione][func_mode(c.modo)].validators) {
+                errors = errors.concat(functions[c.funzione][func_mode(c.modo)].validators
                     .map(v => v(c.parametri))
                     .filter(r => !r[0])
-                    .map(r => '[C ' + prefix + '] parameteri: ' + r[1]));
+                    .map(r => '[' + prefix + '] parameteri: ' + r[1]));
             }
-
         }
     }
 
-    if (c.tipo === 'T') {
+    if (c.tipo === CriterionKind.T) {
         if (c.voci === undefined || !Array.isArray(c.voci)) {
-            errors.push('[C ' + prefix + '] Quando il tipo e Tabellare (T),' +
-                ' `voci` deve essere un vettore di numeri.');
+            errors.push('[' + prefix + '] Quando il tipo e Tabellare (T),' +
+                ' `voci` deve essere un vettore di voci ({nome:string, punti:number}).');
         } else {
             c.voci.forEach((v, vi) => {
-                if (typeof v !== 'number' || v < 0 || v > 100) {
-                    errors.push('[C ' + prefix + '] Il valore ' + v + ' per ' +
+                if (typeof v.nome !== 'string') {
+                    errors.push('[' + prefix + '] Il nome ' + v['nome'] + ' per ' +
                         'la voce ' + (vi+1) + ' non e\' valido. ' +
-                        'Deve essere un numero tra 0 e 100');
+                        'Deve essere una stringa.');
+                }
+
+                if (isNaN(parseFloat(v.punti)) || v.punti < 0 || v.punti > 100) {
+                    errors.push('[' + prefix + '] `punti`, ' + v.punti + ' per ' +
+                        'la voce ' + (vi+1) + ' non e\' valido. ' +
+                        'Deve essere un numero tra 0 e 100.');
                 }
             })
         }
     }
 
-    // Add check for mod_soglia
-    if (['punti', 'valore'].indexOf(c.mod_soglia) < 0) {
-            errors.push('[C ' + prefix + '] ' + c.mod_soglia + ' non e\' un valore ' +
-                'valido come mod_soglia. Le opzioni valide sono `punti` e `valore`.');
+    if (c.mod_soglia === ModSoglia.Value && c.tipo === CriterionKind.T) {
+        let M = amax(c.voci.map(x => x.punti));
+        if (isNaN(parseFloat(c.soglia)) || c.soglia < 0 || c.soglia > M)
+            errors.push('[' + prefix + '] ' + c.soglia + ' non e\' un valore ' +
+                'valido come soglia. Deve essere un numero tra 0 e ' + M + '.');
     }
 
-    if ((c.mod_soglia === 'punti' || c.tipo === 'D') &&
-            (isNaN(parseFloat(c.soglia)) || c.soglia < 0 || c.soglia > 1))
-    {
-            // 'D' e punti devono essere tra 0 e 1
-            errors.push('[C ' + prefix + '] ' + c.soglia + ' non e\' un valore ' +
-                'valido come soglia. Deve essere un numero tra 0 e 1.');
-    } else if (isNaN(parseFloat(c.soglia)) || c.soglia < 0) {
-        errors.push('[C ' + prefix + '] ' + c.soglia + ' non e\' un valore ' +
+    if (c.mod_soglia === ModSoglia.Value && isNaN(parseFloat(c.soglia)) || c.soglia < 0) {
+        errors.push('[' + prefix + '] ' + c.soglia + ' non e\' un valore ' +
             'valido come soglia. Deve essere un numero maggiore o uguale a 0.');
     }
     return errors;
@@ -1527,7 +1560,7 @@ function check_parameter(field, func, m, params, p) {
 
         return ['[' + field + '] Parametro ' + p + ': ' +
             params[p] + ' non e\' un valore valido. ' +
-            (dom.required ? 'Se specificato d' : 'D') +
+            (dom.required ? 'Se specificato d' : CriterionKind.D) +
             'eve essere un numero maggiore di ' + dom.start + '' +
             (dom.end !== '' ? (' e minore di ' + dom.end) : '') + '.'];
     }
@@ -1535,129 +1568,62 @@ function check_parameter(field, func, m, params, p) {
 }
 
 
-// TODO: PUT this as precontion for rendering "rank" and maybe also "points"
-function check_bando(bando, fix?:boolean):[boolean,string[]] {
-    /* Check the bando consistency and returns
-     * [fatal:boolean, [...error_messages:string]]
-     *
-     * If the `fix` is true,
-     * then all reasonable fix are applied,
-     * and a third item is returned: the fixed bando.
-     *
-     * FIXME: for now it just returns errors.
-     */
 
-    // OPT: try also to recover if possible
-
+// OPT: Make distinction between fatal and non-fatal errors.
+// OPT: Try to fix the errors if possible (and not already done by clean_bando).
+function check_bando(bando): string[] {
+    // Probably ain't loaded yet.
     if (bando === undefined)
-        return [false, []];
+        return [];
 
-    let fatal = false;
     let errors = [];
 
-    if (['prezzo', 'ribasso'].indexOf(bando.mod_economica) < 0) {
-        errors.push('[mod_economica] ' + bando.mod_economica +
-            'non e\' un valore valido. I vaolori possibili sono "prezzo" e "ribasso".');
-    }
-
-    if (functions[bando.funzione_economica] === undefined) {
-        errors.push('[funzione_economica] ' + bando.funzione_economica +
-            ' non e\' supportata. Le funzioni disponibili sono le seguenti: ' +
-            Object.keys(functions).join(',') + '.');
-    }
-
-    // Sum must be 100
-    // TODO: consider issue warning if ew not in reasonale range.. [10-50] ?
-    let ew = economic_weight(bando);
-    if (ew < 0 || ew > 100) {
-        errors.push('[punti] la somma totale dei punti deve fare 100. ' +
-            'Al momento e\' ' + (100 - ew) + '.');
-    }
-
-    if (typeof bando.base_asta === 'number' && bando.base_asta <= 0){
-        errors.push('[base_asta] ' + bando.base_asta +
-            ' non e\' un valore valido. Se specificato deve essere un numero maggiore di 0.');
-    }
-
-    if (functions[bando.funzione_economica][eco_mode(bando)].base_asta === true &&
-        (isNaN(parseFloat(bando.base_asta)) || bando.base_asta <= 0)) {
-        errors.push('[base_asta] ' + bando.base_asta +
-            ' non e\' un valore valido. Il campo e\' richiesto per la funzione scelta.');
-    }
-
-    if (typeof bando.riparametrizzazione1 !== 'boolean') {
-        errors.push('[riparametrizzazione1 ] ' + bando.riparametrizzazione1 +
+    if (typeof bando.riparametra_1_criteri !== 'boolean') {
+        errors.push('[riparametra_1_criteri ] ' + bando.riparametra_1_criteri +
             ' non e\' un valore valido. Deve essere un boolean (true, false).');
     }
 
-    if (typeof bando.riparametrizzazione2 !== 'boolean') {
-        errors.push('[riparametrizzazione2 ] ' + bando.riparametrizzazione2 +
+    if (typeof bando.riparametra_2_parti !== 'boolean') {
+        errors.push('[riparametra_2_parti ] ' + bando.riparametra_2_parti +
             ' non e\' un valore valido. Deve essere un boolean (true, false).');
     }
 
-    // 'parametri_economica' depends on 'funzione_economica' and 'mod_economica'
-    let m = eco_mode(bando);
-    Object.keys(functions[bando.funzione_economica][m].params).forEach(p => {
-        errors = errors.concat(check_parameter('funzione_economica',
-            bando.funzione_economica, m, bando.parametri_economica, p));
-    });
+    // Criteri [eco, tech]
+    errors = errors.concat(...check_criterion(bando.criteri[0], 'E'),
+                           ...check_criterion(bando.criteri[1], 'C'));
 
-    if (functions[bando.funzione_economica][m].validators) {
-        errors = errors.concat(functions[bando.funzione_economica][m].validators
-            .map(v => v(bando.parametri_economica))
-            .filter(r => !r[0])
-            .map(r => '[funzione_economica] parameteri: ' + r[1]));
+    let tot_points = criterion_weight(bando.criteri[0]) + criterion_weight(bando.criteri[1]);
+    if (tot_points !== 100) {
+        errors.push('[punti] La somma dei pesi/punti deve essere 100. Ora è ' + tot_points + '.');
     }
-
-
-
-    // Criteri must be recursive
-    errors = errors.concat(...bando.criteri.map((s, si) => check_criterion(s, '' + (si+1))));
 
     // Data
-    let ll = leafs_lst(bando.criteri);
+    let ll = leafs_lst(bando);
     let name_unique = {};
     bando.offerte.forEach((o, i) => {
         name_unique[o.nome] = true;
         if (o.nome === undefined) {
-            fatal = true;
-            errors.push('[O ' + (i+1) + '] il campo nome e\' mancante.')
+            errors.push('[O ' + (i+1) + '] il campo `nome` e\' mancante.')
         }
 
-        if (isNaN(parseFloat(o.economica)) || o.economica < 0) {
-            fatal = true;
-            errors.push('[O ' + (i+1) + '] il campo economica deve essere un numero maggiore o uguale a 0.');
+        if (o.valori === undefined || !Array.isArray(o.valori) || o.valori.length != ll.length) {
+            errors.push('[O ' + (i+1) + '] il campo `valori` deve essere un array di dimensione ' + ll.length + '.');
         }
 
-        if (o.tecnica === undefined || !Array.isArray(o.tecnica) ||
-            o.tecnica.length != ll.length) {
-            fatal = true;
-            errors.push('[O ' + (i+1) + '] il campo tecnica deve essere un array di dimensione ' + ll.length + '.');
-        }
-
-        o.tecnica.forEach((t, ti) => {
-            if (ll[ti].tipo === 'T') {
-                if (!Array.isArray(t) || t.length != ll[ti].voci.length) {
-                    fatal = true;
-                    errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +
-                        ' deve essere un array di ' + ll[ti].voci.length +
-                        ' booleani.');
-                } else {
-                    t.forEach((x, xi) => {
-                        if (typeof x !== 'boolean') {
-                            errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +
-                                ', voce ' + xi + 'deve essere un booleano.');
-                        }
-                    });
+        o.valori.forEach((t, ti) => {
+            if (ll[ti].tipo === CriterionKind.T) {
+                if (isNaN(parseFloat(t)) || t < 0 || t >= ll[ti]['voci'].length) {
+                    errors.push('[O ' + (i+1) + '] valore ' + (ti+1) +
+                        ' deve essere un numero tra 0 e ' + (ll[ti]['voci'].length - 1) + '.');
                 }
-            } else if (ll[ti].tipo === 'D') {
-                if (typeof t !== 'number' || t < 0 || t > 1) {
-                    errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +
+            } else if (ll[ti].tipo === CriterionKind.D) {
+                if (isNaN(parseFloat(t)) || t < 0 || t > 1) {
+                    errors.push('[O ' + (i+1) + '] valore ' + (ti+1) +
                         ' deve essere un numero tra 0 e 1.');
                 }
             } else {
-                if (typeof t !== 'number' || t < 0) {
-                    errors.push('[O ' + (i+1) + '] tecnica, valore ' + (ti+1) +
+                if (isNaN(parseFloat(t)) || t < 0) {
+                    errors.push('[O ' + (i+1) + '] valore ' + (ti+1) +
                         ' deve essere un numero maggiore di 0.');
                 }
             }
@@ -1666,20 +1632,16 @@ function check_bando(bando, fix?:boolean):[boolean,string[]] {
 
     if (Object.keys(name_unique).length !== bando.offerte.length) {
         errors.push('[Offerte] I nomi delle offerte devono essere unici.');
-        fatal = true;
     }
 
-    return [fatal, errors];
+    return errors;
 }
 
 // ============================================================================
 // Init gui elements
 
 function refresh_popover() {
-    $('#ctree [data-toggle="popover"]:not([data-original-title]), '+
-      '#lab [data-toggle="popover"]:not([data-original-title]), '+
-      '#data [data-toggle="popover"]:not([data-original-title])').each((i, o) => {
-
+    $('[data-toggle="popover"]:not([data-original-title])').each((i, o) => {
         let content = $(o).next('.popper-content');
           $(o).popover({
             html:true,
@@ -1749,7 +1711,6 @@ let import_export = {
     },
     save: () => {
         import_export.save_as(vm_app_status.read_only ? undefined : vm_app_status.fpath);
-        // TODO: maybe pass a message to show to save_as
     },
     save_as: (path) => {
         if (path === undefined) {
@@ -1762,9 +1723,7 @@ let import_export = {
         }
 
         try {
-            // TODO: check for error before save.
-            // if corrupt rise error message asking if to continue.
-            if (check_bando(current)[1].length) {
+            if (check_bando(current).length) {
                 if (dialog.showMessageBox({
                     type: 'question',
                     buttons: ['Annulla', 'Continua'],
@@ -1795,7 +1754,6 @@ let import_export = {
 // Menu mappings
 
 function switch_view(view) {
-    // TODO: maybe add some cool effect like tile 3d rotation.
     let structure  = document.getElementById('structure'),
         simulation = document.getElementById('simulation');
 
@@ -1822,13 +1780,8 @@ ipcRenderer.on('cmd', (event , cmd) => import_export[cmd]());
 $(function () {
     refresh_gui();
     switch_view('structure');
-    // switch_view('simulation');
 
-    // TODO: wrap into div, and show loading icon instead.
-    $('body').removeClass('hide');
+    $('body').removeClass('loading');
 
     bootstrap_popover();
-
-    // TODO: only for dev
-    // import_export.open(path.join(EXAMPLES_DIR, 'Pulizie.json'));
 });

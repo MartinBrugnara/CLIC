@@ -46,7 +46,7 @@ function createWindow () {
 
     // Create the browser window.
     let win = new BrowserWindow({
-        width: 1280, // TODO: consider 1280x768 (check if it looks good =))
+        width: 1280,
         height: 720,
         // title: 'CLIC - Contest simulator', // What would be that for?
         show: false,
@@ -59,6 +59,7 @@ function createWindow () {
         win.focus();
     });
 
+    // Disable on prod
     // win.toggleDevTools();
 
     // and load the index.html of the app.
@@ -190,8 +191,7 @@ function buildMenuBar() {
         submenu: [
             { role: 'reload', label: i18n.__('Reload') },
             { role: 'forcereload', label: i18n.__('Force reload') },
-            // TODO: hide on production
-            { role: 'toggledevtools', label: i18n.__('Toggle devtools') },
+            // { role: 'toggledevtools', label: i18n.__('Toggle devtools') },
             { type: 'separator' },
             { role: 'resetzoom', label: i18n.__('Reset font size') },
             { role: 'zoomin', label: i18n.__('Bigger font size') },
@@ -201,7 +201,6 @@ function buildMenuBar() {
         ]
     }, {
         label: i18n.__('Mode'),
-        // TODO: Find better names to provide meaningful accelerators.
         submenu: [{
                 label: i18n.__('Design'),
                 accelerator: 'CmdOrCtrl+D',

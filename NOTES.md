@@ -33,5 +33,6 @@
 
 - Anomalia:
     - Non è e non verrà implementato.
-
-
+    - Se desiderato, può essere simulato aggiungendo un criterio 
+      (economico o tecnico) con peso = 0 e soglia = 1. Assegnare valore = 1
+      per le offerte che NON anomale.

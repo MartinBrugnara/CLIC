@@ -1,1 +1,35 @@
-{"mod_economica":"prezzo","funzione_economica":"proporzionalita_inversa","base_asta":"","riparametrizzazione1":false,"riparametrizzazione2":false,"parametri_economica":{},"criteri":[],"offerte":[]}
+{
+    "riparametra_1_criteri": false,
+    "riparametra_2_parti": false,
+    "criteri": [
+        {
+            "nome": "Economica",
+            "mod_soglia": "punti",
+            "soglia": 0,
+            "criteri": [
+                {
+                    "nome": "",
+                    "peso": 30,
+                    "modo": "prezzo",
+                    "funzione": "proporzionalita_inversa",
+                    "parametri": {},
+                    "base_asta": 0
+                }
+            ]
+        },
+        {
+            "nome": "Tecnica",
+            "mod_soglia": "punti",
+            "soglia": 0,
+            "criteri": [
+                {
+                    "nome": "",
+                    "peso": 70,
+                    "tipo": "D"
+                }
+            ]
+        }
+    ],
+    "offerte": [
+    ]
+}

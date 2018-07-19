@@ -20,27 +20,43 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 body {
   font: caption;
 }
-.nols, .nols ul, .nols ol {
+
+body.loading > *:not(.show-on-load) {display:none!important}
+body:not(.loading) .show-on-load {display:none}
+#loading {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+}
+#loading .sk-cube {background-color: rgb(105, 37, 68)}
+
+/* == Structure ====================================== */
+.ctree, .ctree ul, .ctree ol {
   list-style: none;
   padding-left: 20px;
 }
-.nols {padding-left:0}
-.nols li {padding-top: .4rem}
-.nols li>form>* {padding-top: .4rem}
-.nols ul {padding-bottom: .8rem}
-.nols label {justify-content: unset}
+.ctree {padding-left:0}
+.ctree li {padding-top: .4rem}
+.ctree li>form>* {padding-top: .4rem}
+.ctree ul {padding-bottom: .8rem}
+.ctree label {justify-content: unset;font-family: monospace}
+.ctree label.next-cid {color: #ccc}
 
+/* == Common ========================================== */
 .input-group>.no-expand {flex-grow:0; width: auto}
 
+/* Popover hack */
 .hide {display: none}
 .super-hide {display: none!important}
 .popover {max-width: none}
-
-#ctree label {font-family: monospace}
-#ctree label.next-cid {color: #ccc}
-
 [data-toggle="popover"] {cursor: default}
 
+
+
+
+
+/* == Not sorted ====================================== */
 .tbl th {text-align:center}
 .tbl {
   display: inline-block;
@@ -68,6 +84,8 @@ body {
 }
 #data thead tr.env_names >th {padding-bottom: 0;border-bottom: 0;}
 #data thead tr.weights>th {padding-top: 0;border-top: 0;}
+
+#data tbody td {white-space:nowrap}
 
 .action {color:#ccc; fill:#ccc}
 .action:hover {color: #333; cursor:pointer; fill:#333}
@@ -121,6 +139,9 @@ body {
 
 input[type='number']:not([max]) {width: 14ch}
 
+input[type='number'][max='1'], input[type='number'].tiny,
+input[type='number'][max='100'], input[type='number'].weight {width: 8ch}
+
 .ico8 {
   display: inline-block;
   vertical-align: middle;
@@ -170,3 +191,14 @@ ul#func-desc li {list-style: none; margin-bottom: 2.25rem}
 #help .func-name  {display: block; font-weight: bold}
 
 .math-left > .MathJax_Display {text-align: left !important}
+
+.input-group-middle {
+  border-radius: 0;
+  margin-left: -1px;
+  margin-right: -1px;
+}
+
+.no-break-child span {display: inline-block}
+.no-break-child span:not(:last-child):after {content: ", "}
+
+

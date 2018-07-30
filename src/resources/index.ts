@@ -244,7 +244,10 @@ Vue.component('criterion', {
         //      by other components
         // NOTE: invokation from @change is required to prevent rendering errors.
         //      See "#tpl_criterio select"
-        this.function_change();
+
+        // If coming from here, means we come from js,
+        // meaning that, we do not need to adapt data.
+        this.no_data_function_change();
     },
     computed: {
         funcs () {
@@ -277,7 +280,7 @@ Vue.component('criterion', {
     methods: {
         amin: amin,
         amax: amax,
-        function_change () {
+        no_data_function_change () {
             // Structure
             if (this.model.tipo === CriterionKind.Q || this.is_eco) {
                 // Be sure at least one is selected and parameters are initialized
@@ -300,11 +303,17 @@ Vue.component('criterion', {
                     Vue.set(this.model, 'voci', [{nome:'v1', punti: this.model.peso || 0}]);
             }
 
-            // Avoid messing with the data if the kind of function is not changed.
+            this.env_last_tipo = this.model.tipo;
+        },
+        function_change () {
+            // DO NOT TOUCH THIS BLOCK OF CODE
             let old_type = this.env_last_tipo;
-            if (this.env_last_tipo && this.env_last_tipo === this.model.tipo)
+            this.no_data_function_change();
+            // Avoid messing with the data if the kind of function is not changed.
+            if (old_type && old_type === this.model.tipo)
                 return
             this.env_last_tipo = this.model.tipo;
+
 
             // Data
             let r = current.offerte.length,
@@ -1388,7 +1397,7 @@ function clean_criterion(c) {
         Object.keys(functions[n['funzione']][func_mode(n['modo'])].params)
             .forEach(p => n['parametri'][p] = <number>c.parametri[p]);
         // Try always to copy base_asta
-        if (c.parametri.base_asta)
+        if (c.parametri && c.parametri.base_asta)
             n['parametri']['base_asta'] = c.parametri.base_asta;
     }
 
